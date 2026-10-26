@@ -1,8 +1,0 @@
-{
-  "name": "@mystery-action/shared",
-  "private": true,
-  "version": "0.1.0",
-  "type": "module",
-  "description": "Reglas del juego extraídas del prototipo (generado) y protocolo de red. Sin dependencias.",
-  "exports": { "./protocol": "./protocol.js", "./engine-core": "./engine-core.generated.js" }
-}

@@ -1,0 +1,12 @@
+{
+  "build": 32,
+  "version": "0.32",
+  "date": "2026-10-26",
+  "notes": [
+    "Instalador para Windows (MysteryAction-Setup.exe): se instala con un asistente, crea el acceso directo con icono y trae su propio Node.js; ya no hace falta Instalar.bat.",
+    "El instalador lo construye GitHub solo con cada versión nueva y lo publica en Releases; el juego se sigue actualizando solo al abrirse.",
+    "Cuentas cifradas: tu usuario y tu nombre se guardan cifrados (AES-256) en el servidor; la contraseña nunca se guarda, solo una huella irreversible.",
+    "Al crear una cuenta se explica qué se protege y si la conexión va cifrada.",
+    "Las cuentas que ya existían se cifran solas al arrancar el servidor; se entra con el mismo usuario y contraseña."
+  ]
+}

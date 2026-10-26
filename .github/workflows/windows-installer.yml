@@ -1,0 +1,85 @@
+# Instalador de Windows (MysteryAction-Setup.exe), construido por GitHub en un Windows de verdad.
+# Se ejecuta solo cada vez que se sube un version.json nuevo a main (o a mano: Actions → «Instalador de Windows»
+# → Run workflow). Deja el .exe en Releases; el enlace fijo de descarga es:
+#   https://github.com/<usuario>/<repositorio>/releases/latest/download/MysteryAction-Setup.exe
+name: Instalador de Windows
+
+on:
+  push:
+    branches: [main]
+    paths: ['version.json']
+  workflow_dispatch:
+
+permissions:
+  contents: write          # crear la versión (Release) y subir el .exe
+
+jobs:
+  instalador:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Dependencias del juego (versiones para Windows)
+        run: npm install --no-audit --no-fund
+
+      - name: Comprobar que las reglas generadas están al día
+        run: node tools/split-prototype.mjs --check
+
+      - name: Comprobar que el servidor arranca
+        shell: pwsh
+        run: |
+          $env:PORT = '2599'; $env:DATA_DIR = "$env:RUNNER_TEMP\ma-data"
+          $p = Start-Process node -ArgumentList 'server/src/index.js' -PassThru -NoNewWindow
+          $ok = $false
+          for ($i = 0; $i -lt 40 -and -not $ok; $i++) { Start-Sleep -Milliseconds 500; try { $ok = (Invoke-WebRequest http://127.0.0.1:2599/api/health -UseBasicParsing).StatusCode -eq 200 } catch {} }
+          Stop-Process -Id $p.Id -Force
+          if (-not $ok) { throw 'El servidor no arrancó' }
+
+      - name: Node.js portátil (el mismo que se ha usado aquí)
+        shell: pwsh
+        run: |
+          $v = node -p "process.version"
+          $name = "node-$v-win-x64"
+          Invoke-WebRequest "https://nodejs.org/dist/$v/$name.zip" -OutFile "$env:RUNNER_TEMP\node.zip"
+          Expand-Archive "$env:RUNNER_TEMP\node.zip" -DestinationPath "$env:RUNNER_TEMP\node"
+          "NODE_DIR=$env:RUNNER_TEMP\node\$name" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Preparar los archivos del instalador
+        shell: pwsh
+        run: node tools/stage-windows.mjs --node "$env:NODE_DIR"
+
+      - name: Versión
+        id: v
+        shell: pwsh
+        run: |
+          $v = Get-Content version.json -Raw | ConvertFrom-Json
+          "version=$($v.version)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          node tools/release-notes.mjs "$env:RUNNER_TEMP\notes.md"
+
+      - name: Compilar el instalador (Inno Setup)
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress }
+          & $iscc "/DAppVersion=${{ steps.v.outputs.version }}" installer\MysteryAction.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Inno Setup falló' }
+
+      - name: Publicar en Releases
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "v${{ steps.v.outputs.version }}"
+          $exe = "installer\Output\MysteryAction-Setup.exe"
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) { gh release upload $tag $exe --clobber }
+          else { gh release create $tag $exe --title "Pokémon Mystery Action ${{ steps.v.outputs.version }}" --notes-file "$env:RUNNER_TEMP\notes.md" --latest }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MysteryAction-Setup
+          path: installer/Output/MysteryAction-Setup.exe

@@ -1,6 +1,0 @@
-{
-  "source": "github",
-  "repo": "USUARIO/REPOSITORIO",
-  "branch": "main",
-  "_ayuda": "Pon aquí tu repositorio público de GitHub (por ejemplo «ana/mystery-action») para que el lanzador se actualice solo. Mira docs/ACTUALIZAR.md."
-}

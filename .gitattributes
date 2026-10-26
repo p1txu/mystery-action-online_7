@@ -1,2 +1,12 @@
-# Auto detect text files and perform LF normalization
+# Texto con fin de línea normalizado en el repositorio...
 * text=auto
+# ...pero los scripts de Windows SIEMPRE con CRLF: con LF, cmd.exe puede fallar en las etiquetas (goto)
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.iss text eol=crlf
+# Los de Linux/macOS siempre con LF
+*.sh text eol=lf
+*.command text eol=lf
+# Binarios
+*.ico binary
+*.png binary
