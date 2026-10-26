@@ -22,10 +22,11 @@ async def main():
             await phone.goto(st.url); await phone.wait_for_timeout(300)
             # Partida local de este navegador (sin conexión): Guerrero nivel 9 con 777 monedas
             await phone.evaluate("(()=>{ const s=Save.fresh('guerrero'); s.prog=Progress.fresh('guerrero',9); s.bank=777; Save.write(s); })()"); await phone.reload(); await phone.wait_for_timeout(300)
+            await phone.evaluate("localStorage.setItem('ma-no-intro', '1')")      # la escena de llegada se prueba en browser_social_e2e.py
             await phone.click('#btn-online')
-            await phone.click('.on-tab[data-tab="register"]'); await phone.fill('#on-ruser', 'lucia'); await phone.fill('#on-rpass', 'corta'); await phone.click('#on-register'); await phone.wait_for_timeout(300)
+            await phone.click('#on-toreg'); await phone.fill('#on-ruser', 'lucia'); await phone.fill('#on-rpass', 'corta'); await phone.fill('#on-rpass2', 'corta'); await phone.click('#on-register'); await phone.wait_for_timeout(300)
             check('registro con contraseña débil: error comprensible', '8 caracteres' in await phone.inner_text('#online'))
-            await phone.fill('#on-rpass', 'montaña-azul'); await phone.fill('#on-rname', 'Lucía'); await phone.click('#on-register')
+            await phone.fill('#on-rpass', 'montaña-azul'); await phone.fill('#on-rpass2', 'montaña-azul'); await phone.fill('#on-rname', 'Lucía'); await phone.click('#on-register')
             await phone.wait_for_selector('.on-fresh[data-sp="arquero"]', timeout=8000)
             t = await phone.inner_text('#online')
             check('cuenta creada: «disponible en todos tus dispositivos» y se elige clase', 'todos tus dispositivos' in t and 'Elige tu clase' in t)

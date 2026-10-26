@@ -102,6 +102,8 @@ export const OPS = {
     const learned = E.Progress.learn(s.prog, ce.to, s.prog.level);
     return { from, to: ce.to.id, learned, usedItem: ce.useItem || null };
   },
+  /** Ha visto su llegada a la aldea (escena de la carretilla y el alcalde): no se vuelve a mostrar. */
+  arrive(E, s) { s.arrived = true; return { arrived: true }; },
   rest(E, s) {
     let revived = 0;
     for (const m of s.team) { if (m.fainted) revived++; m.fainted = false; m.hp = null; }

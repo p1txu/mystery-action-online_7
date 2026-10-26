@@ -55,7 +55,7 @@ async def main():
                 pg.on('response', lambda r: r.status >= 400 and missing.append((r.status, r.url.split('?')[0])))
                 resp = await pg.goto(f'http://localhost:{P}/')            # el enlace sin https también funciona: redirige
                 await pg.wait_for_timeout(300)
-                await pg.click('#btn-online'); await pg.click('.on-tab[data-tab="guest"]'); await pg.fill('#on-name', name); await pg.click('#on-guest')
+                await pg.evaluate("n => MysteryLobby.devGuest(n)", name)
                 await pg.wait_for_selector(f'.on-fresh[data-sp="{species}"]', timeout=8000); await pg.click(f'.on-fresh[data-sp="{species}"]')
                 await pg.wait_for_selector('#on-profile-card', timeout=5000)
                 return ctx, pg, resp
@@ -90,7 +90,7 @@ async def main():
             check('tras un corte de red, Beto vuelve solo a la partida por wss:// (mismo asiento)', all(u.startswith('wss://') for u in sockets['Beto']) and len(sockets['Beto']) >= 2, len(sockets['Beto']))
             # Configuración errónea: servidor http:// desde una página https:// → mensaje claro
             cc = await b.new_context(ignore_https_errors=True); X = await cc.new_page(); await X.goto(f'https://localhost:{H}/'); await X.wait_for_timeout(300)
-            await X.click('#btn-online'); await X.fill('#on-server', f'http://127.0.0.1:{G}'); await X.click('.on-tab[data-tab="guest"]'); await X.fill('#on-name', 'Xavi'); await X.click('#on-guest')
+            await X.evaluate(f"MysteryLobby.setServer('http://127.0.0.1:{G}')"); await X.evaluate("MysteryLobby.devGuest('Xavi')")
             await X.wait_for_timeout(1200); t = await X.inner_text('#online')
             check('si alguien pone un servidor http:// en una página https://, el aviso lo explica', 'HTTPS' in t and 'https://' in t, t[:200])
             logs = [json.loads(l) for l in open(f'{tmp}/srv.log').read().splitlines()] if os.path.exists(f'{tmp}/srv.log') else []

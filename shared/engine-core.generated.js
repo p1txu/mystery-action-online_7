@@ -1,4 +1,4 @@
-// GENERADO por tools/split-prototype.mjs a partir de prototype/mystery-action.html (sha256 73413ffc809fb6d4).
+// GENERADO por tools/split-prototype.mjs a partir de prototype/mystery-action.html (sha256 86481c168d55f57e).
 // No lo edites a mano: cambia el prototipo y vuelve a ejecutar «npm run split».
 /* eslint-disable */
 /**
@@ -275,6 +275,7 @@ const TileArt = {
     if (OBJ_TILES.has(t)) t = PAL.objBase === 'floor' ? T.FLOOR : (t === T.DOOR || t === T.STAIRS ? T.PATH : T.GRASS);
     if (t === T.BUILD) t = T.PATH;   // los edificios de la aldea se dibujan encima
     const region = smoothNoise(tx, ty);                  // variación suave por zonas (cada sala se ve distinta)
+    if (PAL.village && (t === T.PATH || t === T.GRASS)) { if (t === T.PATH) VillageArt.cobble(c, W, x, y, tx, ty); else VillageArt.dirt(c, W, x, y, tx, ty); return; }   // aldea: empedrado y barro
     if (PAL.terrain && (t === T.GRASS || t === T.FLOOR)) {   // terreno por zonas con transiciones y oclusión junto a los muros
       const ter = Terrain.at(W, tx, ty);
       if (ter) { Terrain.paint(c, x, y, tx, ty, ter); Terrain.blend(c, W, x, y, tx, ty, ter); Terrain.ao(c, W, x, y, tx, ty); return; }
@@ -1974,6 +1975,7 @@ class Player extends Actor {
       yaw: r ? r.yaw : undefined, walk: r ? r.walk : undefined, gw: r ? r.gw : undefined, turnV: r ? r.turnV : 0, scale: CONFIG.CREATURE_SCALE };
   }
   draw(c, g, alpha) {
+    if (this.cineHidden) return;          // va tumbado en la carretilla (escena de llegada a la aldea)
     const x = U.lerp(this.px, this.x, alpha), y = U.lerp(this.py, this.y, alpha);
     if (this.stance > 0) {
       c.globalAlpha = .6 + .3 * Math.sin(g.time * 30); c.strokeStyle = '#7fe3e8'; c.lineWidth = 2.5;
@@ -3665,7 +3667,7 @@ const isInt = (v, min = 0, max = 1e9) => Number.isFinite(v) && v >= min && v <= 
 const toInt = (v, def, min = 0, max = 1e9) => Number.isFinite(+v) ? Math.min(max, Math.max(min, Math.floor(+v))) : def;
 
 const Save = {
-  fresh(speciesId) { return { v: SAVE_VERSION, species: speciesId, prog: Progress.fresh(speciesId), bank: 50, inv: Inventory.fromIds(['manzana', 'baya', 'baya', 'pocion', 'tonicoEnergia', 'orbeEscape'], 32), equip: freshEquip(), team: [], points: 0, cleared: [], jobs: [], board: [], boardSeed: 1 + Math.floor(Math.random() * 1e6), runs: 0, delivered: 0, activeRun: null }; },
+  fresh(speciesId) { return { v: SAVE_VERSION, species: speciesId, prog: Progress.fresh(speciesId), bank: 50, inv: Inventory.fromIds(['manzana', 'baya', 'baya', 'pocion', 'tonicoEnergia', 'orbeEscape'], 32), equip: freshEquip(), team: [], points: 0, cleared: [], jobs: [], board: [], boardSeed: 1 + Math.floor(Math.random() * 1e6), runs: 0, delivered: 0, activeRun: null, arrived: false }; },
   /** Con la cuenta online activa (Game.account) el perfil vive en el servidor: no se escribe en este navegador. */
   readOnly: false,
   /** Valida y repara una partida. Devuelve { ok, data, fixes } — `data` es un objeto nuevo y plano. */
@@ -3696,6 +3698,8 @@ const Save = {
     out.points = toInt(raw.points, 0);
     out.cleared = Array.isArray(raw.cleared) ? [...new Set(raw.cleared.filter(id => dungeonById(id)))] : [];
     for (const k of ['runs', 'delivered', 'sold', 'bought', 'rests']) out[k] = toInt(raw[k], 0);
+    // ¿Ya vio la llegada a la aldea (carretilla y alcalde)? Las partidas de antes de esta escena que ya han jugado, sí.
+    out.arrived = raw.arrived === true || (raw.arrived !== false && (out.runs > 0 || out.cleared.length > 0 || out.prog.level > 1));
     out.boardSeed = toInt(raw.boardSeed, 1 + Math.floor(Math.random() * 1e6), 1, 1e7);
     // Inventario (pilas válidas, sin uid repetidos, sin pasar del máximo de cada pila)
     let invSrc = Array.isArray(raw.inv) ? raw.inv : Array.isArray(raw.bag) ? Inventory.fromIds(raw.bag, 40) : [];
@@ -4425,4 +4429,4 @@ const Quests = {
 
   return { CONFIG, U, T, SOLID, TILE_NAMES, World, Particles, CLASSES, CLASS_STATS, ELITE, eliteChance, floorEnemies, FAMILIES, Deco, Terrain, ALLY_ABILITY, canEquip, OLD_EQUIP_SLOTS, FRACTION_STATS, fmtStat, DMG, classMoves, groundTarget, SPECIES, EVOLVED, FORMS, Progress, EVOLUTIONS, EVO_ITEM_MIN_LEVEL, Combat, Effects, Projectile, Zone, BLOCKS_SHOT, TYPES, TYPE_CHART, typeEff, calcStats, MAX_LEVEL, expNeed, expYield, MOVES, BOONS, Boons, BOSS_RAGE, GEODA, Geoda, Boulder, Actor, Player, Enemy, STOP, ENEMIES, ENEMY_VARIANTS, makeKind, BOSSES, makeBossKind, BIOMES, RARITIES, CATEGORIES, EQUIP_SLOTS, ITEMS, QUICK, RARITY_ORDER, STAT_NAMES, BASE_SHOP, SHOP_TIERS, shopStock, sellPrice, RECIPES, newUid, LOOT, Loot, Inventory, finalStats, freshEquip, equipRegen, TRAPS, DUNGEONS, dungeonById, dungeonOpen, COURIER_INTRO, enemyLevel, RANKS, rankOf, weighted, Jobs, ECONOMY, SAVE_VERSION, checksum, Save, FloorGen, hashStr, RECRUIT, ORDERS, gridPath, Companion, LEGACY_JOBS, isLegacyJob, Quests };
 }
-export const SOURCE_HASH = '73413ffc809fb6d4';
+export const SOURCE_HASH = '86481c168d55f57e';

@@ -894,6 +894,7 @@ const TileArt = {
     if (OBJ_TILES.has(t)) t = PAL.objBase === 'floor' ? T.FLOOR : (t === T.DOOR || t === T.STAIRS ? T.PATH : T.GRASS);
     if (t === T.BUILD) t = T.PATH;   // los edificios de la aldea se dibujan encima
     const region = smoothNoise(tx, ty);                  // variación suave por zonas (cada sala se ve distinta)
+    if (PAL.village && (t === T.PATH || t === T.GRASS)) { if (t === T.PATH) VillageArt.cobble(c, W, x, y, tx, ty); else VillageArt.dirt(c, W, x, y, tx, ty); return; }   // aldea: empedrado y barro
     if (PAL.terrain && (t === T.GRASS || t === T.FLOOR)) {   // terreno por zonas con transiciones y oclusión junto a los muros
       const ter = Terrain.at(W, tx, ty);
       if (ter) { Terrain.paint(c, x, y, tx, ty, ter); Terrain.blend(c, W, x, y, tx, ty, ter); Terrain.ao(c, W, x, y, tx, ty); return; }
@@ -2593,6 +2594,7 @@ class Player extends Actor {
       yaw: r ? r.yaw : undefined, walk: r ? r.walk : undefined, gw: r ? r.gw : undefined, turnV: r ? r.turnV : 0, scale: CONFIG.CREATURE_SCALE };
   }
   draw(c, g, alpha) {
+    if (this.cineHidden) return;          // va tumbado en la carretilla (escena de llegada a la aldea)
     const x = U.lerp(this.px, this.x, alpha), y = U.lerp(this.py, this.y, alpha);
     if (this.stance > 0) {
       c.globalAlpha = .6 + .3 * Math.sin(g.time * 30); c.strokeStyle = '#7fe3e8'; c.lineWidth = 2.5;
@@ -4284,7 +4286,7 @@ const isInt = (v, min = 0, max = 1e9) => Number.isFinite(v) && v >= min && v <= 
 const toInt = (v, def, min = 0, max = 1e9) => Number.isFinite(+v) ? Math.min(max, Math.max(min, Math.floor(+v))) : def;
 
 const Save = {
-  fresh(speciesId) { return { v: SAVE_VERSION, species: speciesId, prog: Progress.fresh(speciesId), bank: 50, inv: Inventory.fromIds(['manzana', 'baya', 'baya', 'pocion', 'tonicoEnergia', 'orbeEscape'], 32), equip: freshEquip(), team: [], points: 0, cleared: [], jobs: [], board: [], boardSeed: 1 + Math.floor(Math.random() * 1e6), runs: 0, delivered: 0, activeRun: null }; },
+  fresh(speciesId) { return { v: SAVE_VERSION, species: speciesId, prog: Progress.fresh(speciesId), bank: 50, inv: Inventory.fromIds(['manzana', 'baya', 'baya', 'pocion', 'tonicoEnergia', 'orbeEscape'], 32), equip: freshEquip(), team: [], points: 0, cleared: [], jobs: [], board: [], boardSeed: 1 + Math.floor(Math.random() * 1e6), runs: 0, delivered: 0, activeRun: null, arrived: false }; },
   /** Con la cuenta online activa (Game.account) el perfil vive en el servidor: no se escribe en este navegador. */
   readOnly: false,
   /** Valida y repara una partida. Devuelve { ok, data, fixes } — `data` es un objeto nuevo y plano. */
@@ -4315,6 +4317,8 @@ const Save = {
     out.points = toInt(raw.points, 0);
     out.cleared = Array.isArray(raw.cleared) ? [...new Set(raw.cleared.filter(id => dungeonById(id)))] : [];
     for (const k of ['runs', 'delivered', 'sold', 'bought', 'rests']) out[k] = toInt(raw[k], 0);
+    // ¿Ya vio la llegada a la aldea (carretilla y alcalde)? Las partidas de antes de esta escena que ya han jugado, sí.
+    out.arrived = raw.arrived === true || (raw.arrived !== false && (out.runs > 0 || out.cleared.length > 0 || out.prog.level > 1));
     out.boardSeed = toInt(raw.boardSeed, 1 + Math.floor(Math.random() * 1e6), 1, 1e7);
     // Inventario (pilas válidas, sin uid repetidos, sin pasar del máximo de cada pila)
     let invSrc = Array.isArray(raw.inv) ? raw.inv : Array.isArray(raw.bag) ? Inventory.fromIds(raw.bag, 40) : [];
@@ -5487,9 +5491,9 @@ const Quests = {
 /* ---------- 23. Aldea: centro de operaciones entre expediciones ---------- */
 const VILLAGE_NAME = 'Aldea Raíz';
 /** Faroles de la aldea (casillas). */
-const LANTERNS = [[17.2, 14.5], [26.8, 14.5], [17.2, 19.8], [26.8, 19.8], [12.2, 12], [35.2, 12], [31.2, 21.5]];
+const LANTERNS = [[26.8, 14.5], [17.2, 19.8], [12.2, 12], [31.2, 21.5]];   // pocos faroles: el aceite es caro
 /** Luz de atardecer para la aldea (más clara que las mazmorras). */
-const VILLAGE_LIGHT = { ambient: [14, 12, 28, .34], rays: .045, atmo: 'leaves', vignette: 'rgba(0,0,0,.45)' };
+const VILLAGE_LIGHT = { ambient: [12, 10, 20, .46], rays: .015, atmo: 'leaves', vignette: 'rgba(0,0,0,.62)' };   // aldea pobre: poca luz (velas, una hoguera y pocos faroles)
 /** Estaciones: casilla del punto de interacción y del vecino que atiende. */
 /* --- Presentación del Topo Mercader -------------------------------------------------------------
    La primera vez que se derrota al guardián del Bosque Brumoso: un montículo de tierra avanza bajo el
@@ -5772,8 +5776,10 @@ const STATIONS = {
   board: { name: 'Tablón de misiones', npc: 'cartero', at: [26, 13], desc: 'Acepta misiones y sigue su progreso.' },
   gate: { name: 'Puerta de las mazmorras', npc: 'centinela', at: [20, 4], desc: 'Elige mazmorra y sal de expedición.' },
   camp: { name: 'Campamento de compañeros', npc: 'cuidador', at: [33, 26], desc: 'Elige quién te acompaña y consulta a tus compañeros.' },
+  mayor: { name: 'Casa del alcalde', npc: 'alcalde', at: [16, 14], desc: 'Habla con el alcalde Bartolo.' },
 };
 const VILLAGE_NPCS = {
+  alcalde: { name: 'Alcalde Bartolo' },   // dibujo en drawNPC (como todos los vecinos)
   gremial: { name: 'Maestra Ulula', draw(c, st) {
     const b = st.bob * .5;
     U.ellipse(c, -5, -2, 3.5, 2, '#5a3a20'); U.ellipse(c, 5, -2, 3.5, 2, '#5a3a20');
@@ -5813,6 +5819,252 @@ const VILLAGE_NPCS = {
   } },
 };
 
+
+/* --- Aldea medieval pobre: empedrado, barro y casas de piedra con tejado de paja ------------------- */
+const VILLAGE_PAL = { village: true, blade: '#7d7446', bladeDark: '#4e4a2c', tall: '#55502e', tallLight: '#8a7e46', flowers: ['#8a7a44', '#6a5e3a', '#9a8a5a', '#5a4a2e'] };   // hierba seca y malas hierbas
+const VillageArt = {
+  STONES: ['#5c5850', '#666158', '#545048', '#6e685c', '#4c4840', '#605a4e'],
+  /** Empedrado irregular: cantos redondeados con juntas oscuras, musgo y algún hueco de tierra. */
+  cobble(c, W, x, y, tx, ty) {
+    const s = CONFIG.TILE, ink = '#24221e';
+    c.fillStyle = ink; c.fillRect(x, y, s + 1, s + 1);
+    // Cantos rodados de tamaño irregular, con las esquinas romas y desgastados (sin hileras rectas de ladrillo)
+    let sy = y; const rows = [];
+    for (let row = 0; sy < y + s; row++) { const h = 6 + Math.floor(th(tx, ty * 7 + row, 80) * 4); rows.push([sy, Math.min(h, y + s - sy)]); sy += h; }
+    rows.forEach(([ry, h], row) => {
+      let cx = -((th(tx, ty * 4 + row, 81) * 10) | 0);
+      while (cx < s) {
+        const w = 6 + Math.floor(th(tx * 8 + cx, ty * 4 + row, 82) * 7), sx = x + cx;
+        const k = th(tx * 9 + cx, ty * 5 + row, 83), miss = k > .97;
+        const x0 = Math.max(x, sx + 1), x1 = Math.min(sx + w, x + s), w0 = x1 - x0, dy = th(tx * 3 + cx, ty + row, 84) < .3 ? 1 : 0;
+        if (w0 > 1 && h > 2) {
+          if (miss) { c.fillStyle = '#3e3426'; c.fillRect(x0, ry + 1, w0, h - 1); }
+          else {
+            const col = shade(this.STONES[Math.floor(k * this.STONES.length)], (th(tx + cx, ty * 3 + row, 85) - .5) * .18);
+            c.fillStyle = col; c.fillRect(x0 + 1, ry + 1 + dy, w0 - 2, h - 2); c.fillRect(x0, ry + 2 + dy, w0, h - 4);   // esquinas romas
+            c.fillStyle = shade(col, .2); c.fillRect(x0 + 1, ry + 1 + dy, Math.max(1, w0 - 3), 1); c.fillRect(x0, ry + 2 + dy, 1, Math.max(1, h - 5));
+            c.fillStyle = shade(col, -.32); c.fillRect(x0 + 1, ry + h - 2 + dy, w0 - 2, 1); c.fillRect(x0 + w0 - 1, ry + 2 + dy, 1, Math.max(1, h - 4));
+            if (k < .1) { c.fillStyle = '#3a4a2a'; c.fillRect(x0, ry + h - 1, Math.min(4, w0), 1); }    // musgo en la junta
+          }
+        }
+        cx += w;
+      }
+    });
+    // Barro en los bordes con la tierra
+    const open = n => n === T.PATH || n === T.BUILD || n === T.WATER;
+    c.fillStyle = '#3a3024';
+    if (!open(W.get(tx, ty - 1))) for (let k = 0; k < s; k += 4) c.fillRect(x + k, y, 4, 1 + Math.floor(th(tx * 8 + k, ty, 3) * 4));
+    if (!open(W.get(tx, ty + 1))) for (let k = 0; k < s; k += 4) { const h = 1 + Math.floor(th(tx * 8 + k, ty, 4) * 4); c.fillRect(x + k, y + s - h, 4, h); }
+    if (!open(W.get(tx - 1, ty))) for (let k = 0; k < s; k += 4) c.fillRect(x, y + k, 1 + Math.floor(th(tx, ty * 8 + k, 5) * 4), 4);
+    if (!open(W.get(tx + 1, ty))) for (let k = 0; k < s; k += 4) { const w = 1 + Math.floor(th(tx, ty * 8 + k, 6) * 4); c.fillRect(x + s - w, y + k, w, 4); }
+  },
+  /** Tierra pisada y barro, con paja suelta y hierba seca a matas. */
+  dirt(c, W, x, y, tx, ty) {
+    const s = CONFIG.TILE, region = smoothNoise(tx, ty, 4, 13), wet = smoothNoise(tx, ty, 3, 29);
+    c.fillStyle = mixColor('#3a3226', '#4a3f2e', region); c.fillRect(x, y, s + 1, s + 1);
+    if (wet > .62) { c.fillStyle = 'rgba(30,24,18,.55)'; for (let k = 0; k < 3; k++) c.fillRect(x + th(tx, ty, 300 + k) * 20, y + th(tx, ty, 310 + k) * 24, 12, 6); }
+    this.speck(c, x, y, tx, ty, 10, ['#2e271d', '#55493a', '#4a4232']);
+    if (region > .55) { c.fillStyle = '#5c5634'; for (let k = 0; k < 4; k++) { const bx = x + 2 + th(tx, ty, 320 + k) * 27, by = y + 4 + th(tx, ty, 330 + k) * 25; c.fillRect(bx, by - 3, 1, 3); c.fillRect(bx + 2, by - 2, 1, 2); c.fillStyle = '#4a4528'; } }
+    if (th(tx, ty, 340) > .82) { c.fillStyle = '#8a7a44'; const sx = x + th(tx, ty, 341) * 24, sy = y + th(tx, ty, 342) * 26; c.fillRect(sx, sy, 5, 1); c.fillRect(sx + 2, sy + 2, 4, 1); }   // paja suelta
+    if (th(tx, ty, 350) < .07) { c.fillStyle = '#2a2620'; c.fillRect(x + 14, y + 19, 5, 3); c.fillStyle = '#5e5a52'; c.fillRect(x + 14, y + 18, 4, 2); }   // piedra
+  },
+  speck(c, x, y, tx, ty, n, cols) { for (let k = 0; k < n; k++) { c.fillStyle = cols[k % cols.length]; c.fillRect(x + Math.floor(th(tx, ty, 400 + k) * 31), y + Math.floor(th(tx, ty, 420 + k) * 31), 1, 1); } },
+  /** Muro de mampostería irregular (piedras de campo con argamasa), con humedad y musgo abajo. */
+  rubble(c, X, Y, W, H, seed, base = '#5a554c') {
+    const ink = '#1c1a17';
+    c.fillStyle = '#2c2924'; c.fillRect(X, Y, W, H);
+    let yy = 0, row = 0;
+    while (yy < H) {
+      const rh = 6 + Math.floor(U.hash(seed, row, 1) * 4); let xx = -Math.floor(U.hash(seed, row, 2) * 10);
+      while (xx < W) {
+        const rw = 9 + Math.floor(U.hash(seed + xx, row, 3) * 12), k = U.hash(seed + xx, row, 4);
+        const col = shade(base, (k - .5) * .32), x0 = X + Math.max(0, xx + 1), x1 = X + Math.min(W, xx + rw - 1), y0 = Y + yy + 1, y1 = Y + Math.min(H, yy + rh) - 1;
+        if (x1 > x0 && y1 > y0) {
+          c.fillStyle = col; c.fillRect(x0, y0, x1 - x0, y1 - y0);
+          c.fillStyle = shade(col, .16); c.fillRect(x0, y0, x1 - x0, 1); c.fillRect(x0, y0, 1, y1 - y0);
+          c.fillStyle = shade(col, -.28); c.fillRect(x0, y1 - 1, x1 - x0, 1);
+        }
+        xx += rw;
+      }
+      yy += rh; row++;
+    }
+    // humedad y musgo en la base
+    const g = c.createLinearGradient(0, Y + H - 14, 0, Y + H); g.addColorStop(0, 'rgba(20,24,16,0)'); g.addColorStop(1, 'rgba(20,24,16,.55)'); c.fillStyle = g; c.fillRect(X, Y + H - 14, W, 14);
+    c.fillStyle = '#3a4a2a'; for (let k = 0; k < W; k += 5) if (U.hash(seed, k, 5) > .55) c.fillRect(X + k, Y + H - 2 - U.hash(seed, k, 6) * 4, 3, 2);
+    c.fillStyle = ink; c.fillRect(X, Y, 1, H); c.fillRect(X + W - 1, Y, 1, H);
+  },
+  /** Tejado de paja: hileras de haces, flecos irregulares, remiendos más oscuros y caballete. */
+  thatch(c, X, Y, W, top, bottom, seed, base = '#7a6a3e', patched = true) {
+    const ink = '#14100a', mid = X + W / 2;
+    const tri = () => { c.beginPath(); c.moveTo(X - 8, bottom); c.lineTo(mid, top); c.lineTo(X + W + 8, bottom); c.closePath(); };
+    c.fillStyle = ink; c.beginPath(); c.moveTo(X - 10, bottom + 3); c.lineTo(mid, top - 3); c.lineTo(X + W + 10, bottom + 3); c.closePath(); c.fill();
+    c.fillStyle = base; tri(); c.fill();
+    c.save(); tri(); c.clip();
+    for (let ry = top; ry < bottom + 2; ry += 4) {
+      c.fillStyle = shade(base, -.28); c.fillRect(X - 10, ry + 3, W + 20, 1);
+      for (let rx = X - 10 + (ry % 8 ? 2 : 0); rx < X + W + 10; rx += 3) { const k = U.hash(seed + rx, ry, 7); c.fillStyle = k > .7 ? shade(base, .22) : k < .25 ? shade(base, -.2) : base; c.fillRect(rx, ry, 1, 3); }
+    }
+    if (patched) for (let i = 0; i < 2; i++) {                      // remiendos de paja nueva / vieja
+      const px = X + 10 + U.hash(seed, i, 8) * (W - 40), py = top + (bottom - top) * (.35 + U.hash(seed, i, 9) * .35);
+      c.fillStyle = i ? '#5a4e2c' : '#9a8a52'; c.fillRect(px, py, 18 + U.hash(seed, i, 10) * 12, 7);
+      c.fillStyle = shade(i ? '#5a4e2c' : '#9a8a52', -.25); for (let k = 0; k < 7; k += 2) c.fillRect(px, py + k, 24, 1);
+    }
+    c.fillStyle = 'rgba(255,230,180,.06)'; c.beginPath(); c.moveTo(X - 8, bottom); c.lineTo(mid, top); c.lineTo(mid, bottom); c.closePath(); c.fill();
+    c.restore();
+    c.fillStyle = shade(base, -.35); for (let rx = X - 8; rx < X + W + 8; rx += 2) c.fillRect(rx, bottom - 1, 1, 2 + U.hash(seed, rx, 11) * 4);   // flecos
+    c.fillStyle = '#4a3e22'; c.fillRect(mid - 4, top - 2, 8, 4);                                                                     // caballete
+  },
+  /** Ventana pequeña con postigos de madera; con luz de vela (pobre) o a oscuras. */
+  window(c, x, y, lit, t) {
+    const ink = '#14100a';
+    c.fillStyle = ink; c.fillRect(x - 1, y - 1, 14, 13);
+    if (lit) { const f = .75 + Math.sin(t * 7 + x) * .08; c.fillStyle = `rgba(200,130,58,${f})`; c.fillRect(x, y, 12, 11); c.fillStyle = 'rgba(240,190,110,.5)'; c.fillRect(x + 2, y + 2, 4, 4); }
+    else { c.fillStyle = '#1a1612'; c.fillRect(x, y, 12, 11); }
+    c.fillStyle = '#2e1e10'; c.fillRect(x + 5, y, 2, 11); c.fillRect(x, y + 5, 12, 1);
+    c.fillStyle = '#4a3220'; c.fillRect(x - 7, y - 1, 6, 13); c.fillRect(x + 13, y - 1, 6, 13);     // postigos
+    c.fillStyle = '#3a2616'; c.fillRect(x - 7, y + 5, 6, 1); c.fillRect(x + 13, y + 5, 6, 1);
+    c.fillStyle = '#5a5650'; c.fillRect(x - 2, y + 11, 16, 2);                                        // alféizar de piedra
+  },
+};
+
+/* --- Llegada a la aldea (solo la primera vez) ------------------------------------------------------
+   Centinela Roco tira de una carretilla de madera y Tito Brote empuja por detrás: traen al héroe,
+   inconsciente sobre la paja, desde el linde del bosque (camino del oeste) hasta la plaza. Allí el
+   alcalde Bartolo le da la bienvenida y le dice que puede quedarse el tiempo que necesite.
+   Cada personaje se dibuja con SU sprite (drawNPC / HeroSprites). El juego queda detenido durante la
+   escena; Esc la salta. Se guarda en el perfil (save.arrived; en línea, operación «arrive» del servidor). */
+const VillageIntro = {
+  LINES: [
+    '¡Vaya, por fin abres los ojos! Roco y Tito te encontraron tirado en el linde del bosque, más muerto que vivo.',
+    'Soy Bartolo, el alcalde de la Aldea Raíz. No es gran cosa: piedra vieja, tejados de paja y poco que llevarse a la boca.',
+    'Pero aquí nadie se queda fuera. Puedes quedarte el tiempo que necesites hasta recuperarte.',
+    'Cuando tengas fuerzas, pásate por el gremio: la Maestra Ulula te contará cómo nos ganamos la vida por aquí.',
+  ],
+  TALK: [
+    'Descansa, que el bosque no se va a mover de sitio.',
+    'Si necesitas algo, pregunta a los vecinos. Somos pocos, pero nos ayudamos.',
+    'Hace años esto era un pueblo de mineros. Ahora vivimos de lo que traen los exploradores como tú.',
+    'Cuidado con las mazmorras. Más de uno salió por esa puerta y no volvió.',
+  ],
+  noIntro() { if (typeof window !== 'undefined' && window.MA_NO_INTRO) return true; try { return localStorage.getItem('ma-no-intro') === '1'; } catch { return false; } },   // solo pruebas
+  applies(g) { return g.mode === 'village' && !!g.save && !g.save.arrived && !g.net && !g.cine && !this.noIntro(); },
+  start(g) {
+    const TS = CONFIG.TILE, p = g.player;
+    const path = [[-.8, 17.3], [5, 17.5], [10, 17.2], [13.6, 16.7]].map(([x, y]) => ({ x: x * TS, y: y * TS }));
+    const hidden = g.actors.filter(a => a.npc === 'centinela' || a.npc === 'cuidador');   // los que tiran de la carretilla
+    g.actors = g.actors.filter(a => !hidden.includes(a));
+    p.cineHidden = true;
+    const S = { path, seg: 0, cart: { x: path[0].x, y: path[0].y, wheel: 0 }, phase: 'roll', hidden, k: 0, alpha: 1, t: 0 };
+    this.S = S;
+    Effects.add(g, 1e9, c => VillageIntro.draw(c, g, S), 'mid');
+    const mayor = g.village && g.village.npcs.mayor;
+    UI.floorCard(VILLAGE_NAME, 'Te encontraron inconsciente en el linde del bosque…');
+    this.onKey = e => { if (e.key === 'Escape' && this.S === S && S.phase !== 'talk' && S.phase !== 'done') { e.preventDefault(); e.stopPropagation(); this.finish(g, S); } };
+    addEventListener('keydown', this.onKey, { capture: true });
+    g.cine = { t: 0, dur: 1e9, hold: true, focus: S.cart, kind: 'arrival', tick: (dt, gg) => {
+      S.t += dt;
+      if (mayor && S.phase !== 'done') { const dx = S.cart.x - mayor.x, dy = S.cart.y - mayor.y, d = Math.hypot(dx, dy) || 1; mayor.facing = { x: dx / d, y: dy / d }; }
+      if (S.phase === 'roll') {
+        if (S.t < 1.2) return;                                    // un instante en el linde del bosque
+        const a = path[S.seg], b = path[S.seg + 1], L = Math.hypot(b.x - a.x, b.y - a.y);
+        S.k += 62 * dt / L; S.cart.wheel += 62 * dt / 9;
+        if (S.k >= 1) { S.k = 0; S.seg++; if (S.seg >= path.length - 1) { S.phase = 'stop'; S.t2 = 0; Object.assign(S.cart, path[path.length - 1]); return; } }
+        const a2 = path[S.seg], b2 = path[S.seg + 1];
+        S.cart.x = a2.x + (b2.x - a2.x) * S.k; S.cart.y = a2.y + (b2.y - a2.y) * S.k;
+        if (Math.random() < 10 * dt) gg.fx.add({ x: S.cart.x - 4 + (Math.random() - .5) * 20, y: S.cart.y + 2, vx: -20 - Math.random() * 20, vy: -10, life: .5, size: 2.5, color: 'rgba(150,135,110,.6)' });
+        return;
+      }
+      if (S.phase === 'stop') {
+        S.t2 += dt;
+        if (S.t2 > .9 && !S.woke) { S.woke = true; gg.floaters.push({ x: S.cart.x, y: S.cart.y - 40, vx: 0, text: '…¿dónde estoy?', color: '#eef3e6', size: 11, t: 0, life: 2 }); }
+        if (S.t2 > 2.2) {                                          // se baja de la carretilla y el alcalde habla
+          S.phase = 'talk'; p.cineHidden = false; p.placeAt(S.cart.x + 8, S.cart.y + 30); p.facing = mayor ? { x: (mayor.x - p.x) / (Math.hypot(mayor.x - p.x, mayor.y - p.y) || 1), y: (mayor.y - p.y) / (Math.hypot(mayor.x - p.x, mayor.y - p.y) || 1) } : { x: 1, y: 0 };
+          Effects.burst(gg, p.x, p.y - 8, '#a89a7a', 10, 70, .4);
+          gg.cine.focus = mayor ? { x: (mayor.x + p.x) / 2, y: (mayor.y + p.y) / 2 } : p;
+          this.say(gg, 0, () => this.finish(gg, S));
+        }
+      }
+      if (S.phase === 'leave') { S.alpha = Math.max(0, S.alpha - dt * 1.5); if (S.alpha <= 0) this.end(gg, S); }
+    } };
+  },
+  say(g, i, done) {
+    const L = this.LINES;
+    UI.ask(`Alcalde Bartolo: «${L[i]}»`, [{ label: i < L.length - 1 ? 'Seguir' : 'Gracias, alcalde', main: true, fn: () => (i < L.length - 1 ? this.say(g, i + 1, done) : done()) }]);
+  },
+  /** Fin (también al saltarla con Esc): el héroe queda junto a la plaza, la carretilla se va y se guarda. */
+  finish(g, S) {
+    if (S.phase === 'leave' || S.phase === 'done') return;
+    const p = g.player, TS = CONFIG.TILE;
+    if (S.phase !== 'talk') { Object.assign(S.cart, S.path[S.path.length - 1]); p.placeAt(S.cart.x + 8, S.cart.y + 30); }
+    p.cineHidden = false; S.phase = 'leave';
+    if (!g.save.arrived) {
+      g.save.arrived = true;
+      if (g.account && g.account.op) g.account.op('arrive', {}); else Save.write(g.save);
+    }
+  },
+  end(g, S) {
+    S.phase = 'done'; removeEventListener('keydown', this.onKey, { capture: true });
+    for (const a of S.hidden) if (!g.actors.includes(a)) g.actors.push(a);
+    if (g.cine && g.cine.kind === 'arrival') { g.cine.hold = false; g.cine.dur = 0; }
+    UI.toast('Habla con los vecinos con E. El alcalde vive junto a la plaza.', '#cdbf9c');
+  },
+  /** Conversación con el alcalde (después de la llegada). */
+  mayorTalk(g) {
+    const L = this.TALK, line = L[(this.talkI = ((this.talkI ?? -1) + 1) % L.length)];
+    g.paused = true; g.input.clear();
+    UI.ask(`Alcalde Bartolo: «${line}»`, [{ label: 'Hasta luego', main: true, fn: () => { g.paused = false; } }]);
+  },
+  draw(c, g, S) {
+    if (S.phase === 'done') return;
+    const K = CONFIG.CREATURE_SCALE, x = Math.round(S.cart.x), y = Math.round(S.cart.y), t = g.time, moving = S.phase === 'roll' && S.t >= 1.2;
+    const bob = moving ? Math.abs(Math.sin(t * 9)) * 1.2 : 0, ink = '#0b0907';
+    c.save(); c.globalAlpha = S.alpha;
+    const npc = (k, nx, ny, step) => { c.save(); c.translate(nx, ny); c.fillStyle = 'rgba(0,0,0,.35)'; c.beginPath(); c.ellipse(0, 0, 11, 4, 0, 0, Math.PI * 2); c.fill(); c.scale(K, K); drawNPC(c, { t: t * (moving ? 3 : 1) + step, bob: moving ? Math.abs(Math.sin(t * 9 + step)) * 2 : Math.sin(t * 2 + step) * .6, fx: 1, fy: 0 }, k); c.restore(); };
+    // Tito Brote empuja por detrás
+    npc('cuidador', x - 40, y + 2, 1.3);
+    // Sombra y rueda del fondo
+    c.fillStyle = 'rgba(0,0,0,.4)'; c.beginPath(); c.ellipse(x + 2, y + 2, 34, 7, 0, 0, Math.PI * 2); c.fill();
+    const wheel = (wx, wy, r, dark) => {
+      c.fillStyle = ink; c.beginPath(); c.arc(wx, wy, r + 1.5, 0, Math.PI * 2); c.fill();
+      c.fillStyle = dark ? '#3a2616' : '#5a3c22'; c.beginPath(); c.arc(wx, wy, r, 0, Math.PI * 2); c.fill();
+      c.fillStyle = dark ? '#24170c' : '#3a2616'; c.beginPath(); c.arc(wx, wy, r - 3, 0, Math.PI * 2); c.fill();
+      c.strokeStyle = dark ? '#4a3220' : '#7a5632'; c.lineWidth = 1.6;
+      for (let i = 0; i < 6; i++) { const a = S.cart.wheel + i * Math.PI / 3; c.beginPath(); c.moveTo(wx, wy); c.lineTo(wx + Math.cos(a) * (r - 2), wy + Math.sin(a) * (r - 2)); c.stroke(); }
+      c.fillStyle = '#2a1a0e'; c.beginPath(); c.arc(wx, wy, 2.2, 0, Math.PI * 2); c.fill();
+      c.strokeStyle = '#4a4e55'; c.lineWidth = 1; c.beginPath(); c.arc(wx, wy, r, 0, Math.PI * 2); c.stroke();   // llanta de hierro
+    };
+    wheel(x - 2, y - 13 - bob, 10, true);
+    // Varas para tirar (hasta Roco)
+    c.strokeStyle = ink; c.lineWidth = 4; for (const dy of [-19, -9]) { c.beginPath(); c.moveTo(x + 20, y + dy - bob); c.lineTo(x + 46, y + dy + 6); c.stroke(); }
+    c.strokeStyle = '#7a5632'; c.lineWidth = 2; for (const dy of [-19, -9]) { c.beginPath(); c.moveTo(x + 20, y + dy - bob); c.lineTo(x + 46, y + dy + 6); c.stroke(); }
+    // Caja de tablones
+    const bx = x - 28, by = y - 30 - bob;
+    c.fillStyle = ink; c.fillRect(bx - 1, by - 1, 52, 22);
+    c.fillStyle = '#5a3c22'; c.fillRect(bx, by, 50, 20);
+    c.fillStyle = '#6e4a2a'; c.fillRect(bx, by, 50, 3);
+    c.fillStyle = '#3e2816'; for (let k2 = 0; k2 < 50; k2 += 10) c.fillRect(bx + k2, by + 3, 1, 17);
+    c.fillStyle = '#2e1e10'; c.fillRect(bx, by + 10, 50, 1);
+    // Paja asomando
+    for (let i = 0; i < 18; i++) { const sx = bx + 2 + i * 2.7, h = 3 + U.hash(i, 7, 3) * 4; c.fillStyle = i % 3 ? '#b49a52' : '#8a7638'; c.fillRect(sx, by - h, 1.4, h); }
+    // El héroe, inconsciente sobre la paja (su sprite de derrota), o incorporándose al parar
+    if (S.phase === 'roll' || S.phase === 'stop') {
+      const cls = g.save ? g.save.species : 'guerrero', up = S.phase === 'stop' && S.t2 > .9;
+      const fr = HeroSprites.frame(cls, 'side', up ? 'hurt' : 'death', up ? 0 : HeroSprites.ANIMS.death - 1);
+      c.save(); c.translate(bx + 25, by + (up ? -5 : 2)); c.drawImage(fr, -fr.ox, -fr.oy); c.restore();
+      if (!up) { c.fillStyle = '#6a5a8a'; c.fillRect(bx + 6, by - 3, 30, 5); c.fillStyle = '#7a6a9a'; c.fillRect(bx + 6, by - 3, 30, 1); }   // manta raída
+    }
+    // Lateral delantero y rueda de este lado
+    c.fillStyle = ink; c.fillRect(bx - 1, by + 9, 52, 13);
+    c.fillStyle = '#6a4626'; c.fillRect(bx, by + 10, 50, 11);
+    c.fillStyle = '#4a3018'; for (let k2 = 6; k2 < 50; k2 += 12) c.fillRect(bx + k2, by + 10, 1, 11);
+    c.fillStyle = '#4a4e55'; c.fillRect(bx + 3, by + 12, 3, 7); c.fillRect(bx + 44, by + 12, 3, 7);   // herrajes
+    wheel(x + 2, y - 8 - bob, 11, false);
+    // Centinela Roco tira de las varas
+    npc('centinela', x + 54, y + 4, 0);
+    c.restore();
+  },
+};
+
 /** Mapa fijo de la aldea (44×34 casillas). */
 function generateVillage(W) {
   const { w, h } = W, set = (x, y, t) => W.set(x, y, t), rnd = U.rng(77);
@@ -5824,7 +6076,11 @@ function generateVillage(W) {
   rect(20, 2, 23, 13, T.PATH); rect(4, 16, 39, 18, T.PATH);
   rect(9, 10, 11, 16, T.PATH); rect(32, 10, 34, 16, T.PATH); rect(12, 18, 14, 24, T.PATH); rect(32, 18, 34, 25, T.PATH);
   rect(20, 0, 23, 1, T.PATH);
+  rect(0, 16, 3, 18, T.PATH);                                   // camino del oeste: al bosque (por ahí llega la carretilla)
+  rect(15, 14, 17, 15, T.PATH);                                 // entrada de la casa del alcalde
   // Edificios (casillas sólidas que se dibujan como casas)
+  rect(14, 10, 18, 13, T.BUILD);   // casa del alcalde
+  rect(3, 11, 6, 13, T.BUILD); rect(37, 11, 40, 13, T.BUILD);   // chozas de piedra
   rect(6, 5, 14, 9, T.BUILD);      // gremio
   rect(29, 5, 37, 9, T.BUILD);     // tienda
   rect(24, 11, 25, 11, T.BUILD);   // tablón
@@ -5840,8 +6096,8 @@ function generateVillage(W) {
     const x = 2 + Math.floor(rnd() * (w - 4)), y = 2 + Math.floor(rnd() * (h - 4));
     if (W.get(x, y) !== T.GRASS) continue;
     const near = (cx, cy, r) => Math.hypot(x - cx, y - cy) < r;
-    if (near(21.5, 17, 7) || near(10, 12, 3) || near(33, 12, 3) || near(13, 25, 3) || near(33, 25, 4) || (x >= 18 && x <= 25 && y <= 5)) continue;
-    const r = rnd(); set(x, y, r < .45 ? T.FLOWERS : r < .8 ? T.TALLGRASS : r < .92 ? T.TREE : T.ROCK);
+    if (near(21.5, 17, 7) || near(10, 12, 3) || near(33, 12, 3) || near(13, 25, 3) || near(33, 25, 4) || near(2, 17, 3) || near(16, 15, 2.5) || (x >= 18 && x <= 25 && y <= 5)) continue;
+    const r = rnd(); set(x, y, r < .08 ? T.FLOWERS : r < .62 ? T.TALLGRASS : r < .82 ? T.TREE : T.ROCK);   // aldea pobre: casi sin flores
   }
   rect(30, 25, 36, 29, T.GRASS);
   return { x: 21.5 * CONFIG.TILE, y: 7.5 * CONFIG.TILE };
@@ -5855,7 +6111,7 @@ class VillageRT {
       if (id === 'shop' && !MerchantIntro.met(g.save)) continue;   // el Topo llega a la aldea tras conocerlo en el Bosque Brumoso
       if (id === 'board' && !CourierIntro.met(g.save)) continue;  // Pico Cartero cuelga su tablón tras escoltarlo por la Gruta
       const kindDef = st.npc === 'tendero' ? NPC_KINDS.tendero : Object.assign({ type: 'normal', base: { hp: 50, atk: 10, def: 50, spa: 10, spd: 50, spe: 10 }, speed: 0, radius: 11, height: 34, aggro: 0, barW: 0, pal: {}, brain: () => STOP }, VILLAGE_NPCS[st.npc]);
-      const off = { guild: [0, -.6], shop: [0, -.6], rest: [-1, -1.2], board: [1.2, 0], gate: [-1.2, .3], camp: [0, 1] }[id];
+      const off = { guild: [0, -.6], shop: [0, -.6], rest: [-1, -1.2], board: [1.2, 0], gate: [-1.2, .3], camp: [0, 1], mayor: [-.7, .2] }[id];
       const e = new Enemy(Object.assign({ id: st.npc }, kindDef), (st.at[0] + .5 + off[0]) * TS, (st.at[1] + .5 + off[1]) * TS, {});
       e.team = 'neutral'; e.npc = st.npc; e.nameTag = (VILLAGE_NPCS[st.npc] || NPC_KINDS.tendero).name; e.station = id;
       this.npcs[id] = e; g.actors.push(e);
@@ -5887,55 +6143,73 @@ class VillageRT {
   /** Luces de la aldea al atardecer: ventanas, faroles, hoguera y portal. */
   lights(add, time) {
     const TS = CONFIG.TILE, fl = Math.sin(time * 9) * 5;
-    for (const [hx, hy] of [[6, 5], [29, 5]]) for (const wx of [18, 9 * TS - 40]) add(hx * TS + wx + 11, hy * TS + 5 * TS * .42 + 22, 46, [255, 200, 120], .7);
-    add(15.5 * TS, 26.5 * TS - 8, 200 + fl, [255, 150, 60], 1);
-    add(22 * TS, 2 * TS, 110, [120, 220, 230], .7);
-    for (const [lx, ly] of LANTERNS) add(lx * TS, ly * TS - 18, 92 + fl * .5, [255, 190, 110], .85);
+    // Velas en las ventanas encendidas (las mismas que dibuja drawObjects: misma semilla)
+    for (const [x0, y0, w, hgt, k, dark] of [[6, 5, 9, 5, .46, .2], [29, 5, 9, 5, .46, .35], [14, 10, 5, 4, .5, .1], [3, 11, 4, 3, .5, .7], [37, 11, 4, 3, .5, .55]]) {
+      const X = x0 * TS, Y = y0 * TS, Wp = w * TS, wallTop = Y + hgt * TS * k, seed = x0 * 97 + y0 * 13, nWin = Math.max(1, Math.floor((Wp - 60) / 70));
+      for (let i = 0; i < nWin * 2; i++) if (U.hash(seed, i, 12) > dark) { const wx = i < nWin ? X + 16 + i * 46 : X + Wp - 30 - (i - nWin) * 46; add(wx + 6, wallTop + 18, 34 + Math.sin(time * 7 + wx) * 2, [230, 150, 70], .55); }
+    }
+    add(15.5 * TS, 26.5 * TS - 8, 210 + fl, [255, 140, 55], 1);                 // la hoguera: la luz de verdad de la aldea
+    add(22 * TS, 2 * TS, 90, [120, 220, 230], .55);
+    for (const [lx, ly] of LANTERNS) add(lx * TS, ly * TS - 18, 70 + fl * .4, [240, 170, 90], .6);
   }
   drawObjects(c, g) {
     const TS = CONFIG.TILE, t = g.time;
     const R = g.renderer, ink = '#0b0907';
     const stoneRow = (X, Y, W, H, base) => { c.fillStyle = base; c.fillRect(X, Y, W, H); c.fillStyle = shade(base, -.35); for (let yy = 0; yy < H; yy += 5) { c.fillRect(X, Y + yy, W, 1); for (let xx = ((yy / 5) % 2) * 6; xx < W; xx += 12) c.fillRect(X + xx, Y + yy, 1, 5); } c.fillStyle = shade(base, .15); for (let yy = 1; yy < H; yy += 5) c.fillRect(X, Y + yy, W, 1); };
-    const house = (x0, y0, w, hgt, roof, label, deco) => {
-      const X = x0 * TS, Y = y0 * TS, Wp = w * TS, Hp = hgt * TS, wallTop = Y + Hp * .42;
-      c.fillStyle = 'rgba(0,0,0,.45)'; c.beginPath(); c.ellipse(X + Wp / 2 + 6, Y + Hp + 3, Wp / 2 + 8, 7, 0, 0, Math.PI * 2); c.fill();
-      // muro de entramado sobre zócalo de piedra
-      c.fillStyle = ink; c.fillRect(X + 3, wallTop - 1, Wp - 6, Y + Hp - wallTop + 1);
-      c.fillStyle = '#6a5e4c'; c.fillRect(X + 4, wallTop, Wp - 8, Y + Hp - wallTop - 10);
-      TileArt.speck(c, X + 4, wallTop, x0, y0, 30, ['#5e5242', '#76695a'], 1);
-      c.fillStyle = '#2e2218'; for (let bx = X + 4; bx < X + Wp - 6; bx += 36) c.fillRect(bx, wallTop, 4, Y + Hp - wallTop - 10);
-      c.fillRect(X + 4, wallTop, Wp - 8, 4); c.fillRect(X + 4, wallTop + 30, Wp - 8, 3);
-      stoneRow(X + 4, Y + Hp - 11, Wp - 8, 11, '#46443e');
-      // ventanas iluminadas
-      for (const wx of [X + 18, X + Wp - 40]) { c.fillStyle = ink; c.fillRect(wx - 1, wallTop + 11, 24, 18); c.fillStyle = '#e0a850'; c.fillRect(wx + 1, wallTop + 13, 20, 14); c.fillStyle = '#f2cc7a'; c.fillRect(wx + 2, wallTop + 14, 8, 5); c.fillStyle = '#2e2218'; c.fillRect(wx + 10, wallTop + 12, 2, 16); c.fillRect(wx, wallTop + 19, 22, 2); }
-      // puerta de madera con herrajes
-      const dx = X + Wp / 2 - 13; c.fillStyle = ink; c.fillRect(dx - 2, Y + Hp - 34, 30, 34); c.fillStyle = '#3a2618'; c.fillRect(dx, Y + Hp - 32, 26, 32);
-      c.fillStyle = '#2a1a10'; for (let k = 1; k < 4; k++) c.fillRect(dx + k * 6.5, Y + Hp - 32, 1, 32); c.fillStyle = '#4a4e55'; c.fillRect(dx, Y + Hp - 26, 26, 2); c.fillRect(dx, Y + Hp - 10, 26, 2); c.fillStyle = '#b08a3a'; c.fillRect(dx + 20, Y + Hp - 17, 2, 3);
-      // tejado de pizarra con hileras y alero
-      c.fillStyle = ink; c.beginPath(); c.moveTo(X - 9, wallTop + 7); c.lineTo(X + Wp * .5, Y - 9); c.lineTo(X + Wp + 9, wallTop + 7); c.closePath(); c.fill();
-      c.fillStyle = roof; c.beginPath(); c.moveTo(X - 7, wallTop + 5); c.lineTo(X + Wp * .5, Y - 7); c.lineTo(X + Wp + 7, wallTop + 5); c.closePath(); c.fill();
-      c.save(); c.beginPath(); c.moveTo(X - 7, wallTop + 5); c.lineTo(X + Wp * .5, Y - 7); c.lineTo(X + Wp + 7, wallTop + 5); c.closePath(); c.clip();
-      for (let ry = Y - 7; ry < wallTop + 6; ry += 5) { c.fillStyle = shade(roof, -.3); c.fillRect(X - 8, ry, Wp + 16, 1); c.fillStyle = shade(roof, -.15); for (let rx = X - 8 + ((ry / 5) % 2) * 5; rx < X + Wp + 8; rx += 10) c.fillRect(rx, ry, 1, 5); }
-      c.fillStyle = 'rgba(255,240,210,.08)'; c.beginPath(); c.moveTo(X - 7, wallTop + 5); c.lineTo(X + Wp * .5, Y - 7); c.lineTo(X + Wp * .5, wallTop + 5); c.closePath(); c.fill();
-      c.restore();
-      c.fillStyle = 'rgba(0,0,0,.4)'; c.fillRect(X + 4, wallTop + 5, Wp - 8, 4);
-      // chimenea con humo
-      const chx = X + Wp * .72, chy = Y + 4; c.fillStyle = ink; c.fillRect(chx - 1, chy - 15, 12, 20); stoneRow(chx, chy - 14, 10, 18, '#4a4842');
-      for (let k = 0; k < 4; k++) { const ph = (t * .35 + k * .25) % 1; c.globalAlpha = (1 - ph) * .25; c.fillStyle = '#9a948c'; c.beginPath(); c.arc(chx + 5 + Math.sin(ph * 6 + k) * 4 + ph * 10, chy - 18 - ph * 40, 3 + ph * 6, 0, Math.PI * 2); c.fill(); } c.globalAlpha = 1;
-      // letrero colgante
-      const sx = X + Wp / 2 - 34, sy = wallTop - 2; c.fillStyle = '#1e140c'; c.fillRect(sx + 6, sy - 6, 1, 6); c.fillRect(sx + 61, sy - 6, 1, 6);
-      c.fillStyle = ink; c.fillRect(sx - 1, sy - 1, 70, 15); c.fillStyle = '#4a3220'; c.fillRect(sx, sy, 68, 13); c.fillStyle = '#5e4028'; c.fillRect(sx, sy, 68, 2);
-      R.label(label, X + Wp / 2, sy + 7, '#e8d8b0', 8, { stroke: 0, weight: 700 });
-      if (deco) deco(X, Y, Wp, Hp, wallTop);
+    /** Casa de piedra de aldea pobre: mampostería, tejado de paja, ventanas con postigos y puerta de tablones. */
+    const house = (x0, y0, w, hgt, label, o = {}) => {
+      const X = x0 * TS, Y = y0 * TS, Wp = w * TS, Hp = hgt * TS, wallTop = Y + Hp * (o.roofK || .46), seed = x0 * 97 + y0 * 13;
+      c.fillStyle = 'rgba(0,0,0,.5)'; c.beginPath(); c.ellipse(X + Wp / 2 + 6, Y + Hp + 3, Wp / 2 + 8, 7, 0, 0, Math.PI * 2); c.fill();
+      VillageArt.rubble(c, X + 3, wallTop, Wp - 6, Y + Hp - wallTop, seed, o.stone || '#5a554c');
+      // ventanas pequeñas (alguna a oscuras: no hay velas para todos)
+      const nWin = Math.max(1, Math.floor((Wp - 60) / 70));
+      for (let i = 0; i < nWin * 2; i++) { const left = i < nWin, wx = left ? X + 16 + i * 46 : X + Wp - 30 - (i - nWin) * 46; VillageArt.window(c, wx, wallTop + 12, U.hash(seed, i, 12) > (o.dark ?? .35), t); }
+      // puerta de tablones combada con dintel de piedra
+      const dw = o.door || 24, dx = X + Wp / 2 - dw / 2, dh = Math.min(32, Y + Hp - wallTop - 4);
+      c.fillStyle = ink; c.fillRect(dx - 2, Y + Hp - dh - 2, dw + 4, dh + 2);
+      c.fillStyle = '#3a2618'; c.fillRect(dx, Y + Hp - dh, dw, dh);
+      c.fillStyle = '#2a1a0e'; for (let q = 5; q < dw; q += 6) c.fillRect(dx + q, Y + Hp - dh, 1, dh);
+      c.fillStyle = '#4a3420'; c.fillRect(dx + 1, Y + Hp - dh + 1, 2, dh - 2);
+      c.fillStyle = '#3e4146'; c.fillRect(dx, Y + Hp - dh + 6, dw, 2); c.fillRect(dx, Y + Hp - 9, dw, 2);
+      c.fillStyle = '#8a6a32'; c.fillRect(dx + dw - 6, Y + Hp - dh / 2, 2, 2);
+      c.fillStyle = '#6e685c'; c.fillRect(dx - 4, Y + Hp - dh - 5, dw + 8, 4); c.fillStyle = '#4c4840'; c.fillRect(dx - 4, Y + Hp - dh - 2, dw + 8, 1);
+      // tejado de paja
+      VillageArt.thatch(c, X, Y - 6, Wp, Y - 6, wallTop + 6, seed, o.roof || '#7a6a3e', o.patched !== false);
+      c.fillStyle = 'rgba(0,0,0,.45)'; c.fillRect(X + 3, wallTop + 6, Wp - 6, 4);
+      // chimenea de piedra con humo (si hay)
+      if (o.chimney !== false) {
+        const chx = X + Wp * .7, chy = Y + (wallTop - Y) * .3;
+        c.fillStyle = ink; c.fillRect(chx - 1, chy - 14, 13, 20); VillageArt.rubble(c, chx, chy - 13, 11, 18, seed + 7, '#4c4840');
+        for (let q = 0; q < 4; q++) { const ph = (t * .3 + q * .25) % 1; c.globalAlpha = (1 - ph) * .22; c.fillStyle = '#8a847c'; c.beginPath(); c.arc(chx + 5 + Math.sin(ph * 6 + q) * 4 + ph * 12, chy - 18 - ph * 42, 3 + ph * 7, 0, Math.PI * 2); c.fill(); }
+        c.globalAlpha = 1;
+      }
+      // letrero de madera
+      if (label) {
+        const sx = X + Wp / 2 - 32, sy = wallTop - 4;
+        c.fillStyle = '#1e140c'; c.fillRect(sx + 6, sy - 6, 1, 6); c.fillRect(sx + 57, sy - 6, 1, 6);
+        c.fillStyle = ink; c.fillRect(sx - 1, sy - 1, 66, 15); c.fillStyle = '#463020'; c.fillRect(sx, sy, 64, 13); c.fillStyle = '#56402a'; c.fillRect(sx, sy, 64, 2);
+        R.label(label, X + Wp / 2, sy + 7, '#d8c8a0', 8, { stroke: 0, weight: 700 });
+      }
+      if (o.deco) o.deco(X, Y, Wp, Hp, wallTop);
     };
-    house(6, 5, 9, 5, '#2e3a4a', 'GREMIO', (X, Y, Wp, Hp, wt) => {   // estandarte del gremio
-      const bx = X + Wp - 16; c.fillStyle = '#1e140c'; c.fillRect(bx, wt + 6, 2, 30); c.fillStyle = ink; c.fillRect(bx + 2, wt + 7, 12, 20); c.fillStyle = '#2a3e5e'; c.fillRect(bx + 3, wt + 8, 10, 17); c.beginPath(); c.moveTo(bx + 3, wt + 25); c.lineTo(bx + 8, wt + 30); c.lineTo(bx + 13, wt + 25); c.fill();
-      c.fillStyle = '#b08a3a'; c.fillRect(bx + 7, wt + 11, 2, 9); c.fillRect(bx + 5, wt + 14, 6, 2);
-    });
-    house(29, 5, 9, 5, '#4a2622', 'TIENDA', (X, Y, Wp, Hp) => {   // toldo, barriles y cajas
-      const ay = Y + Hp * .42 + 30; for (let i = 0; i < 8; i++) { c.fillStyle = i % 2 ? '#7a6a50' : '#5a2a22'; c.fillRect(X + 8 + i * ((Wp - 16) / 8), ay, (Wp - 16) / 8 + .5, 6); } c.fillStyle = 'rgba(0,0,0,.35)'; c.fillRect(X + 8, ay + 6, Wp - 16, 2);
-      for (const [bx, by] of [[X - 10, Y + Hp - 14], [X + Wp - 2, Y + Hp - 16]]) { c.fillStyle = ink; c.fillRect(bx - 1, by - 1, 14, 16); c.fillStyle = '#5a3e24'; c.fillRect(bx, by, 12, 14); c.fillStyle = '#3a2618'; c.fillRect(bx, by + 3, 12, 1); c.fillRect(bx, by + 10, 12, 1); c.fillStyle = '#4a4e55'; c.fillRect(bx, by + 1, 12, 1); }
-    });
+    const barrel = (bx, by) => { c.fillStyle = ink; c.fillRect(bx - 1, by - 1, 14, 16); c.fillStyle = '#5a3e24'; c.fillRect(bx, by, 12, 14); c.fillStyle = '#3a2618'; c.fillRect(bx, by + 4, 12, 1); c.fillRect(bx, by + 9, 12, 1); c.fillStyle = '#3e4146'; c.fillRect(bx, by + 1, 12, 1); c.fillRect(bx, by + 12, 12, 1); };
+    const firewood = (fx, fy) => { for (let r = 0; r < 3; r++) for (let q = 0; q < 4 - r; q++) { const lx = fx + q * 7 + r * 3.5, ly = fy - r * 6; c.fillStyle = ink; c.beginPath(); c.arc(lx, ly, 3.6, 0, Math.PI * 2); c.fill(); c.fillStyle = '#7a5a36'; c.beginPath(); c.arc(lx, ly, 2.8, 0, Math.PI * 2); c.fill(); c.fillStyle = '#a8845a'; c.fillRect(lx - 1, ly - 1, 2, 2); } };
+    const hay = (hx, hy) => { c.fillStyle = ink; c.fillRect(hx - 1, hy - 1, 22, 14); c.fillStyle = '#9a8648'; c.fillRect(hx, hy, 20, 12); c.fillStyle = '#7a6a36'; for (let q = 0; q < 20; q += 3) c.fillRect(hx + q, hy, 1, 12); c.fillStyle = '#5a4a26'; c.fillRect(hx, hy + 4, 20, 1); c.fillRect(hx, hy + 8, 20, 1); };
+    house(6, 5, 9, 5, 'GREMIO', { stone: '#5e5850', roof: '#6e5e36', dark: .2, deco: (X, Y, Wp, Hp, wt) => {   // estandarte gastado del gremio
+      const bx = X + Wp - 18; c.fillStyle = '#1e140c'; c.fillRect(bx, wt + 4, 2, 30); c.fillStyle = ink; c.fillRect(bx + 2, wt + 5, 12, 20); c.fillStyle = '#2e3a52'; c.fillRect(bx + 3, wt + 6, 10, 17); c.beginPath(); c.moveTo(bx + 3, wt + 23); c.lineTo(bx + 8, wt + 28); c.lineTo(bx + 13, wt + 23); c.fill();
+      c.fillStyle = '#8a7038'; c.fillRect(bx + 7, wt + 9, 2, 9); c.fillRect(bx + 5, wt + 12, 6, 2);
+      barrel(X - 12, Y + Hp - 14);
+    } });
+    house(29, 5, 9, 5, 'TIENDA', { stone: '#57524a', roof: '#76663a', deco: (X, Y, Wp, Hp, wt) => {   // toldo remendado, barriles y cajas
+      const ay = wt + 34; for (let i = 0; i < 7; i++) { c.fillStyle = i % 2 ? '#6a5e48' : '#5a3a2a'; c.fillRect(X + 10 + i * ((Wp - 20) / 7), ay, (Wp - 20) / 7 + .5, 6); }
+      c.fillStyle = '#7a6a4a'; c.fillRect(X + 40, ay, 10, 6); c.fillStyle = 'rgba(0,0,0,.35)'; c.fillRect(X + 10, ay + 6, Wp - 20, 2);
+      barrel(X - 12, Y + Hp - 14); barrel(X + Wp, Y + Hp - 16);
+    } });
+    house(14, 10, 5, 4, 'ALCALDE', { stone: '#605a50', roof: '#6a5a34', roofK: .5, dark: .1, door: 22, deco: (X, Y, Wp, Hp, wt) => {   // la única casa con dos velas encendidas
+      firewood(X + Wp + 4, Y + Hp - 4);
+    } });
+    house(3, 11, 4, 3, '', { stone: '#524d45', roof: '#6a5c34', roofK: .5, dark: .7, door: 18, chimney: false, deco: (X, Y, Wp, Hp) => hay(X + Wp + 2, Y + Hp - 12) });
+    house(37, 11, 4, 3, '', { stone: '#56514a', roof: '#5e5230', roofK: .5, dark: .55, door: 18, deco: (X, Y, Wp, Hp) => firewood(X - 26, Y + Hp - 4) });
     // Tablón de misiones con tejadillo
     { const X = 24 * TS, Y = 11 * TS;
       c.fillStyle = 'rgba(0,0,0,.4)'; c.beginPath(); c.ellipse(X + 34, Y + 31, 34, 4, 0, 0, Math.PI * 2); c.fill();
@@ -5987,8 +6261,8 @@ class VillageRT {
     if (!this.mm) {
       this.mm = document.createElement('canvas'); this.mm.width = cv.width; this.mm.height = cv.height; const m = this.mm.getContext('2d');
       m.fillStyle = '#0a0806'; m.fillRect(0, 0, cv.width, cv.height);
-      const col = { [T.PATH]: '#6a5638', [T.TREE]: '#132213', [T.WATER]: '#1f3a40', [T.BUILD]: '#4e3c2a', [T.ROCK]: '#4a4840' };
-      for (let y = 0; y < W.h; y++) for (let x = 0; x < W.w; x++) { m.fillStyle = col[W.get(x, y)] || '#26381f'; m.fillRect(ox + x * s, oy + y * s, s + .5, s + .5); }
+      const col = { [T.PATH]: '#5c5850', [T.TREE]: '#132213', [T.WATER]: '#1f3a40', [T.BUILD]: '#6a5a3a', [T.ROCK]: '#4a4840' };   // empedrado, tejados de paja y barro
+      for (let y = 0; y < W.h; y++) for (let x = 0; x < W.w; x++) { m.fillStyle = col[W.get(x, y)] || '#3a3226'; m.fillRect(ox + x * s, oy + y * s, s + .5, s + .5); }
     }
     c.drawImage(this.mm, 0, 0);
     for (const [id, st] of Object.entries(STATIONS)) { c.fillStyle = id === this.near ? '#ffffff' : '#ffd166'; c.beginPath(); c.arc(ox + (st.at[0] + .5) * s, oy + (st.at[1] + .5) * s, 3, 0, Math.PI * 2); c.fill(); }
@@ -6989,11 +7263,12 @@ const Game = {
   },
   goSelect(mode) {
     this.pendingMode = mode; this.state = 'select'; this.input.clear();
-    UI.el('sel-mode').textContent = mode === 'training' ? 'Modo: campo de pruebas' : 'Partida nueva: la clase es definitiva para esta partida';
+    UI.el('sel-mode').textContent = mode === 'training' ? 'Modo: campo de pruebas' : mode === 'online' ? 'Elige tu clase: es definitiva para tu cuenta' : 'Partida nueva: la clase es definitiva para esta partida';
     UI.show('select');
   },
   choose(i) {
     if (this.pendingMode === 'training') return this.startTraining(SPECIES[i]);
+    if (this.pendingMode === 'online' && this.onlinePick) return this.onlinePick(SPECIES[i].id);   // versión online: el perfil lo crea el servidor
     this.save = Save.fresh(SPECIES[i].id);
     this.save.board = Jobs.board(this.save, this.save.boardSeed);
     Save.write(this.save);
@@ -7005,7 +7280,7 @@ const Game = {
     (this.laterT || []).forEach(clearTimeout); this.laterT = [];
     const s = this.save;
     this.mode = 'village'; this.run = null; this.floorRT = null; this.ending = false; this.paused = false; this.evo = null; UI.hideBoons();
-    applyTheme(BIOMES.forest); Object.assign(PAL, VILLAGE_LIGHT);
+    applyTheme(BIOMES.forest); Object.assign(PAL, VILLAGE_LIGHT, VILLAGE_PAL); PAL.terrain = null;
     if (!this.villageWorld) this.villageWorld = new World(44, 34, 77, generateVillage);
     this.setWorld(this.villageWorld); this.resetCombatState(); this.fx.list.length = 0;
     if (!this.account && (!s.board || !s.board.length && !s.jobs.length)) { s.boardSeed = (s.boardSeed + 7919) % 1e7; s.board = Jobs.board(s, s.boardSeed); }   // con cuenta lo hace el servidor
@@ -7019,12 +7294,14 @@ const Game = {
     this.spawnAllies();
     Save.checkpoint(s);          // punto seguro: también actualiza la copia de seguridad
     this.beginPlay(); this.fade = 1;
-    UI.floorCard(VILLAGE_NAME, 'Acércate a un vecino y pulsa E para hablar');
+    if (VillageIntro.applies(this)) VillageIntro.start(this);         // primera vez: llegada en carretilla
+    else UI.floorCard(VILLAGE_NAME, 'Acércate a un vecino y pulsa E para hablar');
   },
   openStation(id) {
     if (this.mode !== 'village' || this.paused || !STATIONS[id]) return false;
     if (id === 'shop' && !MerchantIntro.met(this.save)) { UI.toast('Un puesto vacío… Quizá alguien lo ocupe algún día. (Completa el Bosque Brumoso)', '#cdbf9c'); return false; }
     if (id === 'board' && !CourierIntro.met(this.save)) { UI.toast('Un tablón vacío, sin un solo aviso… Quizá alguien lo llene algún día. (Completa la Gruta de Cuarzo)', '#cdbf9c'); return false; }
+    if (id === 'mayor') { VillageIntro.mayorTalk(this); return true; }       // el alcalde solo charla
     this.paused = true; this.input.clear(); this.station = id; Sfx.play('open');
     UI.openStation(this, id);
     return true;
@@ -8245,6 +8522,27 @@ function drawNPC(c, st, k) {
     c.fillStyle = '#3d5a2c'; c.fillRect(-5, -29 - b, 8, 2);
     if (!back) { c.fillStyle = Art.ink; c.fillRect(1, -23 - b, 6, 2); c.fillStyle = '#d9a441'; c.fillRect(2, -22.6 - b, 4, 1); }
     Art.limb(c, 6, -18 - b, 11, -16 - b, 3, '#4a4b44');
+    return;
+  }
+  if (k === 'alcalde') {   // tejón anciano: abrigo remendado, cadena del cargo y bastón nudoso
+    c.strokeStyle = Art.ink; c.lineWidth = 2.4; c.beginPath(); c.moveTo(-11, 0); c.lineTo(-10, -25 - b); c.stroke(); c.strokeStyle = '#6a4a2a'; c.lineWidth = 1.1; c.stroke();
+    Art.shape(c, Art.oval(-10, -26 - b, 2.2, 1.8), '#5a3e22', .5);
+    Art.limb(c, -4, -2, -5, 0, 2, '#2e2620'); Art.limb(c, 4, -2, 5, 0, 2, '#2e2620');
+    const coat = Art.poly([[-9, -2], [-8, -17 - b], [-4, -21 - b], [4, -21 - b], [8, -17 - b], [9, -2]]);
+    Art.shape(c, coat, '#5a3a2a'); Art.vol(c, coat, '#74503a', '#2e1e14', 0, -11 - b, 9, 10);
+    c.fillStyle = '#7a6a4a'; c.fillRect(3, -9 - b, 4, 4); c.fillStyle = '#4a3020'; c.fillRect(3, -9 - b, 4, 1);   // remiendo
+    c.strokeStyle = '#c9a040'; c.lineWidth = 1; c.beginPath(); c.moveTo(-5, -20 - b); c.quadraticCurveTo(0, -13 - b, 5, -20 - b); c.stroke();   // cadena del cargo
+    Art.shape(c, Art.oval(0, -13.5 - b, 1.8, 1.8), '#e0b84a', .5);
+    Art.limb(c, -7, -16 - b, -10, -12 - b, 2.4, '#5a3a2a'); Art.limb(c, 7, -16 - b, 6, -10 - b, 2.4, '#5a3a2a');
+    const head = Art.oval(0, -25 - b, 7.5, 6.5); Art.shape(c, head, '#8a8580'); Art.vol(c, head, '#b0aba4', '#4a4642', 0, -25 - b, 7.5, 6.5);
+    if (!back) {
+      c.fillStyle = '#f2efe8'; c.fillRect(-1.2, -31 - b, 2.4, 9);                                         // franja blanca del tejón
+      c.fillStyle = '#2a2622'; c.fillRect(-5.5, -26.5 - b, 3.5, 2.6); c.fillRect(2, -26.5 - b, 3.5, 2.6);  // antifaz oscuro
+      c.fillStyle = '#e8e0c8'; c.fillRect(-4.4, -26 - b, 1.2, 1.2); c.fillRect(3.2, -26 - b, 1.2, 1.2);
+      Art.shape(c, Art.oval(0, -21.5 - b, 2.2, 1.6), '#2a2622', .4);                                     // hocico
+      c.fillStyle = '#d8d2c6'; c.fillRect(-4, -19.6 - b, 8, 1.4);                                          // bigote cano
+    }
+    for (const sx of [-5.5, 5.5]) Art.shape(c, Art.oval(sx, -31 - b, 2, 1.6), '#6a6560', .5);
     return;
   }
   if (k === 'cuidador') {   // brote andante con hojas

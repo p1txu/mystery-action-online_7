@@ -55,7 +55,7 @@ async def main():
                 if auth: await ctx.add_init_script(f"localStorage.setItem('ma-online-auth', {json.dumps(auth)})")
                 await pg.goto(st.url); await pg.wait_for_timeout(300)
                 if auth: return ctx, pg
-                await pg.click('#btn-online'); await pg.click('.on-tab[data-tab="guest"]'); await pg.fill('#on-name', name); await pg.click('#on-guest')
+                await pg.evaluate("n => MysteryLobby.devGuest(n)", name)
                 await pg.wait_for_selector(f'.on-fresh[data-sp="{species}"]', timeout=8000); await pg.click(f'.on-fresh[data-sp="{species}"]')
                 await pg.wait_for_selector('#on-profile-card', timeout=5000)
                 return ctx, pg

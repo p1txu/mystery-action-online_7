@@ -31,23 +31,43 @@ async def main():
             pages = {'Ana': A, 'Beto': B, 'Cris': C}
             vis = await A.evaluate("({ cont: getComputedStyle(document.getElementById('btn-continue')).display, start: getComputedStyle(document.getElementById('btn-start')).display, play: !!document.getElementById('btn-play') })")
             check('siempre online: en el título solo «Jugar» (sin «Continuar» ni «Nueva partida» locales)', vis['cont'] == 'none' and vis['start'] == 'none' and vis['play'], vis)
-            # Entrar: Jugar → invitado → clase → aldea
+            # Entrar: Jugar → iniciar sesión / crear cuenta → clase (tarjetas del juego) → llegada en carretilla → aldea
             for (name, cls) in [('Ana', 'guerrero'), ('Beto', 'mago'), ('Cris', 'arquero')]:
                 pg = pages[name]
                 await pg.click('#btn-play'); await pg.wait_for_selector('#online:not([hidden])')
-                local = await pg.evaluate("!!document.getElementById('on-local')")
-                await pg.click('.on-tab[data-tab="guest"]')
+                if name == 'Ana':
+                    ui = await pg.evaluate("({ text: document.getElementById('online').innerText, server: !!document.getElementById('on-server'), guest: !!document.querySelector('[data-tab=guest], #on-guest'), local: !!document.getElementById('on-local'), user: !!document.getElementById('on-user') })")
+                    await pg.screenshot(path=os.path.join(shots, 'social_login.png'))
+                    check('«Jugar» pide iniciar sesión, sin servidor, sin invitado, sin partida local ni menú cooperativo', ui['user'] and not ui['server'] and not ui['guest'] and not ui['local'] and 'Iniciar sesión' in ui['text'] and 'Cooperativo' not in ui['text'] and 'Expedición en grupo' not in ui['text'], ui)
+                await pg.click('#on-toreg')
                 if name == 'Ana':
                     note = await pg.inner_text('#on-secure')
-                    await pg.click('.on-tab[data-tab="register"]'); note2 = await pg.inner_text('#on-secure')
                     await pg.screenshot(path=os.path.join(shots, 'social_aviso_cifrado.png'))
-                    check('al crear cuenta se avisa del cifrado (contraseña irreversible, usuario y nombre cifrados, estado de la conexión)', all(k in note2 for k in ['contraseña nunca se guarda', 'cifrados', 'AES-256', 'tu propio ordenador']) and note == note2, note2)
-                    await pg.click('.on-tab[data-tab="guest"]')
-                await pg.fill('#on-name', name); await pg.click('#on-guest')
-                await pg.wait_for_selector(f'.on-fresh[data-sp="{cls}"]', timeout=8000); await pg.click(f'.on-fresh[data-sp="{cls}"]')
-                await pg.wait_for_function("MysteryAction.state === 'play' && MysteryAction.mode === 'village' && !!MysteryAction.account", timeout=8000)
+                    check('al crear cuenta se avisa del cifrado (contraseña irreversible, usuario y nombre cifrados, estado de la conexión)', all(k in note for k in ['contraseña nunca se guarda', 'cifrados', 'AES-256', 'tu propio ordenador']), note)
+                    await pg.fill('#on-ruser', 'ana_x'); await pg.fill('#on-rpass', 'clave-larga-1'); await pg.fill('#on-rpass2', 'otra-clave-2'); await pg.click('#on-register')
+                    await pg.wait_for_selector('#online .on-msg', timeout=3000)
+                    check('si las dos contraseñas no coinciden, se avisa', 'no coinciden' in await pg.inner_text('#online .on-msg'))
+                user = name.lower() + '_' + str(os.getpid() % 10000)
+                await pg.fill('#on-ruser', user); await pg.fill('#on-rpass', 'clave-larga-1'); await pg.fill('#on-rpass2', 'clave-larga-1'); await pg.fill('#on-rname', name); await pg.click('#on-register')
+                await pg.wait_for_function("MysteryAction.state === 'select'", timeout=8000)
+                await pg.click(f'#card-{cls}')
+                await pg.wait_for_function("MysteryAction.mode === 'village' && MysteryAction.cine && MysteryAction.cine.kind === 'arrival'", timeout=8000)
+                if name == 'Ana':
+                    await pg.wait_for_timeout(4000); await pg.screenshot(path=os.path.join(shots, 'social_llegada.png'))
+                    await pg.wait_for_function("!document.getElementById('dialog').hidden", timeout=15000)
+                    lines = []
+                    for k in range(6):
+                        if await pg.evaluate("!document.getElementById('dialog').hidden"):
+                            lines.append(await pg.inner_text('#dialog-text')); await pg.click('#dialog-btn-0'); await pg.wait_for_timeout(250)
+                    check('primera vez: llegan en carretilla y el alcalde da la bienvenida («el tiempo que necesites»)', any('Alcalde Bartolo' in l for l in lines) and any('el tiempo que necesites' in l for l in lines), lines)
+                else:
+                    await pg.wait_for_timeout(800); await pg.keyboard.press('Escape')                 # se puede saltar
+                await pg.wait_for_function("MysteryAction.state === 'play' && MysteryAction.mode === 'village' && !MysteryAction.cine && !!MysteryAction.account", timeout=8000)
+                await pg.wait_for_function("MysteryAction.save.arrived === true", timeout=5000)
                 await pg.wait_for_selector('#social-btn:not([hidden])', timeout=6000)
-                if name == 'Ana': check('sin botón de partida local en el menú de cuenta', not local)
+            # La llegada queda guardada en el SERVIDOR: al volver a entrar no se repite
+            await B.evaluate("MysteryAction.goBase()"); await B.wait_for_timeout(500)
+            check('la escena de llegada no se repite (guardado en el perfil del servidor)', not await B.evaluate("!!MysteryAction.cine") and await B.evaluate("MysteryLobby.profile && MysteryAction.save.arrived"))
             check('los tres entran directamente en la aldea con su cuenta (perfil del servidor)', all([(await pages[n].evaluate(WHERE))['mode'] == 'village' for n in pages]))
             await A.wait_for_function("MysteryLobby.hub && MysteryLobby.hub.status === 'online'", timeout=6000)
 

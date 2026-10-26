@@ -42,7 +42,7 @@ async def main():
                 ctx = await b.new_context(viewport={'width': 1100, 'height': 720}); pg = await ctx.new_page()
                 pg.on('pageerror', lambda e: errs.append(str(e)))
                 await pg.goto(url); await pg.wait_for_timeout(300); await pg.click('#btn-online')
-                await pg.click('.on-tab[data-tab="guest"]'); await pg.fill('#on-name', name); await pg.click('#on-guest')
+                await pg.evaluate("n => MysteryLobby.devGuest(n)", name)
                 await pg.wait_for_selector(f'.on-fresh[data-sp="{sp}"]', timeout=8000); await pg.click(f'.on-fresh[data-sp="{sp}"]')
                 await pg.wait_for_selector('#on-profile-card', timeout=5000); pages.append(pg)
             A, B = pages

@@ -18,7 +18,7 @@ async def main():
             async def open_player(name, species):
                 ctx = await b.new_context(viewport={'width': 1100, 'height': 720}); pg = await ctx.new_page(); watch_errors(pg, errs, name)
                 await pg.goto(st.url); await pg.wait_for_timeout(300)
-                await pg.click('#btn-online'); await pg.click('.on-tab[data-tab="guest"]'); await pg.fill('#on-name', name); await pg.click('#on-guest')
+                await pg.evaluate("n => MysteryLobby.devGuest(n)", name)
                 await pg.wait_for_selector(f'.on-fresh[data-sp="{species}"]', timeout=8000); await pg.click(f'.on-fresh[data-sp="{species}"]')
                 await pg.wait_for_selector('#on-profile-card', timeout=5000); return pg
             A, B = await asyncio.gather(open_player('Ana', 'guerrero'), open_player('Beto', 'arquero'))

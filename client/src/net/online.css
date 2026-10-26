@@ -87,3 +87,7 @@ body.online-only #btn-continue, body.online-only #btn-start { display: none !imp
 /* Aviso de privacidad al crear una cuenta */
 .on-secure { padding: 10px 12px; border-radius: 8px; background: rgba(155,227,107,.08); border: 1px solid rgba(155,227,107,.35); font-size: 13px; line-height: 1.45; }
 .on-secure ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 3px; }
+/* Inicio de sesión: tarjeta sencilla y estrecha */
+.online.on-login .online-card { width: min(440px, 100%); }
+.on-switch { margin: 0; font-size: 14px; opacity: .9; }
+.online-card label small { opacity: .65; font-weight: 400; }

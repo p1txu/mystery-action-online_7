@@ -1,12 +1,11 @@
 {
-  "build": 32,
-  "version": "0.32",
+  "build": 33,
+  "version": "0.33",
   "date": "2026-10-26",
   "notes": [
-    "Instalador para Windows (MysteryAction-Setup.exe): se instala con un asistente, crea el acceso directo con icono y trae su propio Node.js; ya no hace falta Instalar.bat.",
-    "El instalador lo construye GitHub solo con cada versión nueva y lo publica en Releases; el juego se sigue actualizando solo al abrirse.",
-    "Cuentas cifradas: tu usuario y tu nombre se guardan cifrados (AES-256) en el servidor; la contraseña nunca se guarda, solo una huella irreversible.",
-    "Al crear una cuenta se explica qué se protege y si la conexión va cifrada.",
-    "Las cuentas que ya existían se cifran solas al arrancar el servidor; se entra con el mismo usuario y contraseña."
+    "«Jugar» ya solo pide iniciar sesión o crear la cuenta (sin servidor, sin invitado, sin menú cooperativo) y entra directamente en el mundo; la primera vez eliges clase con las tarjetas del juego.",
+    "Llegada a la aldea: la primera vez, Centinela Roco y Tito Brote te traen inconsciente en una carretilla de madera desde el bosque, y el alcalde Bartolo te da la bienvenida. Se puede saltar con Esc.",
+    "Nueva aldea medieval y pobre: calles empedradas, barro, casas de piedra con tejados de paja remendados, poca luz y la casa del alcalde junto a la plaza.",
+    "Instalador de Windows (MysteryAction-Setup.exe) en GitHub Releases; el juego se actualiza solo al abrirse."
   ]
 }

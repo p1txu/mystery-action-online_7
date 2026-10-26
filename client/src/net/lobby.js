@@ -104,7 +104,7 @@ export class Lobby {
   get api() { return new Api(this.server, this.auth && this.auth.token); }
   get inGroup() { return !!(this.session && !this.session.soloDungeon && !this.session.partyRun && ['connecting', 'lobby', 'reconnecting', 'lost'].includes(this.session.status)); }
   get status() { return this.session && this.session.status !== 'idle' ? this.session.status : this.conn; }
-  open() { this.el.hidden = false; this.refresh(); this.hostRefresh(); }
+  open() { if (this.autoVillageFrom !== 'play') this.autoVillage = false; this.autoVillageFrom = null; this.el.hidden = false; this.refresh(); this.hostRefresh(); }
   close() { if (this.inGroup) return; this.el.hidden = true; }
   /** Mensaje para el jugador; si se pasa `retry`, aparece el botón «Reintentar». */
   say(text, kind = 'bad', retry = null) { this.msg = text ? { text, kind } : null; this.retryFn = retry; this.render(); }
@@ -206,7 +206,7 @@ export class Lobby {
   /* ---------- Cuenta ---------- */
   async authed(promise, retry) {
     this.conn = 'checking'; this.say('');
-    try { const r = await promise; this.auth = { server: this.server, token: r.token, accountId: r.account.id, name: r.account.name, kind: r.account.kind }; saveAuth(this.auth); this.onlineAccount = null; await this.refresh(); if (this.profile && this.autoVillage) this.solo(); return true; }
+    try { const r = await promise; this.auth = { server: this.server, token: r.token, accountId: r.account.id, name: r.account.name, kind: r.account.kind }; saveAuth(this.auth); this.onlineAccount = null; await this.refresh(); if (this.autoVillage && this.account) { if (this.profile) this.solo(); else this.pickClass(); } return true; }
     catch (e) { this.conn = this.account ? 'online' : 'offline'; this.say(e.offline ? describeError({ message: 'fetch failed' }, this.server) : e.message, 'bad', e.offline ? retry : null); return false; }
   }
   setServer(v) { this.server = (v || '').trim().replace(/\/+$/, '') || defaultServer(); }
@@ -294,13 +294,28 @@ export class Lobby {
     try { const r = await this.api.uploadSave(Save.exportText(local), this.profile ? this.profile.version : 0); this.profile = { profile: r.profile, version: r.version }; await this.refresh(); this.say('Partida local subida (modo de desarrollo).', 'good'); }
     catch (e) { this.say(e.message, 'bad'); }
   }
-  async fresh(species) { try { const r = await this.api.newProfile(species); this.profile = r; this.say('Perfil creado en el servidor.', 'good'); if (this.autoVillage) this.solo(); } catch (e) { this.say(e.message); } }
+  async fresh(species) {
+    try { const r = await this.api.newProfile(species); this.profile = r; this.say('Perfil creado en el servidor.', 'good'); if (this.autoVillage) this.solo(); }
+    catch (e) { this.el.hidden = false; this.say(e.message); }
+  }
+  /** Primera vez con la cuenta: se elige la clase en la pantalla de clases del juego (tarjetas). */
+  pickClass() {
+    const g = G(); this.el.hidden = true;
+    g.onlinePick = sp => { g.onlinePick = null; this.fresh(sp); };
+    g.goSelect('online');
+  }
+  /** SOLO PRUEBAS: entra con una cuenta de invitado (la interfaz ya no lo ofrece) y abre el menú; sin la escena de llegada. */
+  async devGuest(name, { intro = false } = {}) {
+    if (!intro) try { localStorage.setItem('ma-no-intro', '1'); } catch { /* sin almacenamiento */ }
+    this.autoVillage = false; this.open(); return this.guest(name);
+  }
   /** «Jugar» en la pantalla de título: con sesión y clase, directo a la aldea; si no, entrar o crear cuenta. */
   async play() {
     this.autoVillage = true;
     if (this.auth && !this.account) await this.refresh();
     if (this.account && this.profile) return this.solo();
-    this.open();
+    if (this.account) return this.pickClass();
+    this.autoVillageFrom = 'play'; this.open();
   }
 
   /* ---------- Vista ---------- */
@@ -313,22 +328,29 @@ export class Lobby {
     else body = this.renderMenu(st);
     const keep = {}; this.el.querySelectorAll('input[id], select[id]').forEach(i => { keep[i.id] = i.value; });   // no se pierde lo escrito al refrescar
     const focus = document.activeElement && this.el.contains(document.activeElement) ? document.activeElement.id : null;
-    this.el.innerHTML = `<div class="online-card panel"><div class="on-head"><div class="eyebrow">Cooperativo · hasta ${MAX_PLAYERS} jugadores</div><span id="on-status" class="on-status ${stKind}" data-status="${st}">${stText}</span></div><h2 id="online-h">Expedición en grupo</h2>${msg}${body}</div>`;
+    const head = !this.auth || !this.account
+      ? `<div class="on-head"><div class="eyebrow">Pokémon Mystery Action</div></div><h2 id="online-h">${this.authTab === 'register' ? 'Crear cuenta' : 'Iniciar sesión'}</h2>`
+      : `<div class="on-head"><div class="eyebrow">Cooperativo · hasta ${MAX_PLAYERS} jugadores</div><span id="on-status" class="on-status ${stKind}" data-status="${st}">${stText}</span></div><h2 id="online-h">Expedición en grupo</h2>`;
+    this.el.classList.toggle('on-login', !this.auth || !this.account);
+    this.el.innerHTML = `<div class="online-card panel">${head}${msg}${body}</div>`;
     for (const [id, v] of Object.entries(keep)) { const i = this.el.querySelector('#' + id); if (i && !i.value && v) i.value = v; }
     if (focus) { const f = this.el.querySelector('#' + focus); if (f) f.focus(); }
     this.bind();
     this.drawPortraits();
   }
+  /** Sin sesión: solo «Iniciar sesión» o «Crear cuenta» (sin servidor, sin invitado, sin menú cooperativo). */
   renderAuth(st) {
-    const tab = this.authTab, busy = st === 'checking' ? ' disabled' : '';
-    const tabs = [['login', 'Iniciar sesión'], ['register', 'Crear cuenta'], ['guest', 'Probar como invitado']].map(([k, t]) => `<button class="on-tab${k === tab ? ' on' : ''}" data-tab="${k}" aria-pressed="${k === tab}">${t}</button>`).join('');
-    const form = tab === 'login' ? `<label>Usuario <input id="on-user" autocomplete="username" maxlength="20"></label><label>Contraseña <input id="on-pass" type="password" autocomplete="current-password" maxlength="128"></label><button id="on-login" class="btn-main"${busy}>Entrar</button>`
-      : tab === 'register' ? `<label>Usuario (para entrar desde otros dispositivos) <input id="on-ruser" autocomplete="username" maxlength="20" placeholder="3–20: letras, números, . _ -"></label><label>Contraseña <input id="on-rpass" type="password" autocomplete="new-password" maxlength="128" placeholder="mínimo 8 caracteres"></label><label>Nombre visible <input id="on-rname" maxlength="20" placeholder="Explorador"></label>${securityNote()}<button id="on-register" class="btn-main"${busy}>Crear cuenta</button>`
-      : `${/\.trycloudflare\.com$/.test(location.hostname) ? '<p class="on-msg warn"><span>Estás entrando por el enlace de un amigo. Ese enlace cambia cada vez que lo abre: con una cuenta de invitado no podrías volver a entrar. Usa «Crear cuenta» (usuario y contraseña).</span></p>' : ''}<p class="hint-line">Sin contraseña. El progreso se guarda en el servidor, pero solo podrás usarlo desde este navegador hasta que le pongas usuario y contraseña.</p><label>Tu nombre <input id="on-name" maxlength="20" placeholder="Explorador"></label>${securityNote()}<button id="on-guest" class="btn-main"${busy}>Entrar como invitado</button>`;
-    return `<p class="lede">Tu perfil online (clase, nivel, objetos, monedas, compañeros y misiones) se guarda en el servidor y es solo tuyo: el mismo si juegas solo o con tus amigos.</p>
-      <label>Servidor <input id="on-server" value="${esc(this.server)}" spellcheck="false" autocomplete="off"></label>
-      <div class="on-tabs" role="tablist">${tabs}</div><div class="on-menu">${form}</div>
-      <div class="on-row">${devLocal() ? '<button id="on-local" class="btn-ghost">Partida local (pruebas, sin conexión)</button>' : ''}<button id="on-close" class="btn-ghost">Volver</button></div>`;
+    const tab = this.authTab === 'register' ? 'register' : 'login', busy = st === 'checking' ? ' disabled' : '';
+    const form = tab === 'login'
+      ? `<form class="on-menu" id="on-loginform"><label>Usuario <input id="on-user" autocomplete="username" maxlength="20" autofocus></label><label>Contraseña <input id="on-pass" type="password" autocomplete="current-password" maxlength="128"></label><button id="on-login" class="btn-main"${busy}>Entrar</button></form>
+        <p class="on-switch">¿Aún no tienes cuenta? <button class="btn-link" id="on-toreg">Crear una cuenta</button></p>`
+      : `<form class="on-menu" id="on-regform"><label>Usuario <input id="on-ruser" autocomplete="username" maxlength="20" placeholder="3–20: letras, números, . _ -" autofocus></label>
+        <label>Contraseña <input id="on-rpass" type="password" autocomplete="new-password" maxlength="128" placeholder="mínimo 8 caracteres"></label>
+        <label>Repite la contraseña <input id="on-rpass2" type="password" autocomplete="new-password" maxlength="128"></label>
+        <label>Nombre en el juego <small>(opcional; si no, tu usuario)</small> <input id="on-rname" maxlength="20" placeholder="El que verán tus amigos"></label>
+        ${securityNote()}<button id="on-register" class="btn-main"${busy}>Crear cuenta y jugar</button></form>
+        <p class="on-switch">¿Ya tienes cuenta? <button class="btn-link" id="on-tologin">Iniciar sesión</button></p>`;
+    return `${form}<div class="on-row">${devLocal() ? '<button id="on-local" class="btn-ghost">Partida local (pruebas, sin conexión)</button>' : ''}<button id="on-close" class="btn-ghost">Volver</button></div>`;
   }
   renderMenu(st) {
     const a = this.account, rec = this.profile, busy = st === 'connecting';
@@ -385,12 +407,18 @@ export class Lobby {
   bind() {
     const on = (id, fn) => { const b = this.el.querySelector('#' + id); if (b) b.onclick = fn; };
     const val = id => (this.el.querySelector('#' + id) || {}).value;
-    const srv = () => this.setServer(val('on-server'));
+    const srv = () => {};          // el servidor es siempre el del juego (ya no se escribe a mano)
     on('on-retry', () => { const f = this.retryFn; this.say(''); f && f(); });
     on('on-close', () => this.close());
     this.el.querySelectorAll('.on-tab').forEach(b => b.onclick = () => { srv(); this.authTab = b.dataset.tab; this.say(''); });
-    on('on-login', () => { srv(); this.login(val('on-user'), val('on-pass')); });
-    on('on-register', () => { srv(); this.register(val('on-ruser'), val('on-rpass'), val('on-rname')); });
+    const lf = this.el.querySelector('#on-loginform'); if (lf) lf.onsubmit = e => { e.preventDefault(); this.login(val('on-user'), val('on-pass')); };
+    const rf = this.el.querySelector('#on-regform'); if (rf) rf.onsubmit = e => {
+      e.preventDefault();
+      if (val('on-rpass') !== val('on-rpass2')) return this.say('Las dos contraseñas no coinciden.', 'warn');
+      this.register(val('on-ruser'), val('on-rpass'), val('on-rname') || val('on-ruser'));
+    };
+    on('on-toreg', () => { this.authTab = 'register'; this.say(''); });
+    on('on-tologin', () => { this.authTab = 'login'; this.say(''); });
     on('on-guest', () => { srv(); this.guest(val('on-name')); });
     on('on-upgrade', () => this.upgrade(val('on-uuser'), val('on-upass')));
     on('on-logout', () => this.logout());
