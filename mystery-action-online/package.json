@@ -1,0 +1,34 @@
+{
+  "name": "mystery-action-online",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": [
+    "shared",
+    "server",
+    "client"
+  ],
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "split": "node tools/split-prototype.mjs",
+    "check": "node tools/split-prototype.mjs --check",
+    "test": "node --test \"tests/*.test.mjs\"",
+    "dev:server": "npm run dev --workspace server",
+    "dev:client": "npm run split && node tools/build-client.mjs --dev",
+    "build:client": "npm run split && node tools/build-client.mjs",
+    "test:all": "bash tests/run-all.sh",
+    "test:colyseus": "node --test \"tests/colyseus/*.test.mjs\"",
+    "vendor:colyseus": "node tests/vendor/build-colyseus.mjs",
+    "start": "npm start --workspace server",
+    "test:deploy": "node --test tests/deploy/*.test.mjs",
+    "check:server": "node tools/check-server.mjs",
+    "jugar": "node tools/launch.mjs",
+    "instalar": "node tools/launch.mjs --install-only"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "ws": "^8.18.0"
+  }
+}

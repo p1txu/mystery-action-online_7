@@ -1,0 +1,17 @@
+# Nada de secretos, datos locales ni artefactos de pruebas en la imagen
+.env
+**/.env
+deploy/.env
+data/
+server/data/
+**/*.db
+**/*.db-wal
+**/*.db-shm
+node_modules/
+**/node_modules/
+client/dist/
+client/.dev/
+tests/
+docs/
+.git/
+*.zip

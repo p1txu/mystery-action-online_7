@@ -1,0 +1,29 @@
+# Render (opción gratuita para probar): servidor de juego desde el Dockerfile.
+# El plan gratuito NO tiene disco persistente: los perfiles van en PostgreSQL externo (p. ej. Neon).
+# En Render: New → Blueprint → elige este repositorio. Después rellena en el panel las variables
+# marcadas con sync: false (DATABASE_URL y CLIENT_ORIGIN). AUTH_SECRET lo genera Render.
+services:
+  - type: web
+    name: mystery-action-server
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: TRUST_PROXY
+        value: "1"
+      - key: PROFILE_STORE
+        value: postgres
+      - key: DATABASE_URL          # cadena de conexión de Neon (con ?sslmode=require)
+        sync: false
+      - key: CLIENT_ORIGIN         # https://<tu-proyecto>.pages.dev
+        sync: false
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: RECONNECT_SECONDS
+        value: "45"
+      - key: LOG_LEVEL
+        value: info

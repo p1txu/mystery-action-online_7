@@ -1,0 +1,18 @@
+# Imagen pública: Caddy (HTTPS automático) + el cliente compilado.
+# El cliente se compila con SERVER_URL vacío: habla con el servidor en la misma dirección (proxy).
+FROM node:22-bookworm-slim AS build
+WORKDIR /app
+COPY package.json package-lock.json* ./
+COPY shared/package.json shared/
+COPY server/package.json server/
+COPY client/package.json client/
+RUN if [ -f package-lock.json ]; then npm ci --workspace client --include-workspace-root; else npm install --workspace client --include-workspace-root; fi
+COPY prototype/ prototype/
+COPY tools/ tools/
+COPY shared/ shared/
+COPY client/ client/
+RUN node tools/split-prototype.mjs --check && node tools/build-client.mjs
+
+FROM caddy:2
+COPY deploy/Caddyfile /etc/caddy/Caddyfile
+COPY --from=build /app/client/dist /srv/client

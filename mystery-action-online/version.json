@@ -1,0 +1,12 @@
+{
+  "build": 26,
+  "version": "0.26",
+  "date": "2026-10-26",
+  "notes": [
+    "Cooperativo: deja objetos en el suelo desde la mochila para que los coja un compañero.",
+    "Cooperativo rebalanceado: casi los mismos enemigos que en solitario (como mucho +20 % con 4 jugadores) pero con más PS y más daño.",
+    "Un solo juego: jugar solo, en casa o con amigos por Internet desde el mismo Jugar.bat («Crear enlace para amigos» dentro de «Cooperativo online»).",
+    "Unirse con código: si la sala no existe, dice en qué servidor la has buscado (para detectar que cada uno está en un enlace distinto).",
+    "Cinco mazmorras con dificultad progresiva: Bosque, Gruta, Ciénaga Sombría (nueva), Mina Olvidada (nueva) y Cráter."
+  ]
+}

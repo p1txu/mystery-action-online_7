@@ -1,0 +1,128 @@
+{
+  "_": "Código fuente de Colyseus 0.18 y de node-postgres (pg) con sus dependencias de ejecución, fijado por commit. Solo para pruebas en entornos sin acceso a npm; en un proyecto normal se usa `npm install`.",
+  "colyseus": {
+    "repo": "https://github.com/colyseus/colyseus.git",
+    "ref": "0.18",
+    "commit": "ba5d90f33368faa8558af65fa2ad4d20b03e197a"
+  },
+  "better-call": {
+    "repo": "https://github.com/colyseus/better-call.git",
+    "ref": "main",
+    "commit": "ab9eae423246780f20b26f9ea83fb28323242f13"
+  },
+  "schema": {
+    "repo": "https://github.com/colyseus/schema.git",
+    "ref": "5.0.42",
+    "commit": "2b1e8b29ac36085d346fcdec1d0875d1bb92baba"
+  },
+  "msgpackr": {
+    "repo": "https://github.com/kriszyp/msgpackr.git",
+    "ref": "v2.1.3",
+    "commit": "e695e35c3c0794e1f7cae9fdce138b19edf9fd0e"
+  },
+  "nanoid": {
+    "repo": "https://github.com/ai/nanoid.git",
+    "ref": "3.3.11",
+    "commit": "37289ceee51a3194a1f121a1e5d2bbb864076b74"
+  },
+  "debug": {
+    "repo": "https://github.com/debug-js/debug.git",
+    "ref": "4.4.3",
+    "commit": "6b2c5fbdb7d414483d9e306ef234acb4cd7ea67c"
+  },
+  "ms": {
+    "repo": "https://github.com/vercel/ms.git",
+    "ref": "2.1.3",
+    "commit": "1c6264b795492e8fdecbc82cb8802fcfbfc08d26"
+  },
+  "rou3": {
+    "repo": "https://github.com/unjs/rou3.git",
+    "ref": "v0.7.12",
+    "commit": "0fa8c08328765bb88412e2083ac609ab38645c56"
+  },
+  "set-cookie-parser": {
+    "repo": "https://github.com/nfriedly/set-cookie-parser.git",
+    "ref": "v3.2.1",
+    "commit": "e3892dc4b3df650876818b8dcb11f6c696bbc6e0"
+  },
+  "bautils": {
+    "repo": "https://github.com/better-auth/utils.git",
+    "ref": "v0.3.1",
+    "commit": "026d95dc707169c07ae55ed7ed1681ab2310726e"
+  },
+  "better-fetch": {
+    "repo": "https://github.com/bekacru/better-fetch.git",
+    "ref": "v1.3.2",
+    "commit": "631eca8f26590879c235b3e094f2489014e2d67d"
+  },
+  "timer": {
+    "repo": "https://github.com/colyseus/timer.git",
+    "ref": "main",
+    "commit": "05fa29f761d5deeaa6f83be8fc8b59473b97cf7d"
+  },
+  "clock": {
+    "repo": "https://github.com/colyseus/clock.git",
+    "ref": "main",
+    "commit": "601852dce870a468760d27992fa1b95447b84e27"
+  },
+  "node-postgres": {
+    "repo": "https://github.com/brianc/node-postgres.git",
+    "ref": "master",
+    "commit": "2a5850fb0db18f5e40a642bbb4a4743de412ab54",
+    "group": "pg"
+  },
+  "pg-types": {
+    "repo": "https://github.com/brianc/node-pg-types.git",
+    "ref": "v2.2.0",
+    "commit": "d9d9dfb87eb50914043cbc178c301b7dd3b0c50d",
+    "group": "pg"
+  },
+  "pg-int8": {
+    "repo": "https://github.com/charmander/pg-int8.git",
+    "ref": "v1.0.1",
+    "commit": "91d0683b3d0f9b24176bbbffbd03680cd4c97b17",
+    "group": "pg"
+  },
+  "postgres-array": {
+    "repo": "https://github.com/bendrucker/postgres-array.git",
+    "ref": "v2.0.0",
+    "commit": "3693b1fbf7c77455b9a7a1f3ac1f7f039947e641",
+    "group": "pg"
+  },
+  "postgres-bytea": {
+    "repo": "https://github.com/bendrucker/postgres-bytea.git",
+    "ref": "v1.0.0",
+    "commit": "6a1c2665b40e7a6548d7102a8b0fb4905a1a90b7",
+    "group": "pg"
+  },
+  "postgres-date": {
+    "repo": "https://github.com/bendrucker/postgres-date.git",
+    "ref": "v1.0.7",
+    "commit": "edbfe6e2e603c869215e8b98144bf6de2f6ffa50",
+    "group": "pg"
+  },
+  "postgres-interval": {
+    "repo": "https://github.com/bendrucker/postgres-interval.git",
+    "ref": "v1.2.0",
+    "commit": "c92e936bf6383691b1572f3e85597fb4d0518e96",
+    "group": "pg"
+  },
+  "pgpass": {
+    "repo": "https://github.com/hoegaarden/pgpass.git",
+    "ref": "v1.0.5",
+    "commit": "4230ed5e417ba6044ea7eb80b7c33db9ec301398",
+    "group": "pg"
+  },
+  "split2": {
+    "repo": "https://github.com/mcollina/split2.git",
+    "ref": "v4.2.0",
+    "commit": "919b26b59c9762b817a121f4416ccc44d82043ad",
+    "group": "pg"
+  },
+  "xtend": {
+    "repo": "https://github.com/Raynos/xtend.git",
+    "ref": "v4.0.2",
+    "commit": "37816c0e2e25da2901d584442235946d5cd8c80d",
+    "group": "pg"
+  }
+}

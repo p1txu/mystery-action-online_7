@@ -1,0 +1,13 @@
+node_modules/
+dist/
+data/
+server/data/
+.env
+*.tmp
+tests/.tmp/
+deploy/.env
+client/.dev/
+tools/bin/
+client/dist/
+release/
+.update/

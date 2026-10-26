@@ -1,0 +1,13 @@
+{
+  "name": "@mystery-action/client",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node ../tools/build-client.mjs --dev",
+    "build": "node ../tools/build-client.mjs"
+  },
+  "dependencies": {
+    "@colyseus/sdk": "^0.18.1"
+  }
+}

@@ -1,0 +1,69 @@
+# Despliegue en un VPS propio: proxy HTTPS (Caddy) + servidor de juego + PostgreSQL.
+#   cd deploy && cp .env.example .env   (y rellénalo: dominio, correo, secretos generados)
+#   docker compose up -d --build
+#   docker compose logs -f server
+# Solo Caddy publica puertos (80 y 443). El servidor y la base de datos quedan en la red interna.
+name: mystery-action
+
+services:
+  web:
+    build: { context: .., dockerfile: deploy/Dockerfile.web }
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:?Falta DOMAIN en deploy/.env}
+      ACME_EMAIL: ${ACME_EMAIL:?Falta ACME_EMAIL en deploy/.env}
+    volumes:
+      - caddy_data:/data            # certificados: si se borra, se vuelven a pedir
+      - caddy_config:/config
+    depends_on:
+      server: { condition: service_healthy }
+    logging: &logs
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
+
+  server:
+    build: { context: .., dockerfile: Dockerfile }
+    restart: unless-stopped
+    stop_grace_period: 30s          # SIGTERM: se cierran y guardan las expediciones antes de salir
+    environment:
+      NODE_ENV: production
+      PORT: "2567"
+      AUTH_SECRET: ${AUTH_SECRET:?Falta AUTH_SECRET en deploy/.env}
+      CLIENT_ORIGIN: https://${DOMAIN}
+      TRUST_PROXY: "1"
+      PROFILE_STORE: postgres
+      DATABASE_URL: postgres://mystery:${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD}@db:5432/mystery
+      RECONNECT_SECONDS: ${RECONNECT_SECONDS:-45}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    expose: ["2567"]
+    volumes:
+      - server_data:/data
+    depends_on:
+      db: { condition: service_healthy }
+    logging: *logs
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mystery
+      POSTGRES_DB: mystery
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mystery -d mystery"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    logging: *logs
+
+volumes:
+  pgdata:
+  server_data:
+  caddy_data:
+  caddy_config:
