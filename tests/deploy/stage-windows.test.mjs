@@ -52,5 +52,5 @@ test('instalador: el script de Inno Setup y el flujo de GitHub Actions apuntan a
   assert.ok(!/Name: "\{app\}\\data"/.test(iss), 'data no se borra sin preguntar');
   assert.ok(existsSync(join(ROOT, 'installer/icon.ico')));
   const wf = readFileSync(join(ROOT, '.github/workflows/windows-installer.yml'), 'utf8');
-  for (const s of ['tools/stage-windows.mjs', 'installer\\MysteryAction.iss', 'tools/release-notes.mjs', 'MysteryAction-Setup.exe', 'contents: write', "paths: ['version.json']"]) assert.ok(wf.includes(s), s);
+  for (const s of ['tools/stage-windows.mjs', 'installer\\MysteryAction.iss', 'tools/release-notes.mjs', 'MysteryAction-Setup.exe', 'contents: write', "paths: ['version.json'"]) assert.ok(wf.includes(s), s);
 });

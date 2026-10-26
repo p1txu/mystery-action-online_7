@@ -1,5 +1,5 @@
-# Texto con fin de línea normalizado en el repositorio...
-* text=auto
+# Texto con fin de línea LF en el repositorio y también al descargarlo en Windows (las reglas generadas se comparan byte a byte)...
+* text=auto eol=lf
 # ...pero los scripts de Windows SIEMPRE con CRLF: con LF, cmd.exe puede fallar en las etiquetas (goto)
 *.bat text eol=crlf
 *.cmd text eol=crlf

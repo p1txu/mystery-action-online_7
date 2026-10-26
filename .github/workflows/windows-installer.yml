@@ -1,5 +1,5 @@
 # Instalador de Windows (MysteryAction-Setup.exe), construido por GitHub en un Windows de verdad.
-# Se ejecuta solo cada vez que se sube un version.json nuevo a main (o a mano: Actions → «Instalador de Windows»
+# Se ejecuta solo cada vez que se sube a main un version.json nuevo (o cambios del propio instalador) (o a mano: Actions → «Instalador de Windows»
 # → Run workflow). Deja el .exe en Releases; el enlace fijo de descarga es:
 #   https://github.com/<usuario>/<repositorio>/releases/latest/download/MysteryAction-Setup.exe
 name: Instalador de Windows
@@ -7,7 +7,7 @@ name: Instalador de Windows
 on:
   push:
     branches: [main]
-    paths: ['version.json']
+    paths: ['version.json', 'installer/**', 'tools/stage-windows.mjs', '.github/workflows/windows-installer.yml']
   workflow_dispatch:
 
 permissions:

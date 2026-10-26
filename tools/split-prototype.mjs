@@ -44,7 +44,7 @@ const EXPORTS = [
   'RECRUIT', 'ORDERS', 'gridPath', 'Companion', 'LEGACY_JOBS', 'isLegacyJob', 'Quests',
 ];
 
-const html = readFileSync(SRC, 'utf8');
+const html = readFileSync(SRC, 'utf8').replace(/\r\n/g, '\n');   // igual en Windows (Git puede entregar los archivos con CRLF)
 const open = html.indexOf('<script>'), close = html.lastIndexOf('</script>');
 if (open < 0 || close < open) throw new Error('No se encuentra el <script> del prototipo');
 const script = html.slice(open + '<script>'.length, close);
@@ -95,7 +95,7 @@ const out = [
 ];
 
 if (CHECK) {
-  const stale = out.filter(([f, txt]) => !existsSync(f) || readFileSync(f, 'utf8') !== txt).map(([f]) => f.slice(ROOT.length + 1));
+  const stale = out.filter(([f, txt]) => !existsSync(f) || readFileSync(f, 'utf8').replace(/\r\n/g, '\n') !== txt.replace(/\r\n/g, '\n')).map(([f]) => f.slice(ROOT.length + 1));
   if (stale.length) { console.error('Desactualizados (ejecuta npm run split):\n  ' + stale.join('\n  ')); process.exit(1); }
   console.log('Generados al día (' + srcHash + ')');
 } else {
