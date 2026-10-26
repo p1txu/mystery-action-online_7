@@ -4,6 +4,7 @@
  */
 import { Lobby, devLocal } from './net/lobby.js';
 import './net/online.css';
+import GAME from '../../version.json';
 
 const lobby = new Lobby();
 const row = document.querySelector('#title .btn-row');
@@ -20,6 +21,17 @@ if (row) {
   const hint = document.getElementById('title-hint');
   if (hint && !devLocal()) hint.textContent = 'Tu progreso se guarda en el servidor, con tu cuenta.';
 }
+// Versión visible en el título (para saber qué juego tienes abierto)
+const tag = document.createElement('div');
+tag.id = 'game-version'; tag.className = 'hint-line'; tag.textContent = `Versión ${GAME.version} · build ${GAME.build}`;
+document.querySelector('#title .title-block')?.appendChild(tag);
+// Pestaña antigua: si el servidor ya tiene otra versión (se actualizó con esta pestaña abierta), se recarga una vez
+fetch(lobby.server.replace(/\/+$/, '') + '/api/health', { cache: 'no-store' }).then(r => r.json()).then(h => {
+  if (!Number.isInteger(h.build) || h.build === GAME.build) return;
+  let tried = null; try { tried = sessionStorage.getItem('ma-reload-build'); } catch { /* sin almacenamiento */ }
+  if (tried !== String(h.build)) { try { sessionStorage.setItem('ma-reload-build', String(h.build)); } catch { /* idem */ } location.reload(); }
+  else tag.textContent += ` · el servidor tiene la ${h.version}: recarga la página (Ctrl+F5)`;
+}).catch(() => { /* sin servidor: el lobby ya lo avisa */ });
 window.MysteryLobby = lobby;   // depuración y pruebas
 if (lobby.auth) lobby.refresh();          // con sesión guardada: se conecta ya (amigos y grupo) aunque siga en el título
 if (lobby.invite) lobby.showInvite();   // enlace de invitación: abre el menú con el código ya escrito

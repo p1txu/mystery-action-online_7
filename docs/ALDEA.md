@@ -21,7 +21,7 @@ Detalles:
 - **Saltar:** Esc salta la escena.
 - **No se repite:** se guarda en el perfil (`arrived`). En línea lo guarda el servidor con la operación `arrive`.
 - **Partidas anteriores:** las que ya habían jugado alguna expedición no ven la escena.
-- **El alcalde Bartolo** es un tejón anciano con abrigo remendado, la cadena del cargo y un bastón nudoso. Es original y está dibujado con el mismo estilo que los demás vecinos. Vive junto a la plaza: con **E** charla un rato (frases sueltas, sin panel).
+- **El alcalde Bartolo** es un tejón anciano con abrigo remendado, la cadena del cargo y un bastón nudoso. Es original y está dibujado con el mismo estilo que los demás vecinos. Vive junto a la plaza: con **E** charla un rato (frases sueltas, sin panel). Desde 0.34 también ofrece **«¿Cómo llegué aquí?»**, que vuelve a poner la escena de la carretilla (se salta con Esc y no cambia el perfil).
 
 ## Estilo de la aldea: medieval y pobre
 

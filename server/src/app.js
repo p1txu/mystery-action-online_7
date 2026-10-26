@@ -15,6 +15,10 @@ import { createLogger, setLogger, log as defaultLog } from './log.js';
 import { serveClient } from './http/static.js';
 import { HostTunnel } from './host/HostTunnel.js';
 import { ROOM_NAME, reconnectWindow, HOST_GRACE_SECONDS } from '../../shared/protocol.js';
+import { readFileSync } from 'node:fs';
+
+/** Versión del juego que sirve este servidor (version.json). El cliente y el lanzador la comparan con la suya. */
+export const GAME_VERSION = (() => { try { const v = JSON.parse(readFileSync(new URL('../../version.json', import.meta.url), 'utf8')); return { version: String(v.version), build: Number(v.build) }; } catch { return { version: null, build: null }; } })();
 
 /** IP del jugador: la conexión directa no se ve desde el router; tras N proxies de confianza, X-Forwarded-For. */
 export function clientIp(headers, trustProxy) {
@@ -46,7 +50,7 @@ export async function createGameServer(config, { store: givenStore, logger } = {
     let db = null;
     if (deep) { try { await store.getAccount('__ping__'); db = 'ok'; } catch (e) { db = 'error'; log.error('db.ping', e); } }
     const rooms = [...registry.rooms.values()];
-    return { ok: db !== 'error', uptime: Math.round((Date.now() - startedAt) / 1000), rooms: rooms.length, players: rooms.reduce((t, r) => t + r.clients.length, 0), db };
+    return { ok: db !== 'error', version: GAME_VERSION.version, build: GAME_VERSION.build, uptime: Math.round((Date.now() - startedAt) / 1000), rooms: rooms.length, players: rooms.reduce((t, r) => t + r.clients.length, 0), db };
   };
   // Enlace para amigos (solo en el PC del anfitrión, con el juego servido aquí mismo): su origen se permite mientras esté abierto
   const host = config.hostTunnel && config.clientDir ? new HostTunnel({ port: config.port, binDir: config.hostBinDir, log,

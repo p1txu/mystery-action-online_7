@@ -34,6 +34,7 @@ if command -v python3 >/dev/null && python3 -c "import playwright" 2>/dev/null; 
   SHOT_DIR=tests/.tmp python3 tests/colyseus/browser_geoda_e2e.py                    # Gruta en cooperativo: Pico Cartero y Reina Geoda (rocas, aturdida, salto)
   SHOT_DIR=tests/.tmp python3 tests/colyseus/browser_revive_e2e.py                   # caer y reanimar: la partida del caído no se cierra; Ana lo reanima
   SHOT_DIR=tests/.tmp python3 tests/colyseus/browser_social_e2e.py                   # siempre online: amigos, grupo, aldea compartida, chat y mazmorra en grupo (3 navegadores)
+  SHOT_DIR=tests/.tmp python3 tests/colyseus/browser_arrival_e2e.py                  # cuenta nueva + Guerrero: llegada en carretilla; versión visible; pestaña antigua se recarga
   SHOT_DIR=tests/.tmp python3 tests/colyseus/browser_host_e2e.py                     # anfitrión y amigo: invitación, opciones, ceder liderazgo
   python3 tests/deploy/launcher_e2e.py                                                  # Jugar.bat / jugar.sh: lanzador + 2 navegadores
   python3 tests/deploy/host_e2e.py                                                      # enlace para amigos desde el juego: túnel (simulado) bajo demanda + 2 navegadores

@@ -64,3 +64,10 @@ Pasos del flujo:
   - el flujo de GitHub Actions.
 
   Todo eso se hace la primera vez que GitHub lo ejecute en el repositorio. Si falla, el registro de la pestaña Actions dice en qué paso.
+
+## ¿Qué versión estoy jugando? (0.34)
+
+- La versión sale en la pantalla de título («Versión 0.34 · build 34») y en la ventana negra al abrir el juego.
+- **Si ya había otro juego abierto en el mismo puerto** (otra ventana negra, o la copia antigua descomprimida) con **otra versión**, el lanzador ya no lo reutiliza: avisa «Ya hay otro juego abierto… (versión X)» y pide cerrar la otra ventana. Antes lo usaba sin decir nada, y se jugaba la versión antigua aunque esta se hubiera actualizado.
+- **Si una pestaña del navegador se quedó abierta** de antes de actualizar, se recarga sola una vez con la versión nueva. Si aun así no cambia, avisa de pulsar Ctrl+F5.
+- Lo comprueban `tests/deploy/launcher.test.mjs` (otra versión en el puerto) y `tests/colyseus/browser_arrival_e2e.py` (versión visible, pestaña antigua, y cuenta nueva + Guerrero → llegada en carretilla).

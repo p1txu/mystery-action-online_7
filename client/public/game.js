@@ -1,4 +1,4 @@
-// GENERADO por tools/split-prototype.mjs a partir de prototype/mystery-action.html (sha256 86481c168d55f57e).
+// GENERADO por tools/split-prototype.mjs a partir de prototype/mystery-action.html (sha256 c63cd4ab2cda37b8).
 // No lo edites a mano: cambia el prototipo y vuelve a ejecutar «npm run split».
 
 'use strict';
@@ -5415,7 +5415,10 @@ const VillageIntro = {
   mayorTalk(g) {
     const L = this.TALK, line = L[(this.talkI = ((this.talkI ?? -1) + 1) % L.length)];
     g.paused = true; g.input.clear();
-    UI.ask(`Alcalde Bartolo: «${line}»`, [{ label: 'Hasta luego', main: true, fn: () => { g.paused = false; } }]);
+    UI.ask(`Alcalde Bartolo: «${line}»`, [
+      { label: 'Hasta luego', main: true, fn: () => { g.paused = false; } },
+      { label: '¿Cómo llegué aquí?', fn: () => { g.paused = false; if (!g.cine && g.mode === 'village') this.start(g); } },   // vuelve a ver la llegada
+    ]);
   },
   draw(c, g, S) {
     if (S.phase === 'done') return;

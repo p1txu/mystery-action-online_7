@@ -1,11 +1,11 @@
 {
-  "build": 33,
-  "version": "0.33",
+  "build": 34,
+  "version": "0.34",
   "date": "2026-10-26",
   "notes": [
-    "«Jugar» ya solo pide iniciar sesión o crear la cuenta (sin servidor, sin invitado, sin menú cooperativo) y entra directamente en el mundo; la primera vez eliges clase con las tarjetas del juego.",
-    "Llegada a la aldea: la primera vez, Centinela Roco y Tito Brote te traen inconsciente en una carretilla de madera desde el bosque, y el alcalde Bartolo te da la bienvenida. Se puede saltar con Esc.",
-    "Nueva aldea medieval y pobre: calles empedradas, barro, casas de piedra con tejados de paja remendados, poca luz y la casa del alcalde junto a la plaza.",
-    "Instalador de Windows (MysteryAction-Setup.exe) en GitHub Releases; el juego se actualiza solo al abrirse."
+    "Si al abrir el juego ya había otro abierto con una versión antigua (otra ventana negra o la copia vieja), el lanzador ya no lo usa sin avisar: te dice que cierres la otra ventana. Antes podías acabar jugando a la versión antigua sin saberlo.",
+    "Si tenías una pestaña del navegador abierta de antes de actualizar, se recarga sola con la versión nueva.",
+    "La versión del juego se ve en la pantalla de título.",
+    "El alcalde Bartolo te deja volver a ver la llegada en carretilla («¿Cómo llegué aquí?»)."
   ]
 }

@@ -99,8 +99,18 @@ const openBrowser = url => {
 const lan = Object.values(networkInterfaces()).flat().filter(i => i && i.family === 'IPv4' && !i.internal).map(i => i.address).filter(a => /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(a));   // solo direcciones de casa (red privada)
 
 title('Arrancando el juego');
-if (await up(local + '/api/health', 800)) say(`[OK] El juego ya estaba abierto en ${local}: se usa ese.`);
-else {
+const mine = (() => { try { return JSON.parse(readFileSync(join(ROOT, 'version.json'), 'utf8')); } catch { return {}; } })();
+say(`Versión ${mine.version || '?'} (build ${mine.build ?? '?'})`);
+if (await up(local + '/api/health', 800)) {
+  // Ya hay un juego abierto en este puerto: solo se usa si es ESTA versión (si no, verías el juego antiguo)
+  const other = await fetch(local + '/api/health', { signal: AbortSignal.timeout(2000) }).then(r => r.json()).catch(() => ({}));
+  if (other.build !== mine.build) {
+    fail(`Ya hay otro juego abierto en ${local}${other.version ? ` (versión ${other.version})` : ' (una versión antigua)'} y esta es la ${mine.version}.`,
+      'Cierra la otra ventana negra del juego (o reinicia el PC) y vuelve a abrir Pokémon Mystery Action.');
+    process.exit(1);
+  }
+  say(`[OK] El juego ya estaba abierto en ${local}: se usa ese.`);
+} else {
   if (!await portFree(PORT)) { fail(`El puerto ${PORT} está ocupado por otro programa.`, 'Cierra la otra ventana del juego (o el programa que lo use) y vuelve a abrirlo.'); process.exit(1); }
   const build = spawnSync(process.execPath, [...process.execArgv, join(ROOT, 'tools/build-client.mjs')], { cwd: ROOT, env: Object.assign({}, process.env, { SERVER_URL: '' }), encoding: 'utf8' });
   if (build.status !== 0) { fail('No se pudo preparar el juego.', (build.stderr || build.stdout || '').trim()); process.exit(1); }
@@ -119,9 +129,9 @@ else {
 say(`
 ==============================================================
   ¡Listo! El juego está en:  ${local}
-  · Solo: «Jugar».  · Con amigos: «Cooperativo online».
-  · Amigos fuera de casa: en «Cooperativo online» pulsa
-    «Crear enlace para amigos» y mándales el enlace https.
+  · Pulsa «Jugar» e inicia sesión o crea tu cuenta.
+  · Amigos fuera de casa: en «Cuenta y partidas privadas»
+    pulsa «Crear enlace para amigos» y mándales el enlace https.
 ${lan.length ? `  · Otro ordenador de TU CASA: ${lan.map(a => `http://${a}:${PORT}`).join('  ')}\n    (si no conecta, permite Node.js en el cortafuegos)\n` : ''}
   Deja esta ventana abierta mientras jugáis. Para salir, ciérrala.
 ==============================================================`);

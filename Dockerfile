@@ -21,6 +21,7 @@ RUN if [ -f package-lock.json ]; then npm ci --omit=dev --workspace server --inc
 
 # 2) Código: reglas compartidas, servidor y migraciones. Se comprueba que las reglas generadas
 #    corresponden al prototipo (si no, falla la construcción: ejecuta `npm run split` y vuelve a subir).
+COPY version.json ./
 COPY prototype/ prototype/
 COPY tools/split-prototype.mjs tools/
 COPY shared/ shared/

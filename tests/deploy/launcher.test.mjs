@@ -88,3 +88,17 @@ test('si la instalación falla, el lanzador lo explica y sale con error', { time
   assert.match(p.out, /No se pudieron instalar las dependencias/);
   assert.match(p.out, /conexión a internet/);
 });
+
+test('si en el puerto ya hay OTRA versión del juego abierta, no la usa: pide cerrar la otra ventana', { timeout: 60000 }, async () => {
+  const { createServer } = await import('node:http');
+  const port = 4800 + Math.floor(Math.random() * 100);
+  const old = createServer((req, res) => { res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify(req.url === '/api/health' ? { ok: true, version: '0.32', build: 32 } : {})); });
+  await new Promise(r => old.listen(port, '0.0.0.0', r));
+  try {
+    const dir = copyProject(), p = launch(dir, fakeNpm(dir), [port]);
+    assert.equal(await p.done, 1, p.out);
+    assert.match(p.out, /Ya hay otro juego abierto en http:\/\/localhost:\d+ \(versión 0\.32\)/);
+    assert.match(p.out, /Cierra la otra ventana/);
+    assert.doesNotMatch(p.out, /¡Listo!/);
+  } finally { old.close(); }
+});
