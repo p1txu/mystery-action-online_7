@@ -395,6 +395,26 @@ h2{color:var(--gold)}
 .emblem::first-line{}
 .emblem{font-family:var(--f-display)}
 .npc-line{color:#d8ccb0}
+/* 0.37 · Madera tallada y remaches de latón (a juego con la aldea pintada a mano) */
+.panel,.box,.hud-panel,.pill,.controls,.slot,#toast,.card,.inv-detail,.dng,.eslot,#prompt{
+  background:
+    repeating-linear-gradient(90deg,rgba(255,214,150,.018) 0 1px,transparent 1px 6px,rgba(0,0,0,.05) 6px 7px,transparent 7px 13px),
+    linear-gradient(180deg,rgba(46,34,22,.93),rgba(20,15,10,.93) 60%,rgba(14,10,7,.94));
+  border-color:#5e4a2e;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.65),inset 0 1px 0 rgba(255,214,140,.16),inset 0 -2px 0 rgba(0,0,0,.35),0 3px 0 rgba(0,0,0,.35),0 8px 22px rgba(0,0,0,.45)}
+.panel::after,.box::after,.hud-panel::after{
+  background:
+   radial-gradient(circle at 6px 6px,#f0d48a 0 1.2px,#8a6a2a 1.3px 2.4px,transparent 2.6px) top left/12px 12px no-repeat,
+   radial-gradient(circle at 6px 6px,#f0d48a 0 1.2px,#8a6a2a 1.3px 2.4px,transparent 2.6px) top right/12px 12px no-repeat,
+   radial-gradient(circle at 6px 6px,#f0d48a 0 1.2px,#8a6a2a 1.3px 2.4px,transparent 2.6px) bottom left/12px 12px no-repeat,
+   radial-gradient(circle at 6px 6px,#f0d48a 0 1.2px,#8a6a2a 1.3px 2.4px,transparent 2.6px) bottom right/12px 12px no-repeat}
+.panel::before,.box::before,.hud-panel::before{border-color:rgba(216,180,90,.22)}
+.track{height:10px;border-color:#5e4a2e;box-shadow:inset 0 1px 2px rgba(0,0,0,.85),0 1px 0 rgba(255,214,140,.08)}
+#hp-fill{background-color:#b23a2a!important}
+#en-fill{background-color:#3f7cab}
+.pill{border-color:#5e4a2e}
+#dialog .panel{border-color:#7a6440}
+#dialog .panel h2,#dialog .panel h3{color:var(--gold);text-shadow:0 1px 0 #000}
 </style>
 
 <div id="app">

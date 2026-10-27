@@ -26,6 +26,7 @@ if command -v python3 >/dev/null && python3 -c "import playwright" 2>/dev/null; 
   { printf '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>\n'; cat prototype/mystery-action.html; printf '\n</body></html>'; } > tests/.tmp/prototype.html
   python3 tests/e2e/parity.py tests/.tmp/prototype.html
   python3 tests/e2e/rules_parity.py tests/.tmp/prototype.html
+  python3 tests/e2e/world_art.py tests/.tmp/prototype.html                            # aldea y mazmorras pintadas: colisiones = dibujo, caminos libres, profundidad, biomas, cofres
   python3 tests/e2e/hero_sprites.py tests/.tmp/prototype.html                          # héroes en pixel art: 920 fotogramas, sin cortes, pies anclados, 8 direcciones, paleta
   SHOT_DIR=tests/.tmp python3 tests/e2e/netplay_e2e.py tests/.tmp/prototype.html
   SHOT_DIR=tests/.tmp python3 tests/colyseus/browser_group_e2e.py

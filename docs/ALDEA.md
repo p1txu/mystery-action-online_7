@@ -79,3 +79,7 @@ Detalles:
   - una veleta;
   - un armero con lanzas y espadas, y un muñeco de paja con diana (sólidos).
 - **Hoguera:** ahora está en la plaza, junto a la casa del alcalde (casilla 19,14), con sus bancos y su luz. Doña Musgo está a su lado; la estación «Hoguera de la plaza» hace lo mismo que la antigua zona de descanso. Donde estaba, junto al estanque, hay un pozo de piedra.
+
+## 0.37: reconstrucción visual
+
+La aldea se dibuja ahora con sprites pintados píxel a píxel (casas, objetos y árboles ordenados en profundidad). Las casas nuevas, la terraza de la taberna, los puestos, el carro, el banco, las farolas y las macetas ocupan sus casillas. Detalles en `docs/MUNDO.md`.

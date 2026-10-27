@@ -1,4 +1,4 @@
-// GENERADO por tools/split-prototype.mjs a partir de prototype/mystery-action.html (sha256 07f91d9ef784be4c).
+// GENERADO por tools/split-prototype.mjs a partir de prototype/mystery-action.html (sha256 9f91365d83f4b19c).
 // No lo edites a mano: cambia el prototipo y vuelve a ejecutar «npm run split».
 
 'use strict';
@@ -849,6 +849,7 @@ class ChunkCache {
   /** Repinta solo los trozos afectados por un cambio de casilla (puertas, pasajes secretos). */
   invalidateTile(tx, ty) {
     const N = CONFIG.CHUNK;
+    if (typeof DungeonGround !== 'undefined') DungeonGround.invalidate(this.world, tx, ty);
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) this.map.delete(Math.floor((tx + dx) / N) + ',' + Math.floor((ty + dy) / N));
   }
   get(cx, cy) {
@@ -865,10 +866,29 @@ class ChunkCache {
     const cv = document.createElement('canvas');
     cv.width = Math.ceil(size * k) + 2; cv.height = Math.ceil(size * k) + 2; // +2: solape para evitar costuras
     const c = cv.getContext('2d');
+    if (PAL.village && typeof TownGround !== 'undefined') {   // aldea: suelo pintado píxel a píxel (los edificios y árboles son sprites aparte)
+      const P = TownGround.chunkCanvas(this.world, cx, cy); c.imageSmoothingEnabled = false; c.drawImage(P, 0, 0, P.width * k, P.height * k);
+      return cv;
+    }
+    const pixGround = typeof DungeonGround !== 'undefined' && DungeonGround.SET[PAL.terrain];   // mazmorras: suelo y muros pintados píxel a píxel
+    if (pixGround) { const P = DungeonGround.chunkCanvas(this.world, cx, cy, PAL.terrain); c.imageSmoothingEnabled = false; c.drawImage(P, 0, 0, P.width * k, P.height * k); }
     c.setTransform(k, 0, 0, k, -cx * size * k, -cy * size * k);
     c.beginPath(); c.rect(cx * size, cy * size, size + 2 / k, size + 2 / k); c.clip();
     const tx0 = cx * N - 1, ty0 = cy * N - 1, tx1 = tx0 + N + 1, ty1 = ty0 + N + 1, W = this.world;
     setTileSeed(W.seed);
+    if (pixGround) {
+      const deco = W.deco && W.deco.map;
+      if (deco) for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) { const a = deco.get(ty * W.w + tx); if (a) for (const d of a) Deco.draw(c, d, tx * 32, ty * 32); }
+      for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) {
+        const t = W.get(tx, ty);
+        if (OBJ_TILES.has(t) && !(t === T.TREE && (PAL.terrain === 'forest' || PAL.terrain === 'marsh'))) TileArt.object(c, W, tx, ty);   // los árboles del bosque son sprites ordenados
+        else if (t === T.SECRET && W.inBounds(tx, ty + 1) && !isWallT(W.get(tx, ty + 1))) {   // grietas sutiles: pista de pasaje secreto
+          const x = tx * 32, y = ty * 32; c.fillStyle = '#060606'; for (const [a, b] of [[9, 20], [10, 21], [11, 22], [12, 22], [13, 23], [14, 24], [15, 24], [16, 23], [17, 22], [19, 22], [20, 23]]) c.fillRect(x + a, y + b, 1, 1);
+          c.fillStyle = 'rgba(255,240,200,.25)'; c.fillRect(x + 14, y + 23, 1, 1);
+        }
+      }
+      return cv;
+    }
     for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) if (W.inBounds(tx, ty)) TileArt.ground(c, W, tx, ty);
     const deco = W.deco && W.deco.map;
     if (deco) for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) { const a = deco.get(ty * W.w + tx); if (a) for (const d of a) Deco.draw(c, d, tx * 32, ty * 32); }
@@ -3087,8 +3107,8 @@ const BIOMES = {
     loot: { berry: 40, crystal: 15, gems: 30, relic: 15 }, dropBerry: .22,
     mm: { floor: '#4a6a3e', corr: '#7a6446' },
     pal: {
-      bg: '#050705', vignette: 'rgba(0,0,0,.6)', objBase: 'grass', flowerStyle: 'flowers', wallStyle: 'foliage',
-      ambient: [6, 12, 9, .3], rays: .055, atmo: 'leaves', terrain: 'forest', foliageDeep: ['#0f1a0f', '#142214'],
+      bg: '#050705', vignette: 'rgba(0,0,0,.42)', objBase: 'grass', flowerStyle: 'flowers', wallStyle: 'foliage',
+      ambient: [6, 12, 9, .2], rays: .055, atmo: 'leaves', terrain: 'forest', foliageDeep: ['#0f1a0f', '#142214'],
       grass: ['#26371f', '#2a3c22', '#23331d', '#2d4024'], blade: '#3b5530', bladeDark: '#1b2716',
       litter: ['#5a4426', '#4a3a20', '#6a5530'], roots: '#3a2a1a', moss: '#3d5a2c', vines: '#2f4a24', mushroom: '#7a3426', fern: '#3a5428',
       path: '#3d3022', pathEdge: '#241c13', pebble: '#5e5040',
@@ -3110,8 +3130,8 @@ const BIOMES = {
     loot: { berry: 20, crystal: 35, gems: 40, relic: 15 }, dropBerry: .12,
     mm: { floor: '#3e5068', corr: '#2f3c50' },
     pal: {
-      bg: '#020304', vignette: 'rgba(0,0,0,.7)', objBase: 'floor', flowerStyle: 'crystal', wallStyle: 'rock',
-      ambient: [3, 5, 12, .52], terrain: 'cave', atmo: 'dust', dustColor: '#9fdcff', glowDecal: '#4fb8d0', floorStyle: 'rock',
+      bg: '#020304', vignette: 'rgba(0,0,0,.5)', objBase: 'floor', flowerStyle: 'crystal', wallStyle: 'rock',
+      ambient: [3, 5, 12, .36], terrain: 'cave', atmo: 'dust', dustColor: '#9fdcff', glowDecal: '#4fb8d0', floorStyle: 'rock',
       grass: ['#22252e', '#22252e', '#22252e', '#22252e'], blade: '#2c303b', bladeDark: '#181a21',
       path: '#262a33', pathEdge: '#15171c', pebble: '#3c414e',
       floor: ['#262932', '#23262e', '#2a2d37'], floorLine: '#121318', rubble: true,
@@ -3132,8 +3152,8 @@ const BIOMES = {
     loot: { berry: 25, crystal: 20, gems: 35, relic: 25 }, dropBerry: .15,
     mm: { floor: '#6a3a2e', corr: '#4a3028' },
     pal: {
-      bg: '#050202', vignette: 'rgba(8,0,0,.65)', objBase: 'floor', flowerStyle: 'ember', wallStyle: 'rock',
-      ambient: [16, 5, 3, .46], terrain: 'volcano', atmo: 'embers', glowDecal: '#ff5a1a',
+      bg: '#050202', vignette: 'rgba(8,0,0,.48)', objBase: 'floor', flowerStyle: 'ember', wallStyle: 'rock',
+      ambient: [16, 5, 3, .32], terrain: 'volcano', atmo: 'embers', glowDecal: '#ff5a1a',
       grass: ['#241c1a', '#241c1a', '#241c1a', '#241c1a'], blade: '#2e2421', bladeDark: '#161110',
       path: '#2b211e', pathEdge: '#140f0d', pebble: '#433531',
       floor: ['#262020', '#221c1c', '#2b2423'], floorLine: '#171111', rubble: true,
@@ -3157,7 +3177,7 @@ BIOMES.marsh = biomeVariant('forest', {
   loot: { berry: 35, crystal: 15, gems: 32, relic: 18 }, dropBerry: .18,
   mm: { floor: '#3a5a4a', corr: '#5a5040' },
   pal: {
-    bg: '#030605', vignette: 'rgba(0,4,2,.66)', ambient: [4, 10, 9, .42], terrain: 'marsh', rays: .03, atmo: 'dust', dustColor: '#c8f0a0',
+    bg: '#030605', vignette: 'rgba(0,4,2,.48)', ambient: [4, 10, 9, .3], terrain: 'marsh', rays: .03, atmo: 'dust', dustColor: '#c8f0a0',
     foliageDeep: ['#0c1612', '#101c16'], grass: ['#1f2e24', '#22332a', '#1c2a21', '#26372b'], blade: '#2f4a3a', bladeDark: '#16231b',
     litter: ['#3a3a26', '#2e3020', '#4a4a30'], moss: '#2f5040', vines: '#24402e', mushroom: '#6a3a7a', fern: '#2e4a36',
     path: '#2e2a20', pathEdge: '#1a170f', pebble: '#4a4636',
@@ -3173,7 +3193,7 @@ BIOMES.mine = biomeVariant('cave', {
   loot: { berry: 20, crystal: 30, gems: 40, relic: 20 }, dropBerry: .12,
   mm: { floor: '#6a5a3e', corr: '#4a3e2e' },
   pal: {
-    ambient: [12, 7, 3, .5], terrain: 'mine', dustColor: '#ffd9a0', glowDecal: '#e8a040',
+    ambient: [12, 7, 3, .36], terrain: 'mine', dustColor: '#ffd9a0', glowDecal: '#e8a040',
     grass: ['#28221d', '#28221d', '#28221d', '#28221d'], blade: '#342c25', bladeDark: '#1a1612',
     path: '#2e2722', pathEdge: '#17130f', pebble: '#4a4036',
     floor: ['#2c2620', '#29231e', '#302923'], floorLine: '#15110d',
@@ -3470,6 +3490,12 @@ const CHEST_LOOK = {
   cofreJefe: { name: 'Cofre del guardián', wood: ['#2a1206', '#6a2a10', '#9a4a1c', '#c8702c'], band: ['#3a2a06', '#e0b040', '#fff2a8'], light: [255, 210, 120] },
 };
 function drawChest(c, x, y, tier, open, t) {
+  if (typeof ChestArt !== 'undefined' && typeof document !== 'undefined') {   // sprite detallado en caché (4 fases de apertura)
+    const cv = ChestArt.sprite(tier, Math.min(3, Math.round(open * 3))); c.drawImage(cv, Math.round(x - 18), Math.round(y - 30));
+    if (tier !== 'cofre' && open < 1) { const a = .3 + .25 * Math.sin(t * 4); c.globalAlpha = a; c.fillStyle = '#ffffff'; c.fillRect(x - 14, y - 16, 1, 1); c.fillRect(x + 13, y - 10 + Math.round(Math.sin(t * 3) * 2), 1, 1); c.fillRect(x + 4, y - 20 + Math.round(Math.cos(t * 2.4) * 2), 1, 1); c.globalAlpha = 1; }
+    if (open > 0 && open < 1 && tier !== 'cofre') { c.globalAlpha = .5 * (1 - open); c.fillStyle = 'rgba(255,240,180,.8)'; c.fillRect(x - 9, y - 22 - open * 8, 18, 8 + open * 8); c.globalAlpha = 1; }
+    return;
+  }
   const L = CHEST_LOOK[tier] || CHEST_LOOK.cofre, W = L.wood, B = L.band, R = (a, b, w, h, col) => { c.fillStyle = col; c.fillRect(x + a, y + b, w, h); };
   R(-13, 7, 26, 3, 'rgba(0,0,0,.35)'); R(-11, 9, 22, 1, 'rgba(0,0,0,.25)');
   // cuerpo
@@ -4901,7 +4927,7 @@ const VILLAGE_NAME = 'Aldea Raíz';
 /** Faroles de la aldea (casillas). */
 const LANTERNS = [[26.8, 14.5], [17.2, 19.8], [12.2, 12], [31.2, 21.5]];   // pocos faroles: el aceite es caro
 /** Luz de atardecer para la aldea (más clara que las mazmorras). */
-const VILLAGE_LIGHT = { ambient: [12, 10, 20, .46], rays: .015, atmo: 'leaves', vignette: 'rgba(0,0,0,.62)' };   // aldea pobre: poca luz (velas, una hoguera y pocos faroles)
+const VILLAGE_LIGHT = { ambient: [44, 26, 34, .2], rays: .035, atmo: 'leaves', vignette: 'rgba(10,6,4,.32)' };   // atardecer cálido: se ve todo, y las antorchas, ventanas y la hoguera brillan
 /** Estaciones: casilla del punto de interacción y del vecino que atiende. */
 /* --- Presentación del Topo Mercader -------------------------------------------------------------
    La primera vez que se derrota al guardián del Bosque Brumoso: un montículo de tierra avanza bajo el
@@ -5501,14 +5527,24 @@ function generateVillage(W) {
   rect(29, 10, 31, 10, T.BUILD); rect(35, 10, 37, 10, T.BUILD);   // puestos de la tienda bajo el toldo
   rect(6, 10, 7, 10, T.BUILD); set(13, 10, T.BUILD);              // armero y muñeco de prácticas del gremio
   rect(29, 23, 30, 24, T.BUILD); rect(37, 23, 38, 24, T.BUILD); // tiendas de campaña
+  // Casas del vecindario (las dibuja TownScene; aquí solo ocupan sus casillas)
+  rect(10, 2, 15, 3, T.BUILD); rect(26, 2, 31, 3, T.BUILD);   // casa del norte y taberna
+  rect(16, 6, 18, 8, T.BUILD); rect(24, 6, 27, 8, T.BUILD);   // casas junto a la avenida
+  rect(4, 20, 9, 22, T.BUILD); rect(17, 25, 22, 27, T.BUILD); rect(36, 19, 40, 20, T.BUILD);
+  // Objetos que no se pueden atravesar: terraza de la taberna, puestos, carro, banco, faroles y macetas
+  rect(32, 3, 35, 3, T.BUILD); rect(37, 3, 40, 3, T.BUILD); rect(28, 9, 28, 10, T.BUILD); set(38, 10, T.BUILD);
+  rect(28, 19, 30, 19, T.BUILD); rect(24, 23, 26, 23, T.BUILD); rect(28, 22, 29, 22, T.BUILD); set(18, 15, T.BUILD); set(7, 13, T.BUILD);
+  for (const [lx, ly] of LANTERNS) set(Math.floor(lx), Math.floor(ly - .01), T.BUILD);
+  for (const [px, py] of [[16, 3], [8, 3], [13, 13], [19, 13], [10, 22], [35, 20]]) set(px, py, T.BUILD);
   // Zona de descanso: estanque y flores
   for (let y = 24; y <= 30; y++) for (let x = 3; x <= 10; x++) if (Math.hypot((x - 6.5) / 3.6, (y - 27) / 2.8) < 1) set(x, y, T.WATER);
   // Campamento: valla de hierba alta y claro
-  for (let x = 28; x <= 40; x++) { if (x < 32 || x > 34) set(x, 21, T.TALLGRASS); }
+  for (let x = 28; x <= 40; x++) { if ((x < 32 || x > 34) && W.get(x, 21) !== T.BUILD) set(x, 21, T.TALLGRASS); }
   // Decoración
   for (let k = 0; k < 90; k++) {
     const x = 2 + Math.floor(rnd() * (w - 4)), y = 2 + Math.floor(rnd() * (h - 4));
     if (W.get(x, y) !== T.GRASS) continue;
+    if ([1, 2].some(d => W.get(x, y - d) === T.BUILD || W.get(x - 1, y - d) === T.BUILD || W.get(x + 1, y - d) === T.BUILD)) continue;   // nada delante de puertas y fachadas
     const near = (cx, cy, r) => Math.hypot(x - cx, y - cy) < r;
     if (near(21.5, 17, 7) || near(10, 12, 3) || near(33, 12, 3) || near(13, 25, 3) || near(33, 25, 4) || near(2, 17, 3) || near(16, 15, 2.5) || (x >= 18 && x <= 25 && y <= 5)) continue;
     const r = rnd(); set(x, y, r < .08 ? T.FLOWERS : r < .62 ? T.TALLGRASS : r < .82 ? T.TREE : T.ROCK);   // aldea pobre: casi sin flores
@@ -5516,6 +5552,1033 @@ function generateVillage(W) {
   rect(30, 25, 36, 29, T.GRASS);
   return { x: 21.5 * CONFIG.TILE, y: 7.5 * CONFIG.TILE };
 }
+
+/* =============================== Aldea: arte de alta calidad ===============================
+   Pix: lienzo de píxeles exactos (1 px = 1 unidad del mundo). TownGround: suelo pintado píxel a píxel
+   (adoquines individuales con un diagrama de Voronoi en coordenadas del mundo, plaza con anillos
+   concéntricos, losas cortadas, hierba con briznas, tierra, musgo, grietas y bordes irregulares).
+   TownArt: edificios y objetos como sprites en caché que se ordenan en profundidad con los personajes. */
+const TP = {   // paleta de la aldea: [contorno, sombra profunda, sombra, medio, luz, brillo]
+  stone:   ['#232224', '#3c3b3d', '#535150', '#6a6764', '#84807a', '#a19c93'],
+  stoneW:  ['#262220', '#433a34', '#5a4f46', '#716457', '#8b7d6c', '#a69783'],
+  stoneB:  ['#1e2026', '#363a42', '#4a4f58', '#5f6570', '#7a818c', '#98a0aa'],
+  mortar:  ['#161514', '#252321', '#2f2c29', '#38342f', '#423d37', '#4c463f'],
+  plaster: ['#3a3226', '#7a6c56', '#a1917a', '#c0b196', '#d8cbb0', '#ece2ca'],
+  timber:  ['#170e07', '#2e1c0e', '#432a16', '#5a391e', '#744b29', '#8f5f36'],
+  wood:    ['#1c120a', '#3a2615', '#55381f', '#6e4a2a', '#8a5f37', '#a87a4a'],
+  roofG:   ['#141a0c', '#26321a', '#344522', '#45592c', '#5a7038', '#748a4a'],
+  roofB:   ['#10141f', '#1e2738', '#29364d', '#364765', '#465b80', '#5e769c'],
+  roofR:   ['#1f0e0a', '#432016', '#5c2c1d', '#753a25', '#904b30', '#ab643f'],
+  thatch:  ['#231a0b', '#4c3c1a', '#6a5426', '#8a6e34', '#a88a46', '#c6a85e'],
+  glass:   ['#0b1019', '#16223a', '#22345a', '#31497a', '#486497', '#7a98c4'],
+  glow:    ['#3a1c06', '#a85a14', '#d8862a', '#f0b04a', '#ffd27a', '#fff0c0'],
+  iron:    ['#121316', '#26282d', '#3b3e44', '#53575e', '#6f747c', '#959ba3'],
+  gold:    ['#2a1a06', '#5e3e12', '#8c6220', '#b88a34', '#d8ae4e', '#f2d27e'],
+  grass:   ['#16220e', '#24381a', '#2f4a20', '#3d5e28', '#4e7432', '#678e42'],
+  grassL:  ['#1c2c10', '#2e4a1c', '#3c6024', '#4c762c', '#609038', '#7eaa4a'],
+  dirt:    ['#1e150d', '#382818', '#4a3620', '#5c452a', '#705636', '#866a46'],
+  moss:    ['#14200c', '#22361a', '#2e4a20', '#3c5e28', '#4e7430', '#6a8e3e'],
+  water:   ['#0a1420', '#122436', '#1a3248', '#22405a', '#2e526e', '#4a7290'],
+  cloth1:  ['#1a0a0a', '#4a1414', '#6a1e1c', '#8a2a24', '#a83c30', '#c85a44'],
+  cloth2:  ['#0a1a10', '#16402a', '#1e5636', '#286c44', '#348454', '#4aa06a'],
+  cloth3:  ['#0a0e1e', '#16234a', '#1e3162', '#28417c', '#365598', '#4c70b6'],
+  linen:   ['#2a2418', '#7a7058', '#a49a80', '#c4baa0', '#ded6be', '#f2ecdc'],
+  leaf:    ['#0c160a', '#1a2e14', '#24401a', '#305422', '#3e6a2c', '#548438'],
+  leafL:   ['#142008', '#26401a', '#345822', '#44702c', '#588a36', '#74a646'],
+  flowerR: ['#2a0a10', '#7a1e2a', '#a82e3a', '#d24a52', '#ec7070', '#ffa0a0'],
+  flowerY: ['#2a2008', '#7a6014', '#b08c1e', '#d8b030', '#f0d050', '#fff090'],
+  flowerB: ['#0a1a2a', '#1e4a7a', '#2a6aa8', '#3e8ad0', '#64aee8', '#a0d4ff'],
+  flowerW: ['#2a2a2a', '#9a9a9a', '#c8c8c8', '#e4e4e4', '#f4f4f4', '#ffffff'],
+};
+const tpRgb = {}; const tpc = hex => tpRgb[hex] || (tpRgb[hex] = [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)]);
+
+/** Lienzo de píxeles exactos con primitivas de pixel art. */
+class Pix {
+  constructor(w, h) { this.w = w | 0; this.h = h | 0; this.d = new Uint8ClampedArray(this.w * this.h * 4); }
+  px(x, y, col, a = 255) { x |= 0; y |= 0; if (x < 0 || y < 0 || x >= this.w || y >= this.h) return; const i = (y * this.w + x) * 4, [r, g, b] = tpc(col); if (a >= 255) { this.d[i] = r; this.d[i + 1] = g; this.d[i + 2] = b; this.d[i + 3] = 255; } else { const k = a / 255, o = this.d[i + 3] / 255, na = k + o * (1 - k); this.d[i] = (r * k + this.d[i] * o * (1 - k)) / (na || 1); this.d[i + 1] = (g * k + this.d[i + 1] * o * (1 - k)) / (na || 1); this.d[i + 2] = (b * k + this.d[i + 2] * o * (1 - k)) / (na || 1); this.d[i + 3] = na * 255; } }
+  get(x, y) { x |= 0; y |= 0; if (x < 0 || y < 0 || x >= this.w || y >= this.h) return 0; return this.d[(y * this.w + x) * 4 + 3]; }
+  rect(x, y, w, h, col, a) { for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) this.px(x + i, y + j, col, a); }
+  hline(x0, x1, y, col, a) { for (let x = Math.min(x0, x1); x <= Math.max(x0, x1); x++) this.px(x, y, col, a); }
+  vline(x, y0, y1, col, a) { for (let y = Math.min(y0, y1); y <= Math.max(y0, y1); y++) this.px(x, y, col, a); }
+  line(x0, y0, x1, y1, col, a) { x0 |= 0; y0 |= 0; x1 |= 0; y1 |= 0; const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1; let e = dx + dy; for (;;) { this.px(x0, y0, col, a); if (x0 === x1 && y0 === y1) break; const e2 = 2 * e; if (e2 >= dy) { e += dy; x0 += sx; } if (e2 <= dx) { e += dx; y0 += sy; } } }
+  thick(x0, y0, x1, y1, w, col) { for (let o = -Math.floor((w - 1) / 2); o <= Math.ceil((w - 1) / 2); o++) { if (Math.abs(x1 - x0) > Math.abs(y1 - y0)) this.line(x0, y0 + o, x1, y1 + o, col); else this.line(x0 + o, y0, x1 + o, y1, col); } }
+  ell(cx, cy, rx, ry, col, a) { for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++) for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) { const dx = (x + .5 - cx) / rx, dy = (y + .5 - cy) / ry; if (dx * dx + dy * dy <= 1) this.px(x, y, col, a); } }
+  poly(pts, col, a) { let y0 = 1e9, y1 = -1e9, x0 = 1e9, x1 = -1e9; for (const [x, y] of pts) { y0 = Math.min(y0, y); y1 = Math.max(y1, y); x0 = Math.min(x0, x); x1 = Math.max(x1, x); }
+    for (let y = Math.floor(y0); y <= Math.ceil(y1); y++) for (let x = Math.floor(x0); x <= Math.ceil(x1); x++) { const px = x + .5, py = y + .5; let ins = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const [xi, yi] = pts[i], [xj, yj] = pts[j]; if ((yi > py) !== (yj > py) && px < (xj - xi) * (py - yi) / (yj - yi) + xi) ins = !ins; } if (ins) this.px(x, y, col, a); } }
+  /** Contorno exterior: los huecos que tocan la silueta toman `col`. */
+  outline(col, diag = false) {
+    const { w, h } = this, A = new Uint8Array(w * h); for (let i = 0; i < w * h; i++) A[i] = this.d[i * 4 + 3] > 40 ? 1 : 0;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { if (A[y * w + x]) continue; let n = 0; for (const [dx, dy] of diag ? [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]] : [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const xx = x + dx, yy = y + dy; if (xx >= 0 && yy >= 0 && xx < w && yy < h && A[yy * w + xx]) { n = 1; break; } } if (n) this.px(x, y, col); }
+    return this;
+  }
+  /** Pega otro Pix (solo píxeles opacos). */
+  blit(o, x, y) { for (let j = 0; j < o.h; j++) for (let i = 0; i < o.w; i++) { const k = (j * o.w + i) * 4, a = o.d[k + 3]; if (!a) continue; const X = x + i, Y = y + j; if (X < 0 || Y < 0 || X >= this.w || Y >= this.h) continue; const q = (Y * this.w + X) * 4; if (a >= 250) { this.d[q] = o.d[k]; this.d[q + 1] = o.d[k + 1]; this.d[q + 2] = o.d[k + 2]; this.d[q + 3] = 255; } else { const f = a / 255; this.d[q] = this.d[q] * (1 - f) + o.d[k] * f; this.d[q + 1] = this.d[q + 1] * (1 - f) + o.d[k + 1] * f; this.d[q + 2] = this.d[q + 2] * (1 - f) + o.d[k + 2] * f; this.d[q + 3] = Math.max(this.d[q + 3], a); } } }
+  canvas() { const cv = document.createElement('canvas'); cv.width = this.w; cv.height = this.h; const c = cv.getContext('2d'), img = c.createImageData(this.w, this.h); img.data.set(this.d); c.putImageData(img, 0, 0); return cv; }
+}
+const hsh = (x, y, s = 0) => U.hash(x | 0, y | 0, s);
+/** Ruido de valor suave en coordenadas de píxel. */
+function vnoise(x, y, cell, salt) { const gx = x / cell, gy = y / cell, x0 = Math.floor(gx), y0 = Math.floor(gy), fx = gx - x0, fy = gy - y0, sm = t => t * t * (3 - 2 * t), u = sm(fx), v = sm(fy);
+  const a = U.hash(x0, y0, salt), b = U.hash(x0 + 1, y0, salt), c = U.hash(x0, y0 + 1, salt), d = U.hash(x0 + 1, y0 + 1, salt); return (a * (1 - u) + b * u) * (1 - v) + (c * (1 - u) + d * u) * v; }
+
+/* ---------- Suelo de la aldea ---------- */
+const TownGround = {
+  PLAZA: { x: 21.5 * 32, y: 17 * 32, r: 5.6 * 32 },
+  /** Material de un píxel: el de la casilla, con los bordes deformados por ruido (bordes irregulares). */
+  mat(W, x, y) {
+    const wx = x + (vnoise(x, y, 9, 3) - .5) * 12, wy = y + (vnoise(x, y, 9, 7) - .5) * 12;
+    const tx = Math.floor(wx / 32), ty = Math.floor(wy / 32); let t = W.get(tx, ty);
+    if (t === T.BUILD) t = this.buildGround(W, tx, ty);
+    // agua: la forma se suaviza (esquinas redondeadas) promediando la rejilla alrededor del punto
+    let wet = 0; for (const [ox, oy] of [[-11, -11], [11, -11], [-11, 11], [11, 11]]) if (W.get(Math.floor((wx + ox) / 32), Math.floor((wy + oy) / 32)) === T.WATER) wet++;
+    if (t === T.WATER ? wet >= 2 : wet >= 3) return 'water';
+    if (t === T.WATER) t = T.GRASS;
+    if (t === T.PATH) { const P = this.PLAZA, d = Math.hypot(x - P.x, y - P.y); if (d < P.r + (vnoise(x, y, 7, 11) - .5) * 10) return 'plaza'; return 'cobble'; }
+    if (vnoise(x, y, 40, 19) > .76 || (t === T.GRASS && vnoise(x, y, 14, 23) > .86)) return 'dirt';
+    return 'grass';
+  },
+  /** Suelo bajo un edificio u objeto: empedrado si la casilla está entre caminos, hierba si no. */
+  buildGround(W, tx, ty) {
+    const key = ty * W.w + tx; this._bg = this._bg && this._bg.W === W ? this._bg : { W, m: new Map() };
+    let v = this._bg.m.get(key); if (v !== undefined) return v;
+    let n = 0; for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) if (W.get(tx + i, ty + j) === T.PATH) n++;
+    v = n >= 3 ? T.PATH : T.GRASS; this._bg.m.set(key, v); return v;
+  },
+  /** Trozo de suelo ya pintado (independiente del zoom: al cambiar de tamaño solo se reescala). */
+  chunkCanvas(W, cx, cy) {
+    if (!this._cc || this._cc.W !== W) this._cc = { W, m: new Map() };
+    const k = cx + ',' + cy; let cv = this._cc.m.get(k); if (!cv) { cv = this.paintChunk(W, cx, cy).canvas(); this._cc.m.set(k, cv); } return cv;
+  },
+  paintChunk(W, cx, cy) {
+    const N = CONFIG.CHUNK * 32, X0 = cx * N, Y0 = cy * N, S = N + 2, P = new Pix(S, S);
+    const ramp = (name, k) => TP[name][Math.max(0, Math.min(5, k))];
+    for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) {
+      const x = X0 + i, y = Y0 + j, m = this.mat(W, x, y);
+      P.px(i, j, m === 'cobble' ? this.cobble(x, y, 11, ramp) : m === 'plaza' ? this.plaza(x, y, ramp) : m === 'water' ? this.water(W, x, y, ramp) : m === 'dirt' ? this.dirt(x, y, ramp) : this.grass(x, y, ramp, W));
+    }
+    // Hierba alta y flores: matas de briznas pintadas píxel a píxel
+    const tx0 = Math.floor(X0 / 32) - 1, ty0 = Math.floor(Y0 / 32) - 1;
+    for (let ty = ty0; ty <= ty0 + CONFIG.CHUNK + 1; ty++) for (let tx = tx0; tx <= tx0 + CONFIG.CHUNK + 1; tx++) {
+      const t = W.get(tx, ty); if (t !== T.TALLGRASS && t !== T.FLOWERS) continue;
+      const n = t === T.TALLGRASS ? 34 : 12;
+      for (let b = 0; b < n; b++) {
+        const bx = tx * 32 + 2 + Math.floor(hsh(tx * 31 + b, ty, 91) * 28) - X0, by = ty * 32 + 8 + Math.floor(hsh(tx, ty * 31 + b, 92) * 24) - Y0, h = 4 + Math.floor(hsh(b, tx + ty, 93) * 7), lean = hsh(b, tx, 94) > .5 ? 1 : -1;
+        for (let j = 0; j < h; j++) P.px(bx + Math.floor(j * lean / 4), by - j, ramp(hsh(b, ty, 95) > .5 ? 'grassL' : 'grass', Math.round(1.6 + j / h * 3.4)));
+        P.px(bx, by + 1, ramp('grass', 1));
+      }
+      if (t === T.FLOWERS) for (let b = 0; b < 9; b++) { const fx = tx * 32 + 3 + Math.floor(hsh(b, tx, 96) * 26) - X0, fy = ty * 32 + 4 + Math.floor(hsh(b, ty, 97) * 24) - Y0, col = ['flowerR', 'flowerY', 'flowerW', 'flowerB'][Math.floor(hsh(tx, ty, 98) * 4 + b * .3) % 4];
+        P.px(fx, fy, ramp(col, 4)); P.px(fx + 1, fy, ramp(col, 3)); P.px(fx, fy + 1, ramp(col, 3)); P.px(fx - 1, fy, ramp(col, 3)); P.px(fx, fy - 1, ramp(col, 5)); P.px(fx, fy + 2, ramp('leaf', 3)); }
+    }
+    return P;
+  },
+  /** Adoquín: Voronoi con semillas desplazadas en una rejilla de `C` px. Luz arriba a la izquierda. */
+  cobble(x, y, C, ramp, salt = 0) {
+    const gx = Math.floor(x / C), gy = Math.floor(y / C); let f1 = 1e9, f2 = 1e9, sx = 0, sy = 0, id = 0;
+    for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) {
+      const cx = gx + i, cy = gy + j, px = (cx + .2 + hsh(cx, cy, 41 + salt) * .6) * C, py = (cy + .2 + hsh(cx, cy, 43 + salt) * .6) * C;
+      const dx = (x + .5 - px) * 1.08, dy = y + .5 - py, d = Math.hypot(dx, dy);
+      if (d < f1) { f2 = f1; f1 = d; sx = px; sy = py; id = cx * 7919 + cy * 104729; } else if (d < f2) f2 = d;
+    }
+    return this.stoneShade(x, y, f1, f2, sx, sy, id, C, ramp);
+  },
+  stoneShade(x, y, f1, f2, sx, sy, id, C, ramp, matOverride) {
+    const edge = f2 - f1, h = U.hash(id, 1, 47), h2 = U.hash(id, 2, 49);
+    const moss = vnoise(x, y, 23, 31), dirty = vnoise(x, y, 31, 37);
+    if (edge < 1.25) {   // junta: musgo, hierba o tierra entre las piedras
+      if (moss > .62 && hsh(x, y, 5) > .35) return ramp('moss', hsh(x, y, 6) > .7 ? 4 : 3);
+      if (dirty > .6) return ramp('dirt', 1 + (hsh(x, y, 7) > .6));
+      return ramp('mortar', 1 + (hsh(x, y, 8) > .7));
+    }
+    const mat = matOverride || (h < .58 ? 'stone' : h < .84 ? 'stoneW' : 'stoneB');
+    const dx = (x + .5 - sx) / (C * .5), dy = (y + .5 - sy) / (C * .5), lit = -(dx * .62 + dy * .78);
+    let k = 3 + (h2 > .72 ? 1 : h2 < .22 ? -1 : 0) * .6;
+    k += lit * 1.1;
+    if (edge < 2.4) k += lit > 0 ? .7 : -1.1;                                  // canto iluminado / en sombra
+    if (dirty > .66) k -= .8;
+    // grieta en algunas piedras
+    if (h < .07) { const a = h2 * Math.PI, ux = Math.cos(a), uy = Math.sin(a), dd = Math.abs((x + .5 - sx) * uy - (y + .5 - sy) * ux); if (dd < .55 && Math.hypot(x - sx, y - sy) < C * .45) return ramp(mat, 1); }
+    if (hsh(x, y, 9) > .975) k -= 1;                                           // poros
+    return ramp(mat, Math.round(Math.max(1, Math.min(5, k))));
+  },
+  /** Plaza: piedras más grandes en anillos concéntricos alrededor del centro. */
+  plaza(x, y, ramp) {
+    const P = this.PLAZA, dx = x + .5 - P.x, dy = y + .5 - P.y, r = Math.hypot(dx, dy);
+    if (r < 13) { // medallón central: rosa de los vientos
+      const a = Math.atan2(dy, dx), star = Math.abs(Math.cos(a * 4)) ** 6 * 11;
+      if (r < 2.5) return ramp('gold', 4); if (r < star) return ramp('stoneW', r < star * .5 ? 5 : 4); if (r > 11.5) return ramp('mortar', 1); return ramp('stone', 2);
+    }
+    const RW = 13, ring = Math.floor((r - 13) / RW), rIn = 13 + ring * RW, n = Math.max(8, Math.round(2 * Math.PI * (rIn + RW / 2) / 15));
+    let a = Math.atan2(dy, dx) / (2 * Math.PI) + .5 + (ring % 2) * .5 / n; a -= Math.floor(a);
+    const seg = Math.floor(a * n), fa = a * n - seg, arc = 2 * Math.PI * (rIn + RW / 2) / n;
+    const dr = Math.min(r - rIn, rIn + RW - r), dt = Math.min(fa, 1 - fa) * arc, edge = Math.min(dr, dt) * 2;
+    const id = ring * 1000 + seg, cr = rIn + RW / 2, ca = (seg + .5) / n * 2 * Math.PI - Math.PI - (ring % 2) * Math.PI / n;
+    const sx = P.x + Math.cos(ca) * cr, sy = P.y + Math.sin(ca) * cr;
+    return this.stoneShade(x, y, 0, edge, sx, sy, id, 14, ramp, U.hash(id, 3, 51) < .7 ? 'stone' : 'stoneW');
+  },
+  grass(x, y, ramp) {
+    const n = vnoise(x, y, 46, 61) * .7 + vnoise(x, y, 13, 62) * .3, n2 = vnoise(x, y, 5, 63), mat = n > .5 ? 'grassL' : 'grass';
+    let k = 2.9 + (n2 - .5) * .9 + (n - .5) * .8;
+    const tuft = hsh(x >> 3, y >> 3, 64); if (tuft > .82) { const lx = x & 7, ly = y & 7; if ((lx === 2 || lx === 5) && ly < 5) k += 1.2 - ly * .2; else if (lx === 3 && ly < 6) k += 1.5; }   // matas
+    const bl = hsh(x, Math.floor(y / 3) * 3 + (x % 2), 65);
+    if (bl > .93) k += 1; else if (bl < .05) k -= 1;                    // briznas
+    if (hsh(x, y + 1, 66) > .996) return ramp(['flowerY', 'flowerW', 'flowerR'][hsh(x, y, 67) * 3 | 0], 4);
+    return ramp(mat, Math.round(Math.max(1, Math.min(5, k))));
+  },
+  dirt(x, y, ramp) {
+    const n = vnoise(x, y, 7, 71); let k = 2.5 + (n - .5) * 1.5;
+    const p = hsh(x >> 1, y >> 1, 73);
+    if (p > .93) { const c2 = hsh(x, y, 74); return c2 > .5 ? ramp('stoneW', 4) : ramp('stoneW', 2); }   // guijarros
+    if (hsh(x, y, 75) > .96) k -= 1;
+    if (vnoise(x, y, 10, 77) > .72 && hsh(x, y, 78) > .5) return ramp('grass', 3);              // matas de hierba
+    return ramp('dirt', Math.round(Math.max(1, Math.min(5, k))));
+  },
+  water(W, x, y, ramp) {
+    // distancia aproximada a la orilla (para el borde de piedras, la arena mojada y el agua más clara)
+    let shore = 9; for (const [dx, dy, d] of [[0, -3, 3], [0, -6, 6], [0, -9, 9], [-4, 0, 4], [4, 0, 4], [-8, 0, 8], [8, 0, 8], [0, 4, 4], [0, 8, 8]]) if (this.mat(W, x + dx, y + dy) !== 'water') shore = Math.min(shore, d);
+    if (shore <= 6) { const st = this.cobble(x, y, 7, ramp, 7); return shore <= 1 ? ramp('dirt', 1) : st; }   // piedras de la orilla
+    const n = vnoise(x, y, 16, 81), n2 = vnoise(x + 3, y * 2, 7, 82); let k = 1.4 + n * 1.2 + (shore < 9 ? 1 : 0);
+    if (hsh(x >> 2, y, 83) > .965 || (n2 > .8 && (y % 4) === 0)) k += 1.6;   // reflejos
+    return ramp('water', Math.round(Math.max(0, Math.min(5, k))));
+  },
+};
+
+/* ---------- Edificios y objetos de la aldea (sprites en caché) ---------- */
+const TownArt = (() => {
+  const R = (name, k) => TP[name][Math.max(0, Math.min(5, Math.round(k)))];
+  const INK = '#141210';
+
+  /* ===== Materiales de pared ===== */
+  /** Sillería: hiladas de bloques con juntas, tonos variados, canto iluminado y esquinas de piedra grande. */
+  function ashlar(P, x0, y0, w, h, mat, seed, o = {}) {
+    const rowH = o.rowH || 7;
+    P.rect(x0, y0, w, h, R('mortar', 1));
+    for (let r = 0, y = y0; y < y0 + h; r++, y += rowH) {
+      let x = x0 - Math.floor(hsh(r, seed, 11) * 8); const rh = Math.min(rowH, y0 + h - y);
+      for (let k = 0; x < x0 + w; k++) {
+        const bw = (o.big ? 14 : 9) + Math.floor(hsh(k, r * 31 + seed, 12) * 7), t = hsh(k * 3 + r, seed, 13);
+        const xa = Math.max(x0, x + 1), xb = Math.min(x0 + w - 1, x + bw - 1);
+        const m = t > .86 ? (mat === 'stone' ? 'stoneW' : 'stone') : mat, base = 3 + (t > .66 ? .5 : t < .25 ? -.6 : 0);
+        for (let yy = y; yy < y + rh - 1; yy++) for (let xx = xa; xx <= xb; xx++) {
+          let kk = base; if (yy === y) kk += 1.1; if (xx === xa) kk += .5; if (yy === y + rh - 2) kk -= .9; if (xx === xb) kk -= .6;
+          if (hsh(xx, yy, 14 + seed) > .93) kk -= .8; if (hsh(xx, yy, 15 + seed) > .97) kk += .7;
+          P.px(xx, yy, R(m, kk));
+        }
+        if (t < .08 && xb - xa > 5) { P.px(xa + 2, y + 2, R(m, 1)); P.px(xa + 3, y + 3, R(m, 1)); P.px(xa + 3, y + 4, R(m, 1)); }   // grieta
+        x += bw;
+      }
+    }
+    if (o.quoins) for (let r = 0, y = y0; y < y0 + h; r++, y += rowH) for (const side of [0, 1]) {   // esquinas
+      const qw = (r + side) % 2 ? 10 : 6, xs = side ? x0 + w - qw : x0;
+      for (let yy = y; yy < Math.min(y0 + h, y + rowH) - 1; yy++) for (let xx = xs; xx < xs + qw; xx++) P.px(xx, yy, R('stoneW', 3.6 + (yy === y ? 1 : 0) - (yy === y + rowH - 2 ? .9 : 0) - (xx === xs + qw - 1 ? .5 : 0)));
+    }
+  }
+  /** Revoco con manchas y desconchones. */
+  function plaster(P, x0, y0, w, h, seed) {
+    for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) {
+      let k = 3.4 + (vnoise(x, y, 5, seed) - .5) * .7 + (vnoise(x, y, 17, seed + 1) - .5) * .5; if (y === y0) k -= 1; if (hsh(x, y, seed + 3) > .97) k -= .6;
+      P.px(x, y, R('plaster', k));
+    }
+    // desconchón con la piedra a la vista
+    if (hsh(seed, 1, 5) > .4) { const cx = x0 + 4 + Math.floor(hsh(seed, 2, 5) * (w - 10)), cy = y0 + 3 + Math.floor(hsh(seed, 3, 5) * Math.max(1, h - 8)); for (let j = 0; j < 3; j++) for (let i = 0; i < 5 - j; i++) P.px(cx + i + j, cy + j, R('stoneW', 2 + (i === 0 ? -1 : 0))); }
+  }
+  /** Viga de madera con veta, canto iluminado arriba e izquierda. */
+  function beam(P, x, y, w, h, o = {}) {
+    for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) {
+      let k = 3; if (yy === y || (o.vert && xx === x)) k = 4; if (yy === y + h - 1 || (o.vert && xx === x + w - 1)) k = 1.6;
+      if (hsh(o.vert ? xx : xx >> 2, o.vert ? yy >> 2 : yy, 21) > .82) k -= .7;
+      P.px(xx, yy, R('timber', k));
+    }
+  }
+  function brace(P, x0, y0, x1, y1) { P.thick(x0, y0, x1, y1, 3, R('timber', 3)); P.line(x0, y0 - 1, x1, y1 - 1, R('timber', 4)); P.line(x0 + 1, y0 + 2, x1 + 1, y1 + 2, R('timber', 1)); }
+
+  /* ===== Tejados ===== */
+  /** Tejas curvas en hiladas desplazadas (mat: roofG, roofR) o pizarra (roofB) o paja (thatch). */
+  function roofTile(mat, kind, x, y, x0, y0, w, h, seed) {
+    const ry = y - y0, rx = x - x0;
+    if (kind === 'thatch') {
+      const strand = hsh(x, 0, seed) , wave = Math.sin(x * .9 + seed) * 1.2, row = Math.floor((ry + wave) / 9), ly = (ry + wave) - row * 9;
+      let k = 3 + (strand - .5) * 1.6 - (ly > 7 ? 1.4 : 0) + (ly < 2 ? .5 : 0) - ry / h * .6 + (1 - rx / w) * .4;
+      return R(mat, k);
+    }
+    const CH = kind === 'slate' ? 5 : 6, row = Math.floor(ry / CH), ly = ry - row * CH, TW = kind === 'slate' ? 7 : 8;
+    const off = (row % 2) * TW / 2, tx = Math.floor((rx + off) / TW), lx = (rx + off) - tx * TW, idv = hsh(tx, row, seed);
+    let k = 3 + (idv - .5) * .9;
+    if (kind === 'slate') { if (lx === 0) k -= 1.6; else if (lx === 1) k += .6; if (ly === 0) k += .8; if (ly === CH - 1) k -= 1.4; }
+    else {   // teja curva: lomo iluminado, valles en sombra, borde inferior redondeado
+      const c = Math.abs(lx - TW / 2 + .5) / (TW / 2); k += (1 - c * c) * 1.2 - .5; if (lx === 0) k -= 1;
+      if (ly >= CH - 2 && c > .55) k -= 1.6; if (ly === CH - 1) k -= .7; if (ly === 0) k += .4;
+    }
+    k += (1 - rx / w) * .5 - .25 + (vnoise(x, y, 23, seed + 5) - .5) * .9;   // luz desde la izquierda y zonas desteñidas
+    if (idv > .965) k -= 1.4;                                   // teja rota u oscura
+    return R(mat, k);
+  }
+  function mossy(P, x0, y0, w, h, seed, amt) {
+    for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) { const n = vnoise(x, y, 11, seed); if (n > 1 - amt && hsh(x, y, seed + 9) > .25 && P.get(x, y)) P.px(x, y, R('moss', 2 + (n > 1 - amt * .5 ? 1.5 : 0) + (hsh(x, y, 4) > .7 ? .8 : 0))); }
+  }
+
+  /* ===== Piezas de fachada ===== */
+  function windowAt(P, x, y, w, h, o = {}) {
+    // marco (piedra o madera), cristal con parteluz, reflejo y alféizar
+    const fm = o.frame || 'timber';
+    if (fm === 'stoneW') {   // arco de dovelas sobre la ventana de piedra
+      const cx = x + w / 2, r = w / 2 + 4;
+      for (let yy = Math.floor(y - r + 2); yy < y + 2; yy++) for (let xx = Math.floor(cx - r); xx < cx + r; xx++) { const d = Math.hypot(xx + .5 - cx, yy + .5 - (y + 2)); if (d < r && d > r - 4) { const a = Math.atan2(yy + .5 - y - 2, xx + .5 - cx), seg = Math.floor(a * 3); P.px(xx, yy, Math.abs(a * 3 - seg - .5) > .4 ? R('mortar', 1) : R('stoneW', 3.6 + (xx < cx ? .6 : -.4))); } else if (d <= r - 4) P.px(xx, yy, R('glass', 1)); }
+    }
+    P.rect(x - 2, y - 2, w + 4, h + 4, R(fm, 1));
+    P.rect(x - 1, y - 1, w + 2, h + 2, R(fm, 3)); P.hline(x - 1, x + w, y - 1, R(fm, 4));
+    const lit = o.lit;
+    for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) {
+      let k = lit ? 3.2 - (yy - y) / h * 1.2 : 2 + (yy - y) / h * .8; if (!lit && xx - x + (yy - y) * .6 < 3) k += 1.6;   // reflejo
+      P.px(xx, yy, R(lit ? 'glow' : 'glass', k));
+    }
+    const mx = x + Math.floor(w / 2), my = y + Math.floor(h / 2);
+    P.vline(mx, y, y + h - 1, R(fm, 2)); P.hline(x, x + w - 1, my, R(fm, 2));
+    P.rect(x - 3, y + h + 1, w + 6, 2, R(fm === 'timber' ? 'timber' : 'stoneW', 4)); P.hline(x - 3, x + w + 2, y + h + 3, R('stone', 1));
+    if (o.shutters) for (const s of [-1, 1]) { const sx = s < 0 ? x - 3 - Math.ceil(w / 2) : x + w + 3; for (let yy = y - 2; yy < y + h + 2; yy++) for (let xx = sx; xx < sx + Math.ceil(w / 2); xx++) P.px(xx, yy, R(o.shutters, 3 - (xx === sx ? -1 : 0) - ((xx - sx) % 3 === 2 ? 1 : 0) - (yy === y + h + 1 ? 1.4 : 0))); }
+    if (o.flowers) flowerBox(P, x - 3, y + h + 1, w + 6, o.flowers);
+  }
+  function flowerBox(P, x, y, w, col) {
+    P.rect(x, y + 3, w, 4, R('wood', 3)); P.hline(x, x + w - 1, y + 3, R('wood', 4)); P.hline(x, x + w - 1, y + 6, R('wood', 1));
+    for (let i = 0; i < w; i++) { const hgt = 2 + Math.floor(hsh(i, x + y, 31) * 3); for (let j = 0; j < hgt; j++) P.px(x + i, y + 3 - j, R('leaf', 3 + (j === hgt - 1 ? 1 : 0) - (i % 2))); }
+    for (let i = 1; i < w - 1; i += 2 + (hsh(i, y, 33) > .5)) { const fy = y - 1 - Math.floor(hsh(i, x, 34) * 2); P.px(x + i, fy, R(col, 4)); P.px(x + i + 1, fy, R(col, 3)); P.px(x + i, fy + 1, R(col, 2)); }
+  }
+  function door(P, cx, baseY, w, h, o = {}) {
+    const x = cx - Math.floor(w / 2), y = baseY - h;
+    // arco de dovelas
+    const ar = Math.floor(w / 2) + 3;
+    for (let yy = y - ar + 4; yy < baseY; yy++) for (let xx = x - 3; xx < x + w + 3; xx++) {
+      const dx = xx + .5 - cx, dy = yy + .5 - (y + ar - 3); const inArch = yy < y + ar - 3 ? Math.hypot(dx, dy) < ar : Math.abs(dx) < ar;
+      if (!inArch) continue; const vous = Math.atan2(dy, dx), seg = Math.floor((vous + Math.PI) * 4), edge = Math.abs((vous + Math.PI) * 4 - seg - .5) > .42;
+      P.px(xx, yy, edge && yy < y + ar - 3 ? R('mortar', 1) : R(o.frame || 'stoneW', 3.4 + (dx < 0 ? .5 : -.5) + (hsh(seg, 0, 9) - .5)));
+    }
+    // hueco y hoja de la puerta
+    for (let yy = y; yy < baseY; yy++) for (let xx = x; xx < x + w; xx++) {
+      const dx = xx + .5 - cx, dy = yy + .5 - (y + ar - 3); if (yy < y + ar - 3 && Math.hypot(dx, dy) > ar - 3) continue;
+      if (o.open) { P.px(xx, yy, xx < x + 3 ? R('wood', 2) : '#0a0807'); continue; }
+      let k = 3 - ((xx - x) % 5 === 4 ? 1.5 : 0) + ((xx - x) % 5 === 0 ? .5 : 0); if (hsh(xx >> 1, yy >> 2, 3) > .85) k -= .6; P.px(xx, yy, R('wood', k));
+    }
+    if (!o.open) { for (const hy of [y + 6, baseY - 7]) { P.rect(x, hy, Math.floor(w * .7), 2, R('iron', 2)); P.hline(x, x + Math.floor(w * .7) - 1, hy, R('iron', 4)); } P.px(x + w - 4, baseY - Math.floor(h / 2), R('gold', 4)); P.px(x + w - 4, baseY - Math.floor(h / 2) + 1, R('gold', 2)); }
+    else { for (let yy = y + 3; yy < baseY; yy++) P.px(x + 1, yy, R('wood', 4)); }
+    // escalón
+    P.rect(x - 4, baseY - 2, w + 8, 2, R('stone', 4)); P.hline(x - 4, x + w + 3, baseY - 1, R('stone', 2));
+  }
+  function sign(P, x, y, icon) {
+    // ménsula de hierro + tablero colgante con icono
+    P.hline(x, x + 14, y, R('iron', 2)); P.px(x + 14, y + 1, R('iron', 2)); P.line(x + 1, y + 1, x + 6, y + 5, R('iron', 2));
+    P.vline(x + 4, y + 1, y + 3, R('iron', 3)); P.vline(x + 12, y + 1, y + 3, R('iron', 3));
+    P.rect(x + 1, y + 4, 15, 12, R('wood', 1)); P.rect(x + 2, y + 5, 13, 10, R('wood', 3)); P.hline(x + 2, x + 14, y + 5, R('wood', 4));
+    const cx = x + 8, cy = y + 10; ICON[icon] && ICON[icon](P, cx, cy);
+  }
+  const ICON = {
+    sword: (P, x, y) => { P.line(x - 3, y + 3, x + 3, y - 3, R('iron', 5)); P.line(x - 4, y + 1, x - 1, y + 4, R('gold', 4)); P.px(x - 4, y + 4, R('wood', 1)); },
+    potion: (P, x, y) => { P.ell(x, y + 1, 3, 3, R('cloth1', 3)); P.px(x - 1, y, R('cloth1', 5)); P.rect(x - 1, y - 4, 2, 2, R('linen', 3)); },
+    mug: (P, x, y) => { P.rect(x - 3, y - 3, 5, 7, R('gold', 3)); P.hline(x - 3, x + 1, y - 3, R('linen', 5)); P.vline(x + 2, y - 1, y + 2, R('gold', 2)); P.px(x + 3, y, R('gold', 2)); },
+    coin: (P, x, y) => { P.ell(x, y, 4, 4, R('gold', 3)); P.ell(x - 1, y - 1, 2, 2, R('gold', 5)); P.px(x, y, R('gold', 2)); },
+    compass: (P, x, y) => { P.line(x, y - 4, x, y + 4, R('gold', 4)); P.line(x - 4, y, x + 4, y, R('gold', 4)); P.px(x, y, R('cloth3', 3)); P.px(x, y - 4, R('gold', 5)); },
+    house: (P, x, y) => { P.poly([[x - 5, y], [x, y - 5], [x + 5, y]], R('roofR', 3)); P.rect(x - 3, y, 7, 4, R('plaster', 4)); P.rect(x, y + 1, 2, 3, R('wood', 2)); },
+    paw: (P, x, y) => { P.ell(x, y + 1, 2.5, 2, R('linen', 4)); for (const [dx, dy] of [[-3, -2], [-1, -4], [1, -4], [3, -2]]) P.px(x + dx, y + dy, R('linen', 4)); },
+  };
+  function banner(P, x, y, w, h, main, accent, emblem) {
+    P.rect(x - 2, y - 2, w + 4, 2, R('wood', 2)); P.px(x - 3, y - 2, R('gold', 4)); P.px(x + w + 2, y - 2, R('gold', 4));
+    for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) {
+      const tail = yy > y + h - 6 && Math.abs(xx + .5 - (x + w / 2)) < (yy - (y + h - 6)) * .8; if (tail) continue;
+      const stripe = xx - x < 2 || xx - x >= w - 2; let k = 3 + (xx - x < w / 2 ? .4 : -.4) + Math.sin((xx - x) * 1.3) * .3; if (xx === x) k += .6; if (xx === x + w - 1) k -= 1;
+      P.px(xx, yy, R(stripe ? accent : main, k));
+    }
+    if (emblem) ICON[emblem](P, x + Math.floor(w / 2), y + Math.floor(h * .42));
+  }
+  function wallTorch(P, x, y) { P.rect(x, y, 3, 6, R('iron', 2)); P.px(x + 1, y, R('iron', 4)); P.rect(x - 1, y - 2, 5, 3, R('iron', 1)); P.rect(x, y - 4, 3, 3, R('wood', 3)); }
+  function ivy(P, x, yTop, yBot, seed, spread = 6) {
+    for (let y = yTop; y < yBot; y++) { const xo = Math.round(Math.sin(y * .35 + seed) * 2); P.px(x + xo, y, R('leaf', 2)); if (hsh(y, seed, 41) > .45) { const lx = x + xo + (hsh(y, seed, 42) > .5 ? 1 : -1) * (1 + Math.floor(hsh(y, seed, 43) * spread * .5)); P.px(lx, y, R('leafL', 3 + (hsh(y, 1, 44) > .6))); P.px(lx + 1, y, R('leafL', 2)); P.px(lx, y - 1, R('leafL', 4)); } }
+  }
+  function lantern(P, x, y) { P.rect(x - 2, y, 5, 7, R('iron', 1)); P.rect(x - 1, y + 1, 3, 5, R('glow', 4)); P.px(x, y + 2, R('glow', 5)); P.hline(x - 3, x + 3, y - 1, R('iron', 2)); P.px(x, y - 2, R('iron', 3)); }
+
+  /* ===== Casa ===== */
+  /**
+   * Casa vista desde el frente y algo desde arriba. footprint (casillas) w×d; el sprite sobresale por arriba (`lift`)
+   * para el tejado y a los lados por los aleros. Devuelve { cv, ox, oy }: (ox, oy) es la esquina inferior izquierda
+   * de la planta dentro del sprite (se coloca en (x0·32, (y1+1)·32) del mundo).
+   */
+  function house(spec) {
+    const TS = 32, eave = 6, lift = spec.lift ?? 26, w = spec.w * TS, d = spec.d * TS, Wd = w + eave * 2, H = d + lift, seed = spec.seed || 1;
+    const P = new Pix(Wd, H + 6), bx = eave, baseY = H;              // base de la fachada (suelo)
+    const floors = spec.floors || 2, gH = spec.groundH || 36, uH = floors > 1 ? (spec.upperH || 30) : 0, F = gH + uH, fTop = baseY - F;
+    // sombra en el suelo (a la derecha y abajo)
+    for (let y = baseY - 2; y < baseY + 6; y++) for (let x = bx + 4; x < bx + w + 8; x++) if (y >= baseY || x >= bx + w) P.px(x, y, '#000000', 70 - (y - baseY) * 9);
+    // --- planta baja: piedra
+    ashlar(P, bx, baseY - gH, w, gH, spec.wall || 'stone', seed, { quoins: true });
+    for (let x = bx; x < bx + w; x++) { P.px(x, baseY - 1, R('stone', 1)); P.px(x, baseY - 2, R(spec.wall || 'stone', 2)); }   // zócalo
+    // --- planta alta: entramado (sobresale 3 px sobre la planta baja)
+    const jut = floors > 1 ? 3 : 0;
+    if (floors > 1) {
+      const ux = bx - jut, uw = w + jut * 2, uy = fTop;
+      if (spec.upper === 'stone') ashlar(P, ux, uy, uw, uH, spec.wall || 'stone', seed + 7, {});
+      else {
+        plaster(P, ux, uy, uw, uH, seed);
+        const posts = Math.max(3, Math.round(uw / 22)), step = (uw - 4) / (posts - 1);
+        beam(P, ux, uy + uH - 5, uw, 5); beam(P, ux, uy, uw, 4);
+        for (let i = 0; i < posts; i++) { const px = Math.round(ux + i * step); beam(P, px, uy + 3, 4, uH - 7, { vert: true }); }
+        for (let i = 0; i < posts - 1; i++) {
+          const a = Math.round(ux + i * step) + 4, b = Math.round(ux + (i + 1) * step) - 1, t = hsh(i, seed, 51);
+          if (spec.windowsUp && spec.windowsUp.some(wx => Math.abs(wx - (a + b) / 2 + bx) < (b - a) / 2)) continue;
+          if (t < .45) { brace(P, a, uy + uH - 6, b, uy + 4); } else if (t < .75) { brace(P, a, uy + 4, b, uy + uH - 6); brace(P, a, uy + uH - 6, b, uy + 4); }
+        }
+        // sombra bajo el voladizo
+        for (let x = bx; x < bx + w; x++) { P.px(x, baseY - gH, R('stone', 0)); P.px(x, baseY - gH + 1, R('stone', 1)); }
+        // ménsulas del voladizo
+        for (let i = 0; i < posts; i++) { const px = Math.round(ux + i * step); P.rect(px, uy + uH, 4, 3, R('timber', 2)); P.px(px, uy + uH, R('timber', 4)); }
+      }
+    }
+    // --- tejado
+    const roof = spec.roof || 'roofR', kind = spec.roofKind || (roof === 'roofB' ? 'slate' : roof === 'thatch' ? 'thatch' : 'tile'), rTop = 2, rBot = fTop + 4;
+    {
+      for (let y = rTop; y < rBot; y++) for (let x = 0; x < Wd; x++) P.px(x, y, roofTile(roof, kind, x, y, 0, rTop, Wd, rBot - rTop, seed));
+      if (spec.moss) mossy(P, 0, rTop, Wd, rBot - rTop, seed + 3, spec.moss);
+      // cumbrera, aleros y tablas laterales
+      for (let x = 0; x < Wd; x++) { P.px(x, rTop, R(roof, 5)); P.px(x, rTop + 1, R(roof, 4)); P.px(x, rTop + 2, R(roof, 2)); if (x % 6 === 0) P.px(x, rTop + 1, R(roof, 2)); }
+      for (let x = 0; x < Wd; x++) { P.px(x, rBot - 3, R(roof, 2)); P.px(x, rBot - 2, R(roof, 1)); P.px(x, rBot - 1, R('timber', 4)); P.px(x, rBot, R('timber', 3)); P.px(x, rBot + 1, R('timber', 1)); P.px(x, rBot + 2, '#000000', 120); P.px(x, rBot + 3, '#000000', 70); P.px(x, rBot + 4, '#000000', 35); }
+      for (let y = rTop; y < rBot; y++) { P.px(0, y, R('timber', 2)); P.px(1, y, R('timber', 4)); P.px(Wd - 1, y, R('timber', 1)); P.px(Wd - 2, y, R('timber', 2)); }
+      if (spec.dormers) for (const dx of spec.dormers) dormer(P, dx + bx, rTop + Math.round((rBot - rTop) * .45), roof, kind, seed);
+      if (spec.gable) crossGable(P, bx + spec.gable.x, spec.gable.w, rTop + (spec.gable.peak ?? 6), fTop, roof, kind, seed, spec.gable);
+    }
+    if (spec.chimney != null) chimney(P, bx + spec.chimney, rTop + 4, seed);
+    // --- ventanas, puerta y detalles
+    const marks = [];
+    for (const wx of spec.windowsUp || []) { const lit = spec.lit && hsh(wx, seed, 61) > (spec.litK ?? .45); windowAt(P, bx + wx - 5, fTop + 8, 10, 12, { lit, flowers: spec.flowers && ['flowerR', 'flowerY', 'flowerB', 'flowerW'][Math.floor(hsh(wx, seed, 62) * 4)] }); if (lit) marks.push({ k: 'window', x: bx + wx, y: fTop + 14 }); }
+    for (const wx of spec.windowsDown || []) { const lit = spec.lit && hsh(wx, seed, 63) > (spec.litK ?? .5); windowAt(P, bx + wx - 5, baseY - gH + 9, 10, 12, { frame: 'stoneW', shutters: spec.shutters, lit }); if (lit) marks.push({ k: 'window', x: bx + wx, y: baseY - gH + 15 }); }
+    if (spec.door) door(P, bx + spec.door.x, baseY - 1, spec.door.w || 14, spec.door.h || 24, spec.door);
+    if (spec.torches) for (const tx of spec.torches) { wallTorch(P, bx + tx, baseY - 22); marks.push({ k: 'torch', x: bx + tx + 1, y: baseY - 27 }); }
+    if (spec.ivy) for (const iv of spec.ivy) ivy(P, bx + iv, fTop + 6, baseY - 2, seed + iv);
+    if (spec.deco) spec.deco(P, { bx, baseY, w, F, fTop, gH, uH, rTop, rBot, Wd, R, sign, banner, lantern, windowAt, flowerBox, ICON, marks, wallTorch });
+    P.outline(INK);
+    return { cv: P.canvas(), ox: eave, oy: H, w: Wd, h: H + 6, marks, fTop, baseY };
+  }
+  function dormer(P, cx, y, roof, kind, seed) {
+    const w = 18, h = 12; P.poly([[cx - w / 2 - 2, y], [cx, y - 8], [cx + w / 2 + 2, y]], R(roof, 4)); P.line(cx - w / 2 - 2, y, cx, y - 8, R(roof, 5)); P.line(cx, y - 8, cx + w / 2 + 2, y, R(roof, 2));
+    P.rect(cx - w / 2, y, w, h, R('plaster', 3)); beam(P, cx - w / 2, y, 2, h, { vert: true }); beam(P, cx + w / 2 - 2, y, 2, h, { vert: true });
+    windowAt(P, cx - 4, y + 2, 8, 8, {});
+    for (let x = cx - w / 2 - 1; x < cx + w / 2 + 1; x++) P.px(x, y + h, '#000000', 90);
+  }
+  function chimney(P, x, y, seed) {
+    ashlar(P, x, y, 10, 20, 'stoneW', seed + 21, { rowH: 5 });
+    P.rect(x - 1, y - 3, 12, 3, R('stone', 4)); P.hline(x - 1, x + 10, y - 3, R('stone', 5)); P.rect(x + 2, y - 2, 6, 1, '#100c0a');
+    for (let yy = y; yy < y + 20; yy++) P.px(x + 9, yy, R('stone', 1));
+  }
+  /** Hastial que sobresale del tejado principal: faldones en bandas diagonales, tablas de alero y frontón de entramado. */
+  function crossGable(P, cx, gw, peak, gy, roof, kind, seed, o) {
+    const half = gw / 2, slope = (gy - peak) / half, band = o.band || 12;
+    const inTri = (x, y, hw) => y >= peak + Math.abs(x + .5 - cx) * ((gy - peak) / hw) && y < gy;
+    // faldones vistos desde arriba: banda de tejas paralela a cada vertiente
+    for (let y = peak - band; y < gy + 4; y++) for (let x = Math.floor(cx - half - band - 4); x < cx + half + band + 4; x++) {
+      const dx = Math.abs(x + .5 - cx), yEdge = peak + dx * slope, d = (yEdge - y) / Math.hypot(1, slope);   // distancia por encima de la vertiente
+      if (d < -1 || d > band || y > gy + 3 || dx > half + band) continue;
+      const u = dx * Math.cos(Math.atan(slope)) + (yEdge - y) * 0, v = d;                                       // coordenadas a lo largo / a través del faldón
+      const side = x < cx ? 0 : 1; let col = roofTile(roof, kind, Math.round(u * 1.2), Math.round(band - v), 0, 0, half * 1.4, band, seed + side * 3);
+      P.px(x, y, col);
+      if (side && hsh(x, y, 3) > .5 && v < band - 1) P.px(x, y, '#000000', 40);                               // la vertiente derecha, algo en sombra
+    }
+    for (let y = peak - band; y < gy; y++) for (let x = Math.floor(cx - half - band); x < cx + half + band; x++) { const dx = Math.abs(x + .5 - cx), yEdge = peak + dx * slope; if (Math.abs(y - (yEdge - band)) < .7) P.px(x, y, R(roof, x < cx ? 5 : 3)); }
+    for (let y = peak - band + 2; y < gy + 3; y++) for (let x = Math.ceil(cx); x < cx + half + band + 8; x++) { const dx = x + .5 - cx, yEdge = peak + dx * slope - band; if (y > yEdge + .5 && y < yEdge + 6 && (yEdge - band + band) < gy && !(y >= peak + (dx) * slope - band - 1 && y <= peak + dx * slope + 1 && dx < half + band)) P.px(x, y, '#000000', 70); }
+    // frontón: revoco con entramado
+    for (let y = peak; y < gy; y++) for (let x = Math.floor(cx - half); x < cx + half; x++) if (inTri(x, y, half)) P.px(x, y, R('plaster', 3.4 + (vnoise(x, y, 5, seed) - .5) * .7));
+    const H = gy - peak;
+    beam(P, Math.round(cx) - 2, peak + 4, 4, H - 4, { vert: true });
+    beam(P, Math.round(cx - half * .78), Math.round(peak + H * .58), Math.round(half * 1.56), 3);
+    for (const sd of [-1, 1]) {
+      const xa = Math.round(cx + sd * half * .42); P.rect(xa - 1, Math.round(peak + H * .3 + half * .42 * slope * .0 + Math.abs(xa - cx) * slope * .9), 3, Math.round(gy - (peak + Math.abs(xa - cx) * slope * .9 + H * .3)), R('timber', 3));
+      brace(P, Math.round(cx) + sd * 2, Math.round(peak + H * .58), Math.round(cx + sd * half * .7), gy - 3);
+      brace(P, Math.round(cx) + sd * 2, Math.round(peak + H * .58), Math.round(cx + sd * half * .32), Math.round(peak + H * .32));
+    }
+    beam(P, Math.round(cx - half), gy - 4, Math.round(gw), 4);
+    if (o.window) windowAt(P, Math.round(cx) - 6, Math.round(peak + H * .62) + 3, 12, 10, { lit: o.lit });
+    if (o.emblem) { const ey = Math.round(peak + H * .36); P.ell(cx, ey, 7, 7, R('wood', 1)); P.ell(cx, ey, 6, 6, R(o.emblemCol || 'cloth2', 3)); P.ell(cx - 1, ey - 1, 3, 3, R(o.emblemCol || 'cloth2', 4)); ICON[o.emblem](P, Math.round(cx), ey); }
+    // tablas de alero gruesas con remate
+    for (const sd of [-1, 1]) for (let i = -1; i <= half + 4; i++) { const x = Math.round(cx + sd * i), y = Math.round(peak + i * slope); for (let t = -3; t <= 1; t++) P.px(x, y + t, R('timber', t === -3 ? 4.5 : t === 1 ? 1 : t === 0 ? 2 : 3.4)); }
+    P.rect(Math.round(cx) - 2, peak - 9, 4, 9, R('timber', 3)); P.px(Math.round(cx) - 1, peak - 9, R('timber', 5)); P.ell(cx, peak - 11, 2, 2, R('gold', 4));
+    for (let x = Math.floor(cx - half - band); x < cx + half + band; x++) { if (P.get(x, gy + 4)) { P.px(x, gy + 4, '#000000', 90); P.px(x, gy + 5, '#000000', 50); } }
+  }
+  /** Frontón: triángulo de entramado sobre la fachada y faldones a los lados. */
+  function gableFront(P, spec, x0, w, rTop, fTop, roof, kind, seed) {
+    const cx = x0 + w / 2, peak = rTop + 2, Wd = P.w;
+    // faldones laterales (vistos desde arriba): hiladas verticales paralelas a la cumbrera
+    for (let y = rTop; y < fTop + 4; y++) for (let x = 0; x < Wd; x++) {
+      const sx = x < cx ? (x - 0) : (Wd - 1 - x), lx = sx, ly = y - rTop;
+      P.px(x, y, roofTile(roof, kind, ly + (x < cx ? 0 : 3), lx, 0, 0, fTop, Wd / 2, seed + (x < cx ? 0 : 5)));
+    }
+    if (spec.moss) mossy(P, 0, rTop, Wd, fTop - rTop, seed + 3, spec.moss);
+    // frontón
+    const gy = fTop; const tri = (x, y) => y >= peak + Math.abs(x + .5 - cx) * ((gy - peak) / (w / 2 + 2));
+    for (let y = peak; y < gy; y++) for (let x = Math.floor(x0 - 2); x < x0 + w + 2; x++) if (tri(x, y)) P.px(x, y, R('plaster', 3.3 + (vnoise(x, y, 9, seed) - .5)));
+    // entramado del frontón: pie derecho central, jabalcones y cruces
+    beam(P, Math.round(cx) - 2, peak + 6, 4, gy - peak - 6, { vert: true });
+    for (const s of [-1, 1]) { const xa = Math.round(cx + s * w * .22), xb = Math.round(cx + s * w * .42); brace(P, Math.round(cx) + s * 2, gy - 2, xa, peak + (gy - peak) * .45); P.vline(xa, Math.round(peak + (gy - peak) * .5), gy, R('timber', 3)); P.vline(xa + 1, Math.round(peak + (gy - peak) * .5), gy, R('timber', 1)); if (Math.abs(xb - cx) < w / 2 - 4) { P.vline(xb, Math.round(peak + (gy - peak) * .75), gy, R('timber', 3)); } }
+    beam(P, x0 - 2, gy - 4, w + 4, 4);
+    // tablas de alero (bargeboards) gruesas con remate
+    for (const s of [-1, 1]) for (let i = 0; i <= w / 2 + 6; i++) { const x = Math.round(cx + s * i), y = Math.round(peak + i * ((gy - peak) / (w / 2 + 2))); for (let t = -2; t <= 2; t++) P.px(x, y + t, R('timber', t <= -1 ? 4 : t >= 2 ? 1 : 3)); }
+    P.rect(Math.round(cx) - 2, peak - 5, 4, 8, R('timber', 3)); P.px(Math.round(cx) - 1, peak - 6, R('gold', 4));
+    for (let x = 0; x < Wd; x++) if (!tri(x, fTop - 1)) { P.px(x, fTop + 3, R(roof, 1)); P.px(x, fTop + 4, R('timber', 1)); }
+  }
+
+  /* ===== Objetos ===== */
+  function barrel(o = {}) {
+    const P = new Pix(16, 20); const w = 14, cx = 8;
+    for (let y = 4; y < 19; y++) { const bulge = Math.round(Math.sin((y - 4) / 15 * Math.PI) * 1.5); for (let x = 1 - bulge; x < 15 + bulge; x++) { const xx = x; let k = 3 + (xx < cx - 2 ? .7 : xx > cx + 3 ? -1 : 0); if ((xx - 1) % 4 === 0) k -= .8; P.px(xx, y, R('wood', k)); } }
+    for (const hy of [6, 12, 17]) for (let x = 0; x < 16; x++) if (P.get(x, hy)) { P.px(x, hy, R('iron', x < 6 ? 4 : 2)); }
+    P.ell(cx, 4, 7, 3, R('wood', 2)); P.ell(cx, 4, 5.5, 2, R('wood', 4)); P.hline(4, 11, 4, R('wood', 3));
+    if (o.tap) { P.rect(6, 12, 3, 2, R('gold', 3)); }
+    P.outline(INK); return P;
+  }
+  function crate(o = {}) {
+    const P = new Pix(18, 18);
+    P.rect(1, 5, 16, 12, R('wood', 3)); P.rect(1, 1, 16, 5, R('wood', 4));
+    for (const x of [1, 15]) P.rect(x, 5, 2, 12, R('wood', 2)); P.hline(1, 16, 5, R('wood', 2)); P.hline(1, 16, 16, R('wood', 1));
+    P.line(3, 15, 14, 6, R('wood', 2)); for (let x = 2; x < 16; x += 5) P.vline(x, 1, 5, R('wood', 3));
+    P.outline(INK); return P;
+  }
+  function sack(col = 'linen') { const P = new Pix(14, 14); P.ell(7, 9, 6, 5, R(col, 3)); P.ell(5, 8, 3, 3, R(col, 4)); P.rect(5, 2, 4, 3, R(col, 2)); P.hline(4, 9, 4, R('wood', 2)); P.outline(INK); return P; }
+  function lampPost() {   // farola de hierro forjado con farol de cristal
+    const P = new Pix(22, 66); P.ell(10, 63, 8, 2.5, '#000000', 80);
+    P.rect(8, 14, 4, 48, R('iron', 2)); P.vline(8, 14, 61, R('iron', 4)); P.vline(11, 14, 61, R('iron', 1)); P.rect(5, 58, 10, 4, R('stone', 3)); P.hline(5, 14, 58, R('stone', 5));
+    for (const y of [30, 46]) P.rect(7, y, 6, 2, R('iron', 3));
+    P.line(10, 16, 19, 12, R('iron', 2)); P.line(10, 20, 16, 13, R('iron', 2));
+    P.rect(2, 4, 13, 2, R('iron', 2)); P.poly([[3, 4], [8, 0], [14, 4]], R('iron', 3)); P.rect(3, 6, 11, 11, R('iron', 1)); P.rect(4, 7, 9, 9, R('glow', 4)); P.rect(6, 8, 4, 5, R('glow', 5)); P.vline(8, 7, 15, R('iron', 1)); P.rect(3, 17, 11, 2, R('iron', 2));
+    P.outline(INK); return P;
+  }
+  function planter(col) { const P = new Pix(22, 16); P.rect(1, 8, 20, 7, R('wood', 3)); P.hline(1, 20, 8, R('wood', 4)); P.hline(1, 20, 14, R('wood', 1)); for (const x of [1, 20]) P.vline(x, 8, 14, R('wood', 2)); flowerBox(P, 1, 4, 20, col); P.outline(INK); return P; }
+  function pot(col) { const P = new Pix(14, 18); P.poly([[2, 9], [12, 9], [10, 17], [4, 17]], R('roofR', 3)); P.hline(2, 12, 9, R('roofR', 4)); P.vline(10, 10, 16, R('roofR', 1));
+    for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI, x = 7 + Math.cos(a) * 5, y = 8 - Math.sin(a) * 4; P.ell(x, y, 2.4, 2, R('leaf', 3 + (i % 2))); }
+    for (const [x, y] of [[5, 4], [8, 3], [10, 6], [4, 7]]) { P.px(x, y, R(col, 4)); P.px(x + 1, y, R(col, 3)); P.px(x, y + 1, R(col, 2)); }
+    P.outline(INK); return P; }
+  function table(o = {}) {
+    const P = new Pix(34, 26); P.rect(1, 6, 32, 6, R('wood', 3)); P.hline(1, 32, 6, R('wood', 4)); P.hline(1, 32, 11, R('wood', 1)); for (let x = 1; x < 33; x += 8) P.vline(x, 6, 11, R('wood', 2));
+    for (const x of [3, 28]) { P.rect(x, 12, 3, 12, R('wood', 2)); P.vline(x, 12, 23, R('wood', 3)); }
+    if (o.cloth) { P.rect(4, 5, 26, 6, R(o.cloth, 3)); P.hline(4, 29, 5, R(o.cloth, 4)); for (let x = 4; x < 30; x += 2) P.px(x, 11, R(o.cloth, 2)); }
+    for (const it of o.items || []) { const [kind, x] = it; ITEM[kind] && ITEM[kind](P, x, 6); }
+    P.outline(INK); return P;
+  }
+  const ITEM = {
+    mug: (P, x, y) => { P.rect(x, y - 5, 4, 5, R('gold', 3)); P.hline(x, x + 3, y - 5, R('linen', 5)); P.vline(x + 4, y - 4, y - 2, R('gold', 2)); },
+    bottle: (P, x, y) => { P.rect(x, y - 7, 3, 7, R('cloth2', 2)); P.px(x + 1, y - 9, R('cloth2', 2)); P.px(x + 1, y - 8, R('cloth2', 3)); P.vline(x, y - 6, y - 2, R('cloth2', 4)); },
+    candle: (P, x, y) => { P.rect(x, y - 5, 2, 5, R('linen', 4)); P.px(x, y - 6, R('glow', 5)); P.px(x, y - 7, R('glow', 4)); },
+    book: (P, x, y) => { P.rect(x, y - 2, 8, 3, R('linen', 4)); P.rect(x, y - 1, 8, 2, R('cloth1', 3)); P.vline(x + 4, y - 2, y, R('linen', 2)); },
+    bread: (P, x, y) => { P.ell(x + 3, y - 2, 4, 2, R('gold', 3)); P.hline(x + 1, x + 5, y - 3, R('gold', 4)); },
+    apples: (P, x, y) => { for (const [dx, dy] of [[0, 0], [3, 0], [1.5, -2]]) { P.ell(x + dx + 1, y + dy - 1.5, 1.6, 1.6, R('flowerR', 3)); P.px(x + dx, y + dy - 2, R('flowerR', 5)); } },
+    potion: (P, x, y) => { P.ell(x + 2, y - 2, 2.4, 2.4, R('cloth3', 4)); P.rect(x + 1, y - 6, 2, 2, R('linen', 3)); },
+    scroll: (P, x, y) => { P.rect(x, y - 2, 7, 2, R('linen', 4)); P.px(x, y - 2, R('linen', 2)); P.px(x + 6, y - 2, R('linen', 2)); },
+  };
+  function chair() { const P = new Pix(14, 22); P.rect(2, 1, 10, 10, R('wood', 3)); for (let x = 3; x < 11; x += 3) P.vline(x, 2, 9, R('wood', 2)); P.rect(1, 10, 12, 3, R('wood', 4)); for (const x of [2, 10]) P.rect(x, 13, 2, 8, R('wood', 2)); P.outline(INK); return P; }
+  function bench(w = 40) { const P = new Pix(w + 2, 14); P.rect(1, 3, w, 4, R('wood', 3)); P.hline(1, w, 3, R('wood', 4)); P.hline(1, w, 6, R('wood', 1)); for (const x of [3, w - 4]) P.rect(x, 7, 3, 6, R('wood', 2)); P.outline(INK); return P; }
+  function fence(len, o = {}) {   // barandilla de madera con postes de remate redondo
+    const P = new Pix(len + 4, 26);
+    for (const y of [9, 15]) { P.rect(1, y, len + 2, 3, R('wood', 3)); P.hline(1, len + 2, y, R('wood', 4)); P.hline(1, len + 2, y + 2, R('wood', 1)); }
+    for (let x = 0; x <= len; x += o.step || 32) { const px = Math.min(x, len); P.rect(px, 6, 5, 19, R('wood', 3)); P.vline(px, 6, 24, R('wood', 4)); P.vline(px + 4, 6, 24, R('wood', 1)); P.ell(px + 2.5, 4, 3.2, 3, R('wood', 3)); P.px(px + 1, 3, R('wood', 5)); P.px(px + 2, 2, R('wood', 4)); }
+    P.outline(INK); return P;
+  }
+  function tree(seed, big = 1, leafRamp = null) {
+    const S = Math.round(72 * big), P = new Pix(S, Math.round(S * 1.08)), cx = S / 2, base = P.h - 3, cy = S * .44, cr = S * .4;
+    // sombra en el suelo
+    P.ell(cx + 3, base, S * .3, 4, '#000000', 80);
+    // tronco con raíces
+    for (let y = Math.round(cy + cr * .45); y < base; y++) { const w = 6 + (y > base - 6 ? (6 - (base - y)) * 1.2 : 0); for (let x = Math.round(cx - w / 2); x < cx + w / 2; x++) P.px(x, y, R('wood', x < cx - 1 ? 3.6 : x > cx + 1 ? 1.4 : 2.6 - (hsh(x, y >> 1, seed) > .7 ? .8 : 0))); }
+    // copa: grupos de hojas con luz desde arriba a la izquierda
+    const blobs = [];
+    for (let i = 0; i < 34; i++) { const a = hsh(i, seed, 1) * Math.PI * 2, r = Math.sqrt(hsh(i, seed, 2)) * cr * .78; blobs.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r * .82, S * (.09 + hsh(i, seed, 3) * .08)]); }
+    blobs.sort((a, b) => a[1] - b[1]);
+    const mat = leafRamp || (hsh(seed, 0, 9) > .5 ? 'leafL' : 'leaf');
+    for (const [bx, by, br] of blobs) for (let y = Math.floor(by - br); y <= by + br; y++) for (let x = Math.floor(bx - br); x <= bx + br; x++) {
+      const dx = x + .5 - bx, dy = y + .5 - by, d = Math.hypot(dx, dy) / br; if (d > 1) continue;
+      const gx = (x - cx) / cr, gy = (y - cy) / cr, lit = -(dx * .55 + dy * .8) / br * .7 - (gx * .4 + gy * .7) * .9;
+      let k = 2.7 + lit * 1.5; if (d > .82) k -= .7; if (hsh(x, y, seed + 7) > .88) k += .7; if (hsh(x, y, seed + 8) > .93) k -= .8;
+      P.px(x, y, R(mat, k));
+    }
+    if (hsh(seed, 3, 9) > .55) for (let i = 0; i < 7; i++) { const a = hsh(i, seed, 11) * 6.28, r = hsh(i, seed, 12) * cr * .7; const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r * .8; P.px(x, y, R('flowerR', 4)); P.px(x + 1, y, R('flowerR', 3)); }   // frutos
+    P.outline(INK); return P;
+  }
+  function bush(seed) { const P = new Pix(28, 20); for (let i = 0; i < 9; i++) { const bx = 6 + hsh(i, seed, 1) * 16, by = 9 + hsh(i, seed, 2) * 6, br = 4 + hsh(i, seed, 3) * 3; P.ell(bx, by, br, br * .85, R('leaf', 3)); P.ell(bx - 1, by - 1, br * .6, br * .5, R('leafL', 4)); }
+    if (hsh(seed, 9, 9) > .5) for (let i = 0; i < 5; i++) P.px(5 + hsh(i, seed, 5) * 18, 6 + hsh(i, seed, 6) * 8, R(['flowerR', 'flowerY', 'flowerW'][i % 3], 4));
+    P.outline(INK); return P; }
+  function stall(o = {}) {   // puesto de mercado con toldo
+    const P = new Pix(60, 50);
+    for (const x of [3, 54]) { P.rect(x, 12, 3, 36, R('wood', 3)); P.vline(x, 12, 47, R('wood', 4)); }
+    for (let y = 4; y < 16; y++) for (let x = 0; x < 60; x++) { const st = Math.floor(x / 6) % 2; let k = 3 - (y - 4) * .08 + (st ? 0 : 0); if (y >= 13) k -= 1; P.px(x, y, R(st ? 'linen' : (o.cloth || 'cloth1'), k)); }
+    for (let x = 0; x < 60; x += 6) P.ell(x + 3, 16, 3, 2, R(Math.floor(x / 6) % 2 ? 'linen' : (o.cloth || 'cloth1'), 2));
+    P.rect(1, 28, 58, 6, R('wood', 3)); P.hline(1, 58, 28, R('wood', 4)); P.rect(2, 34, 56, 12, R('wood', 2)); for (let x = 2; x < 58; x += 7) P.vline(x, 34, 45, R('wood', 1));
+    for (const it of o.items || []) ITEM[it[0]](P, it[1], 28);
+    P.outline(INK); return P;
+  }
+  function well() {
+    const P = new Pix(40, 52);
+    P.ell(20, 40, 17, 9, R('stone', 1)); for (let y = 31; y < 49; y++) for (let x = 3; x < 37; x++) { const dx = (x + .5 - 20) / 17, dy = (y + .5 - 40) / 9; if (dx * dx + dy * dy <= 1) P.px(x, y, R('stone', 3 + (y < 35 ? 1 : 0) - (y > 45 ? 1 : 0) - ((x + Math.floor(y / 4) * 3) % 7 === 0 ? 1.4 : 0))); }
+    P.ell(20, 36, 12, 5, '#0a1018'); P.ell(20, 37, 10, 3, R('water', 2));
+    for (const x of [5, 32]) { P.rect(x, 8, 3, 30, R('wood', 3)); P.vline(x, 8, 37, R('wood', 4)); }
+    P.poly([[0, 10], [20, 0], [40, 10], [36, 12], [20, 4], [4, 12]], R('roofR', 3)); P.line(0, 10, 20, 0, R('roofR', 5)); P.line(20, 0, 40, 10, R('roofR', 2));
+    P.hline(6, 34, 14, R('wood', 2)); P.vline(20, 15, 26, R('linen', 2)); P.rect(17, 26, 6, 5, R('wood', 3)); P.hline(17, 22, 27, R('iron', 3));
+    P.outline(INK); return P;
+  }
+  function cart() {
+    const P = new Pix(52, 34);
+    P.rect(4, 8, 40, 12, R('wood', 3)); P.hline(4, 43, 8, R('wood', 4)); for (let x = 4; x < 44; x += 8) P.vline(x, 8, 19, R('wood', 2)); P.hline(4, 43, 19, R('wood', 1));
+    for (let i = 0; i < 8; i++) P.ell(10 + i * 4, 7, 3, 2, R('thatch', 3 + (i % 2)));
+    P.thick(44, 14, 51, 18, 2, R('wood', 3));
+    for (const cx of [14, 34]) { P.ell(cx, 24, 8, 8, R('wood', 2)); P.ell(cx, 24, 6, 6, R('wood', 1)); for (let a = 0; a < 6; a++) P.line(cx, 24, cx + Math.round(Math.cos(a) * 6), 24 + Math.round(Math.sin(a) * 6), R('wood', 3)); P.ell(cx, 24, 1.5, 1.5, R('iron', 3)); }
+    P.outline(INK); return P;
+  }
+  function hay() { const P = new Pix(26, 18); P.rect(1, 3, 24, 13, R('thatch', 3)); for (let x = 1; x < 25; x += 2) P.vline(x, 3, 15, R('thatch', 2 + (x % 4 === 1 ? 2 : 0))); P.hline(1, 24, 3, R('thatch', 5)); for (const y of [7, 12]) P.hline(1, 24, y, R('wood', 1)); P.outline(INK); return P; }
+  function signpost(labels) { const P = new Pix(40, 46); P.rect(18, 6, 3, 38, R('wood', 3)); P.vline(18, 6, 43, R('wood', 4));
+    P.poly([[2, 8], [34, 8], [38, 12], [34, 16], [2, 16]], R('wood', 3)); P.hline(2, 34, 8, R('wood', 4)); P.poly([[36, 20], [6, 20], [2, 24], [6, 28], [36, 28]], R('wood', 3)); P.hline(6, 36, 20, R('wood', 4)); P.outline(INK); return P; }
+
+  return { house, wallTorch, banner, sign, ICON, ITEM, flowerBox, barrel, crate, sack, lampPost, planter, pot, table, chair, bench, fence, tree, bush, stall, well, cart, hay, signpost, R, INK, ashlar, roofTile };
+})();
+
+/* ---------- Escena de la aldea: edificios, objetos y árboles como sprites ordenados en profundidad ----------
+   Solo apariencia: las colisiones siguen siendo las casillas del mundo (generateVillage). Cada sprite
+   se ordena por la línea del suelo (`y`) junto a los personajes, así que puedes pasar por delante y por
+   detrás; si quedas oculto detrás de un edificio o un árbol, se vuelve semitransparente. */
+const TownProps = (() => {
+  const R = (n, k) => TP[n][Math.max(0, Math.min(5, Math.round(k)))], INK = '#141210';
+  function pillar(seed) {   // torre de la puerta: sillería, almenas y brasero
+    const P = new Pix(64, 132), top = 30, base = 128;
+    for (let y = base; y < 132; y++) for (let x = 6; x < 64; x++) P.px(x, y, '#000000', 60);
+    TownArt.ashlar(P, 2, top, 60, base - top, 'stone', seed, { quoins: true, rowH: 8 });
+    for (let i = 0; i < 4; i++) TownArt.ashlar(P, 2 + i * 16, top - 10, 10, 10, 'stone', seed + i, { rowH: 5 });
+    P.rect(0, top - 1, 64, 3, R('stoneW', 4)); P.hline(0, 63, top + 2, R('stone', 1));
+    for (let x = 2; x < 62; x++) if (hsh(x, 3, seed) > .5) for (let j = 0; j < 2 + hsh(x, 4, seed) * 4; j++) P.px(x, top + 2 + j, R('moss', 3 + (j === 0)));
+    // brasero de hierro sobre un pedestal
+    P.rect(24, 6, 16, 4, R('iron', 2)); P.hline(24, 39, 6, R('iron', 4)); P.rect(28, 10, 8, 10, R('iron', 1)); P.rect(26, 18, 12, 3, R('iron', 3));
+    P.rect(25, 3, 14, 3, R('wood', 1));
+    // runas talladas
+    for (let y = 60; y < 100; y += 12) { P.hline(26, 37, y, R('stone', 1)); P.px(31, y + 3, '#62d2e8'); P.px(32, y + 3, '#3a8aa0'); }
+    P.outline(INK); return P;
+  }
+  function arch() {   // arco de piedra entre las torres
+    const P = new Pix(132, 64), cx = 66, cy = 88, r0 = 70, r1 = 84;
+    for (let y = 0; y < 64; y++) for (let x = 0; x < 132; x++) {
+      const d = Math.hypot(x + .5 - cx, y + .5 - cy); if (d < r0 || d > r1) continue;
+      const a = Math.atan2(y + .5 - cy, x + .5 - cx), seg = Math.floor(a * 9), f = a * 9 - seg;
+      if (f < .12) { P.px(x, y, R('mortar', 1)); continue; }
+      let k = 3.3 + (d > r1 - 2 ? 1 : 0) - (d < r0 + 2 ? 1.3 : 0) + (hsh(seg, 1, 5) - .5) * .8; if (hsh(x, y, 6) > .95) k -= .8;
+      P.px(x, y, R(hsh(seg, 2, 5) > .7 ? 'stoneW' : 'stone', k));
+    }
+    // clave con el cristal del portal
+    P.rect(58, 0, 16, 16, R('stoneW', 4)); P.rect(59, 1, 14, 14, R('stoneW', 3)); P.rect(63, 4, 6, 8, '#2a7a90'); P.rect(64, 5, 3, 5, '#62d2e8'); P.px(64, 5, '#d8f8ff');
+    P.outline(INK); return P;
+  }
+  function board() {   // tablón de misiones con tejadillo
+    const P = new Pix(72, 64), y0 = 14;
+    for (const x of [8, 60]) { P.rect(x, y0, 5, 48, R('wood', 3)); P.vline(x, y0, y0 + 47, R('wood', 4)); P.vline(x + 4, y0, y0 + 47, R('wood', 1)); }
+    P.rect(4, y0 + 6, 64, 32, R('wood', 1)); P.rect(6, y0 + 8, 60, 28, R('wood', 3)); for (let x = 6; x < 66; x += 7) P.vline(x, y0 + 8, y0 + 35, R('wood', 2)); P.hline(6, 65, y0 + 8, R('wood', 4));
+    for (let y = 2; y < y0 + 6; y++) for (let x = 0; x < 72; x++) { const dy = y - 2, half = 36 - (y0 + 4 - y) * 2.2; if (Math.abs(x + .5 - 36) > 36 - (y0 + 4 - y) * 0) continue; P.px(x, y, TownArt.roofTile('roofR', 'tile', x, y, 0, 2, 72, y0 + 4, 9)); }
+    P.hline(0, 71, 2, R('roofR', 5)); P.hline(0, 71, y0 + 5, R('timber', 1));
+    P.rect(2, y0 + 39, 68, 3, R('wood', 3)); P.hline(2, 69, y0 + 39, R('wood', 4));
+    P.outline(INK); return P;
+  }
+  function dummy() {   // muñeco de prácticas de paja
+    const P = new Pix(30, 50); P.rect(13, 14, 4, 34, R('wood', 3)); P.rect(3, 18, 24, 4, R('wood', 3)); P.hline(3, 26, 18, R('wood', 4));
+    P.ell(15, 26, 8, 9, R('thatch', 3)); for (let y = 18; y < 35; y += 2) P.hline(9, 21, y, R('thatch', 2 + (y % 4 ? 2 : 0))); P.hline(8, 22, 24, R('wood', 1)); P.hline(8, 22, 30, R('wood', 1));
+    P.ell(15, 10, 6, 6, R('linen', 3)); P.ell(14, 9, 3, 3, R('linen', 4)); P.px(13, 10, R('cloth1', 3)); P.px(17, 10, R('cloth1', 3)); P.line(12, 13, 18, 13, R('cloth1', 2));
+    P.rect(11, 46, 8, 3, R('wood', 2)); P.outline(INK); return P;
+  }
+  function rack() {   // armero con espadas, lanzas y escudo
+    const P = new Pix(66, 46);
+    for (const x of [4, 58]) { P.rect(x, 6, 4, 38, R('wood', 3)); P.vline(x, 6, 43, R('wood', 4)); }
+    for (const y of [12, 36]) { P.rect(2, y, 62, 3, R('wood', 3)); P.hline(2, 63, y, R('wood', 4)); }
+    for (let i = 0; i < 5; i++) { const x = 12 + i * 9; if (i === 2) { P.ell(x + 2, 24, 7, 8, R('cloth3', 3)); P.ell(x + 2, 24, 5, 6, R('cloth3', 4)); P.ell(x + 2, 24, 2, 2, R('gold', 4)); continue; }
+      P.vline(x, 2, 34, R('iron', 4)); P.vline(x + 1, 2, 34, R('iron', 2)); P.hline(x - 2, x + 3, 30, R('gold', 3)); P.rect(x, 31, 2, 5, R('wood', 2)); if (i % 2) { P.px(x, 1, R('iron', 5)); P.px(x, 0, R('iron', 5)); } }
+    P.outline(INK); return P;
+  }
+  function tent(col) {
+    const P = new Pix(72, 70), cx = 36;
+    for (let y = 66; y < 70; y++) for (let x = 6; x < 72; x++) P.px(x, y, '#000000', 60);
+    for (let y = 4; y < 66; y++) { const hw = (y - 4) * .55 + 2; for (let x = Math.floor(cx - hw); x <= cx + hw; x++) { const left = x < cx; let k = left ? 3.6 : 2.4; k += Math.sin((x - cx) * .5) * .25; if (y > 62) k -= .8; P.px(x, y, R(col, k)); } }
+    for (let y = 30; y < 66; y++) { const hw = (y - 30) * .32; for (let x = Math.floor(cx - hw); x <= cx + hw; x++) P.px(x, y, '#120c08'); }
+    P.line(cx, 30, cx - 9, 50, R(col, 4)); P.line(cx, 30, cx - 8, 52, R(col, 4));
+    P.rect(cx - 1, 0, 2, 6, R('wood', 3)); P.px(cx, 0, R('cloth1', 4)); P.px(cx + 1, 1, R('cloth1', 3));
+    for (const s of [-1, 1]) P.line(cx + s * 30, 66, cx + s * 36, 69, R('wood', 2));
+    P.outline(INK); return P;
+  }
+  function rock(seed) {
+    const P = new Pix(30, 22);
+    for (let y = 0; y < 22; y++) for (let x = 0; x < 30; x++) { const dx = (x + .5 - 15) / 13, dy = (y + .5 - 13) / 9, d = dx * dx + dy * dy + (vnoise(x, y, 4, seed) - .5) * .5; if (d > 1) continue;
+      const lit = -(dx * .6 + dy * .8); let k = 3 + lit * 1.4 + (hsh(x, y, seed) > .9 ? -.8 : 0); if (vnoise(x, y, 5, seed + 3) > .68 && dy < 0) { P.px(x, y, R('moss', 3 + lit)); continue; } P.px(x, y, R('stone', k)); }
+    P.outline(INK); return P;
+  }
+  function reeds(seed) {
+    const P = new Pix(20, 26);
+    for (let i = 0; i < 9; i++) { const x = 2 + Math.floor(hsh(i, seed, 1) * 16), h = 10 + Math.floor(hsh(i, seed, 2) * 13), lean = hsh(i, seed, 3) > .5 ? 1 : -1; for (let j = 0; j < h; j++) P.px(x + Math.floor(j * lean / 8), 25 - j, R('grassL', 2 + j / h * 2.5)); if (i % 3 === 0) { P.rect(x + Math.floor(h * lean / 8), 25 - h, 2, 4, R('wood', 2)); } }
+    P.outline(INK); return P;
+  }
+  function bonfire() {   // anillo de piedras, troncos (la llama se anima aparte)
+    const P = new Pix(48, 34), cx = 24, cy = 22;
+    P.ell(cx, cy + 2, 18, 7, '#000000', 70);
+    P.thick(cx - 11, cy + 2, cx + 9, cy - 4, 3, R('wood', 2)); P.thick(cx - 9, cy - 4, cx + 11, cy + 2, 3, R('wood', 3)); P.thick(cx - 1, cy + 4, cx + 2, cy - 6, 3, R('wood', 1));
+    P.ell(cx, cy - 1, 6, 2.4, R('glow', 2));
+    for (let k = 0; k < 11; k++) { const a = k / 11 * Math.PI * 2, x = cx + Math.cos(a) * 15, y = cy + Math.sin(a) * 6; P.ell(x, y, 3.4, 2.6, R('stone', 2)); P.ell(x - .6, y - .8, 2, 1.4, R('stone', 4)); }
+    P.outline(INK); return P;
+  }
+  function logSeat() { const P = new Pix(30, 12); P.rect(2, 3, 26, 7, R('wood', 3)); P.hline(2, 27, 3, R('wood', 4)); P.hline(2, 27, 9, R('wood', 1)); P.ell(3, 6, 2.5, 3.5, R('wood', 4)); P.ell(3, 6, 1, 1.5, R('wood', 2)); P.outline(INK); return P; }
+  function stallWide(w, cloth, items) {
+    const P = new Pix(w, 58), aw = 14;
+    for (const x of [3, w - 6]) { P.rect(x, aw, 3, 42, R('wood', 3)); P.vline(x, aw, aw + 41, R('wood', 4)); }
+    for (let y = 2; y < aw + 4; y++) for (let x = 0; x < w; x++) { const st = Math.floor(x / 8) % 2; P.px(x, y, R(st ? 'linen' : cloth, 3.6 - (y - 2) * .1 - (y >= aw + 1 ? 1 : 0))); }
+    for (let x = 0; x < w; x += 8) P.ell(x + 4, aw + 4, 4, 2.4, R(Math.floor(x / 8) % 2 ? 'linen' : cloth, 2.4));
+    P.rect(1, 34, w - 2, 6, R('wood', 3)); P.hline(1, w - 2, 34, R('wood', 4)); P.rect(2, 40, w - 4, 14, R('wood', 2)); for (let x = 2; x < w - 2; x += 7) P.vline(x, 40, 53, R('wood', 1));
+    for (const [k, x] of items) TownArt.ITEM[k](P, x, 34);
+    P.outline(INK); return P;
+  }
+  function wellSprite() { return TownArt.well(); }
+  return { pillar, arch, board, dummy, rack, tent, rock, reeds, bonfire, logSeat, stallWide, wellSprite };
+})();
+
+/** Llama de píxeles animada (antorchas, braseros, hoguera). */
+function pixFlame(c, x, y, t, size = 1, seed = 0) {
+  const f = Math.sin(t * 13 + seed) * .5 + Math.sin(t * 7.3 + seed * 2) * .5, h = Math.round((6 + f * 1.5) * size), w = Math.max(2, Math.round(3 * size));
+  c.fillStyle = '#c8401a'; c.fillRect(x - w, y - h * .7, w * 2, h * .7);
+  c.fillRect(x - w + 1, y - h, w * 2 - 2, h * .4);
+  c.fillStyle = '#ff9a3d'; c.fillRect(x - w + 1, y - h * .6, w * 2 - 2, h * .6); c.fillRect(x - 1 + Math.round(f), y - h * .9, 2, h * .4);
+  c.fillStyle = '#ffe0a0'; c.fillRect(x - Math.max(1, w - 2), y - h * .35, Math.max(2, (w - 2) * 2), h * .35);
+  if (Math.sin(t * 5 + seed * 3) > .6) { c.fillStyle = '#ffb347'; c.fillRect(x + Math.round(Math.sin(t * 9 + seed) * w), y - h - 2 - ((t * 20 + seed) % 6), 1, 1); }
+}
+
+class TownSprite {
+  constructor(o) { Object.assign(this, { fade: false, flames: null, alive: true }, o); this.h = this.cv.height; this.w = this.cv.width; }
+  hides(P) { return P && P.y < this.y && P.x + 12 > this.x && P.x - 12 < this.x + this.w && P.y > this.top - 6 && P.y - 46 < this.y; }
+  draw(c, g) {
+    const P = g.player, a = this.fade && this.hides(P) ? .45 : 1;
+    if (a < 1) c.globalAlpha = a;
+    c.drawImage(this.cv, this.x, this.top);
+    if (a < 1) c.globalAlpha = 1;
+    if (this.flames) for (const [fx, fy, sz] of this.flames) pixFlame(c, fx, fy, g.time, sz || 1, fx * .13);
+    if (this.extra) this.extra(c, g);
+  }
+}
+
+const TownScene = {
+  /** Construye (una vez) todos los sprites de la aldea a partir del mapa. */
+  build(W, g) {
+    const TS = 32, S = [], L = [];
+    const add = (P, left, top, sortY, o = {}) => { const cv = P.cv || P.canvas(); const sp = new TownSprite(Object.assign({ cv, x: left, top, y: sortY }, o)); S.push(sp); return sp; };
+    const at = (P, tx, ty, ax = .5, o = {}) => { const cv = P.cv || P.canvas(); return add({ cv }, Math.round(tx * TS - cv.width * ax), Math.round(ty * TS - cv.height), ty * TS, o); };   // apoyado en el suelo en (tx, ty)
+    /** Casa con planta x0..x1 × y0..y1 (casillas): el sprite se apoya en la fila de abajo. */
+    const house = (x0, y0, x1, y1, spec) => {
+      const hs = TownArt.house(Object.assign({ w: x1 - x0 + 1, d: y1 - y0 + 1, seed: x0 * 97 + y0 * 13 }, spec));
+      const left = x0 * TS - hs.ox, top = (y1 + 1) * TS - hs.oy, flames = [];
+      for (const m of hs.marks) { const wx = left + m.x, wy = top + m.y; if (m.k === 'torch') { flames.push([wx, wy, .8]); L.push({ x: wx, y: wy - 3, r: 64, c: [255, 150, 60], i: .8, f: 1 }); } else L.push({ x: wx, y: wy, r: 40, c: [255, 180, 90], i: .55 }); }
+      for (const lt of spec.lanterns || []) L.push({ x: left + hs.ox + lt[0], y: top + hs.oy - lt[1], r: 70, c: [255, 190, 110], i: .7 });
+      return add(hs, left, top, (y1 + 1) * TS, { fade: true, flames: flames.length ? flames : null });
+    };
+    const T_ = TownArt, PR = TownProps;
+
+    // ===== Gremio de exploradores (casa grande de entramado, tejado verde, estandartes)
+    house(6, 5, 14, 9, { roof: 'roofG', moss: .2, lit: true, groundH: 46, upperH: 36, windowsUp: [34, 70, 218, 254], windowsDown: [40, 82, 206, 248],
+      gable: { x: 144, w: 120, emblem: 'sword', window: true, lit: true }, door: { x: 144, w: 26, h: 36, open: true }, torches: [118, 168], chimney: 30, flowers: true,
+      deco: (P, o) => { for (const bxx of [o.bx + 98, o.bx + 176]) o.banner(P, bxx, o.fTop + 2, 14, 40, 'cloth2', 'linen', 'sword'); o.sign(P, o.bx + 8, o.baseY - o.gH - 2, 'compass'); } });
+    // ===== Tienda y taller (pizarra azul, rótulo de poción, toldos)
+    house(29, 5, 37, 9, { roof: 'roofB', lit: true, litK: .3, groundH: 46, upperH: 34, windowsUp: [30, 66, 222, 258], windowsDown: [], shutters: 'cloth3',
+      gable: { x: 144, w: 104, emblem: 'potion', emblemCol: 'cloth3', window: true }, door: { x: 144, w: 26, h: 36, open: true }, chimney: 238, flowers: true,
+      deco: (P, o) => { o.sign(P, o.bx + 160, o.baseY - o.gH - 2, 'coin'); for (const sx of [o.bx + 8, o.bx + 190]) { for (let y = o.baseY - 40; y < o.baseY - 6; y++) for (let x = sx; x < sx + 90; x++) P.px(x, y, o.R('wood', 1.4 + ((x - sx) % 9 === 0 ? 1.2 : 0))); for (const sy of [o.baseY - 30, o.baseY - 18]) { P.hline(sx, sx + 89, sy, o.R('wood', 4)); for (let i = 0; i < 12; i++) T_.ITEM[['bottle', 'potion', 'book', 'bottle', 'scroll', 'bread'][i % 6]](P, sx + 3 + i * 7, sy); } } } });
+    // ===== Casa del alcalde (teja roja, flores, la más cuidada)
+    house(14, 10, 18, 13, { roof: 'roofR', lit: true, litK: .2, groundH: 42, upperH: 32, windowsUp: [26, 134], windowsDown: [30, 130], shutters: 'cloth2', flowers: true,
+      gable: { x: 80, w: 70, emblem: 'house', emblemCol: 'cloth1', window: false }, door: { x: 80, w: 22, h: 32 }, chimney: 128, ivy: [6], lanterns: [[66, 30], [94, 30]],
+      deco: (P, o) => { for (const lx of [o.bx + 64, o.bx + 94]) o.lantern(P, lx, o.baseY - 34); } });
+    // ===== Chozas (una planta, paja)
+    house(3, 11, 6, 13, { roof: 'thatch', floors: 1, groundH: 40, windowsDown: [26, 102], shutters: 'wood', lit: true, litK: .6, door: { x: 64, w: 18, h: 28 }, chimney: 100, moss: .15 });
+    house(37, 11, 40, 13, { roof: 'thatch', floors: 1, groundH: 40, windowsDown: [26, 102], shutters: 'wood', lit: true, litK: .5, door: { x: 64, w: 18, h: 28 }, moss: .12, ivy: [118] });
+    // ===== Casas nuevas del vecindario
+    house(10, 2, 15, 3, { roof: 'roofR', floors: 1, groundH: 42, windowsDown: [34, 158], shutters: 'cloth3', lit: true, door: { x: 96, w: 20, h: 30 }, chimney: 150, flowers: true, lift: 30 });
+    house(26, 2, 31, 3, { roof: 'roofG', floors: 1, groundH: 44, windowsDown: [30, 72, 120, 162], lit: true, litK: .1, door: { x: 96, w: 24, h: 32, open: true }, chimney: 20, lift: 30, torches: [80, 112],
+      deco: (P, o) => { o.sign(P, o.bx + 128, o.baseY - 44, 'mug'); for (const bxx of [o.bx + 50, o.bx + 136]) { } } });   // taberna
+    house(16, 6, 18, 8, { roof: 'roofB', floors: 2, groundH: 34, upperH: 28, windowsUp: [48], windowsDown: [], door: { x: 48, w: 18, h: 28 }, lit: true, flowers: true, chimney: 70 });
+    house(24, 6, 27, 8, { roof: 'roofR', floors: 2, groundH: 36, upperH: 28, windowsUp: [30, 98], windowsDown: [100], shutters: 'cloth2', door: { x: 44, w: 18, h: 28 }, lit: true, flowers: true, chimney: 14 });
+    house(4, 20, 9, 22, { roof: 'thatch', floors: 2, groundH: 38, upperH: 30, windowsUp: [36, 156], windowsDown: [150], shutters: 'wood', door: { x: 80, w: 20, h: 30 }, lit: true, chimney: 168, moss: .2, ivy: [4] });
+    house(17, 25, 22, 27, { roof: 'roofG', floors: 2, groundH: 38, upperH: 30, windowsUp: [40, 152], windowsDown: [34, 158], shutters: 'cloth1', door: { x: 96, w: 22, h: 30 }, lit: true, flowers: true, chimney: 30,
+      gable: { x: 96, w: 64, window: true, lit: true } });
+    house(36, 19, 40, 20, { roof: 'roofB', floors: 1, groundH: 40, windowsDown: [30, 130], shutters: 'cloth3', door: { x: 80, w: 20, h: 30 }, lit: true, chimney: 140, lift: 30, flowers: true });
+
+    // ===== Puerta de las mazmorras: dos torres y un arco
+    for (const px of [18, 24]) { const sp = add(PR.pillar(px), px * TS, 4 * TS - 132 + 4, 4 * TS, { fade: true }); sp.flames = [[px * TS + 32, 4 * TS - 132 + 4 + 6, 1.6]]; L.push({ x: px * TS + 32, y: 4 * TS - 132, r: 110, c: [255, 140, 55], i: .85, f: 1 }); }
+    add(PR.arch(), 19 * TS - 2, 4 * TS - 132 - 10, 4 * TS + 2, { fade: true, overhead: true, extra: (c, g) => { const t = g.time, X = 22 * TS, Y = 4 * TS; g.renderer.label('MAZMORRAS', X, Y - 150, '#e8d8a8', 9, { weight: 700 });
+      const k = (t * .6) % 1; c.globalAlpha = .22 * (1 - k); c.fillStyle = '#62d2e8'; c.beginPath(); c.ellipse(X, Y - 20 - k * 26, 46, 12, 0, 0, Math.PI * 2); c.fill(); c.globalAlpha = 1; } });
+    L.push({ x: 22 * TS, y: 2 * TS, r: 90, c: [120, 220, 230], i: .55 });
+
+    // ===== Objetos del gremio y la tienda
+    at(PR.rack(), 7, 11, .5); at(PR.dummy(), 13.5, 11, .5);
+    at(T_.barrel(), 6.3, 10, .5); at(T_.barrel({ tap: true }), 14.6, 10, .5); at(T_.crate(), 7.6, 10.02, .5);
+    at(PR.stallWide(96, 'cloth1', [['apples', 6], ['apples', 16], ['bread', 30], ['bread', 42], ['bottle', 58], ['potion', 70], ['potion', 80]]), 30.5, 11, .5);
+    at(PR.stallWide(96, 'cloth3', [['scroll', 6], ['book', 18], ['potion', 34], ['potion', 44], ['candle', 60], ['bottle', 74], ['mug', 84]]), 36.5, 11, .5);
+    at(T_.sack('linen'), 28.6, 10.9, .5); at(T_.crate(), 38.4, 10.9, .5); at(T_.barrel(), 28.2, 10, .5);
+    // Tablón (las misiones se pintan encima, según las que haya)
+    add(PR.board(), 24 * TS - 4, 12 * TS - 64, 12 * TS, { fade: true, extra: (c, g) => { const t = g.time, X = 24 * TS, Y = 12 * TS - 64 + 20, jobs = (g.save && g.save.board) ? g.save.board.length : 0;
+      for (let i = 0; i < Math.min(6, jobs); i++) { const px = X + 4 + i * 10, py = Y + 3 + (i % 2) * 6; c.fillStyle = '#141210'; c.fillRect(px - 1, py - 1, 10, 13); c.fillStyle = i % 3 ? '#d8c8a0' : '#ece0c0'; c.fillRect(px, py, 8, 11); c.fillStyle = '#8a7a5a'; c.fillRect(px + 1, py + 3, 6, 1); c.fillRect(px + 1, py + 6, 5, 1); c.fillStyle = '#a83c30'; c.fillRect(px + 3, py, 2, 2); }
+      if (g.save && g.save.jobs.some(j => j.state === 'done')) g.renderer.label('!', X + 32, Y - 26 + Math.sin(t * 4) * 2, '#c8e8a0', 12); } });
+    // Taberna: terraza con mesas, sillas y barriles
+    for (const [tx, items] of [[34, [['mug', 4], ['bread', 12], ['candle', 24]]], [38, [['mug', 6], ['bottle', 16], ['mug', 24]]]]) { at(T_.chair(), tx - .2, 3.6, .5); at(T_.table({ cloth: tx === 34 ? 'cloth1' : null, items }), tx + .5, 4, .5); at(T_.chair(), tx + 1.2, 3.6, .5); }
+    at(T_.barrel({ tap: true }), 32.4, 4, .5); at(T_.barrel(), 32.9, 3.6, .5); at(T_.planter('flowerR'), 25.4, 4, .5); at(T_.planter('flowerY'), 40.4, 4, .5);
+    // Hoguera de la plaza (la llama se anima)
+    { const sp = at(PR.bonfire(), 19.5, 14.95, .5); sp.flames = [[19.5 * TS, 14.95 * TS - 14, 2.2], [19.5 * TS - 5, 14.95 * TS - 12, 1.3], [19.5 * TS + 5, 14.95 * TS - 12, 1.4]]; at(PR.logSeat(), 18.6, 15.2, .5); }
+    L.push({ x: 19.5 * TS, y: 14.5 * TS - 8, r: 230, c: [255, 140, 55], i: 1, f: 1 });
+    // Pozo, carro, heno y leña
+    at(T_.well(), 15.5, 27, .5); at(T_.cart(), 25.4, 24, .5); at(T_.hay(), 7.6, 14, .5); at(T_.hay(), 39.2, 14, .5);
+    at(T_.bench(36), 28.9, 22.6, .5);
+    // Puesto del mercado junto a la plaza
+    at(PR.stallWide(96, 'cloth2', [['apples', 8], ['apples', 18], ['apples', 28], ['bread', 42], ['bread', 54], ['scroll', 68], ['bottle', 82]]), 29.5, 20, .5);
+    // Tiendas de campaña
+    for (const [tx, col] of [[29, 'thatch'], [37, 'linen']]) at(PR.tent(col), tx + 1, 25, .5, { fade: true });
+    // Faroles de la calle
+    for (const [lx, ly] of LANTERNS) { at(T_.lampPost(), lx + .1, ly, .5); L.push({ x: lx * TS - 1, y: ly * TS - 52, r: 90, c: [255, 190, 110], i: .75 }); }
+    // Macetas y flores junto a las puertas
+    for (const [x, y, col] of [[12.5, 10, 'flowerR'], [16.6, 4, 'flowerY'], [8.6, 4, 'flowerB'], [13.6, 14, 'flowerW'], [19.2, 14, 'flowerR'], [22.6, 28, 'flowerY'], [10.2, 23, 'flowerB'], [35.6, 21, 'flowerR']]) at(T_.pot(col), x, y, .5);
+
+    // ===== Árboles, rocas y juncos del mapa
+    const trees = [0, 1, 2, 3, 4, 5].map(i => T_.tree(31 + i * 17, i % 3 === 0 ? 1.15 : i % 3 === 1 ? 1 : .9));
+    const rocks = [0, 1, 2].map(i => PR.rock(5 + i * 11));
+    for (let ty = 0; ty < W.h; ty++) for (let tx = 0; tx < W.w; tx++) {
+      const t = W.get(tx, ty), h = U.hash(tx, ty, 919);
+      if (t === T.TREE) {
+        const border = tx < 2 || ty < 2 || tx >= W.w - 2 || ty >= W.h - 2;
+        // en el borde solo hace falta un árbol de cada dos: el bosque se lee igual y se dibuja la mitad
+        if (border && (tx + ty) % 2 && !(ty >= W.h - 2) && !(ty < 2 && tx % 3 === 0)) continue;
+        const P = trees[Math.floor(h * trees.length)], jx = (U.hash(tx, ty, 921) - .5) * 10;
+        add(P, Math.round((tx + .5) * TS - P.w / 2 + jx), Math.round((ty + 1) * TS - P.h + 4), (ty + 1) * TS - 2, { fade: !border || ty >= W.h - 3 });
+      } else if (t === T.ROCK) at(rocks[Math.floor(h * 3)], tx + .5, ty + .85, .5);
+      else if (t === T.WATER && W.get(tx, ty - 1) !== T.WATER && h > .5) at(PR.reeds(tx * 7 + ty), tx + .5, ty + .4, .5);
+    }
+    S.sort((a, b) => a.y - b.y);
+    return { sprites: S, lights: L };
+  },
+  /** Sprites dentro de la vista (con margen para los tejados altos). */
+  visible(scene, v) { return scene.sprites.filter(s => s.x < v.r + 8 && s.x + s.w > v.l - 8 && s.top < v.b + 8 && s.top + s.h > v.t - 8); },
+};
+
+/* ---------- Mazmorras: suelo y muros pintados píxel a píxel por bioma ----------
+   Misma rejilla de casillas (las colisiones no cambian): cada casilla de muro tiene su cara frontal
+   (14 px) y su parte de arriba; el suelo lleva losas, piedras, tierra, hojarasca, grietas y sombra de
+   contacto junto a los muros. Los objetos (escaleras, puertas, rocas, cristales...) se dibujan encima. */
+const DP = {   // rampas por bioma: [contorno, sombra profunda, sombra, medio, luz, brillo]
+  fGrass:  ['#0e180c', '#172714', '#1f3419', '#29431f', '#355428', '#476a33'],
+  fGrassL: ['#121c0c', '#1d3114', '#27411a', '#325421', '#41682a', '#567f36'],
+  fDirt:   ['#140e08', '#2a1e12', '#3a2a19', '#4a3722', '#5c462d', '#73593a'],
+  fLeaf:   ['#08100a', '#0f1d10', '#162a16', '#1f3a1d', '#2b4c26', '#3e6232'],
+  fBark:   ['#0c0805', '#1c130b', '#2a1d11', '#3a2918', '#4c3721', '#62482c'],
+  mGrass:  ['#0b1410', '#132219', '#1a2e22', '#223b2b', '#2c4a36', '#3c5e46'],
+  mMud:    ['#0e0c08', '#1e1a12', '#2a251a', '#373022', '#463d2c', '#574c38'],
+  mLeaf:   ['#060e0a', '#0c1a13', '#12261b', '#193325', '#234231', '#335842'],
+  cRock:   ['#08090c', '#12141a', '#1b1e27', '#252935', '#313746', '#424a5c'],
+  cRockL:  ['#0a0b10', '#161922', '#20242f', '#2b303e', '#394052', '#4d566c'],
+  cCrys:   ['#06141a', '#0f3442', '#1a5a6e', '#2f8ca4', '#5ac2d8', '#b8f2ff'],
+  nRock:   ['#0b0907', '#17130f', '#221c16', '#2d251d', '#3b3026', '#4d4033'],
+  nEarth:  ['#0c0906', '#1a140d', '#261d13', '#32271a', '#403222', '#52412d'],
+  nWood:   ['#0e0905', '#22160b', '#352211', '#4a3018', '#5f3f20', '#7a542c'],
+  nGold:   ['#1a1004', '#4a300a', '#7a5414', '#b07c22', '#dca63a', '#fbd27a'],
+  vRock:   ['#070404', '#120b0a', '#1b1210', '#251917', '#32221f', '#44302b'],
+  vAsh:    ['#0a0808', '#171313', '#211c1b', '#2b2423', '#372f2d', '#463c39'],
+  vLava:   ['#2a0802', '#5a1606', '#a8340c', '#e8601a', '#ffa040', '#ffe08a'],
+  water:   ['#060c12', '#0c1822', '#122430', '#18303e', '#22404e', '#3a6070'],
+  mWater:  ['#050c0a', '#0b1814', '#11231d', '#182e26', '#223c32', '#36584a'],
+  carpet:  ['#1a0606', '#3e0e0e', '#5e1616', '#7e2020', '#9a3028', '#b84a3a'],
+  carpetG: ['#2a1a06', '#5e3e12', '#8c6220', '#b88a34', '#d8ae4e', '#f2d27e'],
+  slab:    ['#0c0c0b', '#1a1a18', '#262623', '#33322e', '#423f3a', '#55514a'],
+};
+const DungeonGround = {
+  /** Materiales de cada bioma. */
+  SET: {
+    forest:  { floor: 'slabMoss', grass: 'fGrass', grassL: 'fGrassL', path: 'fDirt', wallTop: 'leaves', leaf: 'fLeaf', face: 'roots', bark: 'fBark', water: 'water' },
+    marsh:   { floor: 'slabMoss', grass: 'mGrass', grassL: 'mGrass', path: 'mMud', wallTop: 'leaves', leaf: 'mLeaf', face: 'roots', bark: 'fBark', water: 'mWater' },
+    cave:    { floor: 'rock', rock: 'cRock', rockL: 'cRockL', path: 'cRock', wallTop: 'rockTop', face: 'strata', vein: 'cCrys', water: 'water' },
+    mine:    { floor: 'earth', rock: 'nRock', rockL: 'nRock', earth: 'nEarth', path: 'nEarth', wallTop: 'rockTop', face: 'strata', vein: 'nGold', timber: 'nWood', water: 'water' },
+    volcano: { floor: 'basalt', rock: 'vRock', rockL: 'vRock', path: 'vAsh', ash: 'vAsh', wallTop: 'rockTop', face: 'strata', vein: 'vLava', water: 'water' },
+  },
+  _cache: null,
+  invalidate(W, tx, ty) { if (!this._cache || this._cache.W !== W) return; const N = CONFIG.CHUNK; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) this._cache.m.delete(Math.floor((tx + dx) / N) + ',' + Math.floor((ty + dy) / N)); },
+  chunkCanvas(W, cx, cy, biome) {
+    if (!this._cache || this._cache.W !== W || this._cache.b !== biome) this._cache = { W, b: biome, m: new Map() };
+    const k = cx + ',' + cy; let cv = this._cache.m.get(k); if (!cv) { cv = this.paintChunk(W, cx, cy, biome).canvas(); this._cache.m.set(k, cv); if (this._cache.m.size > 160) this._cache.m.delete(this._cache.m.keys().next().value); } return cv;
+  },
+  paintChunk(W, cx, cy, biome) {
+    const S0 = this.SET[biome] || this.SET.cave, N = CONFIG.CHUNK * 32, X0 = cx * N, Y0 = cy * N, S = N + 2, P = new Pix(S, S);
+    const R = (n, k) => DP[n][Math.max(0, Math.min(5, Math.round(k)))];
+    const wallish = t => t === T.WALL || t === T.SECRET;
+    for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) {
+      const x = X0 + i, y = Y0 + j, tx = Math.floor(x / 32), ty = Math.floor(y / 32), lx = x - tx * 32, ly = y - ty * 32;
+      if (!W.inBounds(tx, ty)) { P.px(i, j, '#030303'); continue; }
+      const t = W.get(tx, ty);
+      if (wallish(t)) { P.px(i, j, this.wall(W, S0, R, x, y, tx, ty, lx, ly, t, biome)); continue; }
+      let col = this.floor(W, S0, R, x, y, tx, ty, lx, ly, t, biome);
+      // sombra de contacto: bajo la cara de un muro y junto a sus lados
+      let sh = 0;
+      if (wallish(W.get(tx, ty - 1))) sh = Math.max(sh, ly < 3 ? .55 : ly < 7 ? .32 : ly < 11 ? .14 : 0);
+      if (wallish(W.get(tx - 1, ty))) sh = Math.max(sh, lx < 2 ? .4 : lx < 5 ? .2 : 0);
+      if (wallish(W.get(tx + 1, ty))) sh = Math.max(sh, lx > 29 ? .4 : lx > 26 ? .18 : 0);
+      P.px(i, j, col);
+      if (sh > 0) P.px(i, j, '#000000', sh * 255);
+    }
+    return P;
+  },
+  /** Piedra de Voronoi (para losas, rocas y basalto): devuelve [f1, f2, sx, sy, id]. */
+  vor(x, y, C, salt, sx = 1.0) {
+    const gx = Math.floor(x / C), gy = Math.floor(y / C); let f1 = 1e9, f2 = 1e9, ax = 0, ay = 0, id = 0;
+    for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) { const cx = gx + i, cy = gy + j, px = (cx + .2 + hsh(cx, cy, 41 + salt) * .6) * C, py = (cy + .2 + hsh(cx, cy, 43 + salt) * .6) * C, d = Math.hypot((x + .5 - px) * sx, y + .5 - py);
+      if (d < f1) { f2 = f1; f1 = d; ax = px; ay = py; id = cx * 7919 + cy * 104729; } else if (d < f2) f2 = d; }
+    return [f1, f2, ax, ay, id];
+  },
+  stone(R, ramp, x, y, C, salt, base = 3, joint = 'mortar') {
+    const [f1, f2, sx, sy, id] = this.vor(x, y, C, salt), e = f2 - f1;
+    if (e < 1.3) return null;
+    const dx = (x + .5 - sx) / (C * .5), dy = (y + .5 - sy) / (C * .5), lit = -(dx * .6 + dy * .8);
+    let k = base + (hsh(id, 1, 7) - .5) * .9 + lit * .9; if (e < 2.5) k += lit > 0 ? .6 : -.9; if (hsh(x, y, 9) > .97) k -= .8;
+    if (hsh(id, 3, 7) < .06) { const a = hsh(id, 4, 7) * Math.PI, dd = Math.abs((x + .5 - sx) * Math.sin(a) - (y + .5 - sy) * Math.cos(a)); if (dd < .6 && Math.hypot(x - sx, y - sy) < C * .4) k = 1; }   // grieta
+    return R(ramp, k);
+  },
+  floor(W, S0, R, x, y, tx, ty, lx, ly, t, biome) {
+    if (t === T.WATER) { const n = vnoise(x, y, 14, 81); let k = 1.4 + n * 1.3; if (hsh(x >> 2, y, 83) > .97) k += 1.6; return R(S0.water, k); }
+    if (t === T.LAVA) { const n = vnoise(x, y, 10, 85), c = this.vor(x, y, 12, 9); return c[1] - c[0] < 1.6 ? R('vLava', 4 + n) : R('vLava', 2.2 + n * 1.6 - (c[0] / 12) * .8); }
+    if (t === T.CARPET) { const bx = Math.min(lx, 31 - lx), by = Math.min(ly, 31 - ly), b = Math.min(bx, by); if (b < 2) return R('carpetG', 3 + (b === 0 ? -1 : .5)); const p = ((lx + ly) >> 2) % 2; return R('carpet', 2.6 + p * .6 + (vnoise(x, y, 6, 87) - .5) * .5 - ((lx % 4 === 0 || ly % 4 === 0) ? .5 : 0)); }
+    if (t === T.TREE && (biome === 'forest' || biome === 'marsh') && this.deepTree(W, tx, ty)) return this.wall(W, S0, R, x, y, tx, ty, lx, 0, T.WALL, biome, true);   // espesura: copas
+    // casillas de objetos: el suelo que hay debajo
+    if (OBJ_TILES.has(t)) t = PAL.objBase === 'floor' ? T.FLOOR : (t === T.DOOR || t === T.STAIRS ? T.PATH : T.GRASS);
+    // borde irregular entre materiales: se mira la casilla de un punto algo desplazado
+    const wx = x + (vnoise(x, y, 7, 3) - .5) * 10, wy = y + (vnoise(x, y, 7, 5) - .5) * 10; let t2 = W.get(Math.floor(wx / 32), Math.floor(wy / 32));
+    if (OBJ_TILES.has(t2) || t2 === T.WALL || t2 === T.SECRET || t2 === T.WATER || t2 === T.LAVA || t2 === T.CARPET) t2 = t;
+    if (t2 === T.PATH && t !== T.PATH && t !== T.GRASS && t !== T.FLOOR) t2 = t;
+    const m = t2;
+    if (biome === 'forest' || biome === 'marsh') {
+      if (m === T.PATH) { const n = vnoise(x, y, 9, 71); let k = 2.6 + (n - .5) * 1.4; const p = hsh(x >> 1, y >> 1, 73); if (p > .94) return R('slab', hsh(x, y, 74) > .5 ? 4 : 2); if (vnoise(x, y, 5, 76) > .74) return R(['fDirt', 'fBark'][hsh(x >> 2, y >> 2, 77) > .5 ? 1 : 0], 3.5 + (hsh(x, y, 78) - .5)); return R(S0.path, k); }
+      if (m === T.FLOOR) { const st = this.stone(R, 'slab', x, y, 15, 11, 3.2); if (!st) return vnoise(x, y, 9, 13) > .45 ? R(S0.grass, 3) : R('slab', 1); if (vnoise(x, y, 17, 15) > .66) return R(S0.grassL, 3 + (hsh(x, y, 16) > .7)); return st; }
+      const n = vnoise(x, y, 40, 61) * .7 + vnoise(x, y, 11, 62) * .3, mat = n > .5 ? S0.grassL : S0.grass; let k = 2.6 + (vnoise(x, y, 5, 63) - .5) * .9 + (n - .5) * .8;
+      const tuft = hsh(x >> 3, y >> 3, 64); if (tuft > .8) { const ax = x & 7, ay = y & 7; if ((ax === 2 || ax === 5) && ay < 5) k += 1.1 - ay * .2; else if (ax === 3 && ay < 6) k += 1.4; }
+      if (vnoise(x, y, 18, 66) > .76) { if (hsh(x >> 1, y >> 1, 67) > .55) return R('fDirt', 2.5 + hsh(x, y, 68)); }   // hojarasca
+      if (biome === 'marsh' && vnoise(x, y, 24, 69) > .7) return R('mMud', 2 + vnoise(x, y, 6, 70) * 1.5);
+      return R(mat, k);
+    }
+    if (biome === 'mine') {
+      if (m === T.FLOOR || m === T.GRASS) { const n = vnoise(x, y, 8, 71); let k = 2.4 + (n - .5) * 1.2; const g = hsh(x >> 1, y >> 1, 72); if (g > .93) return R('nRock', 3 + (hsh(x, y, 73) > .5)); if (g < .003) return R('nGold', 3); if (vnoise(x, y, 26, 75) > .72) k -= .6; return R('nEarth', k); }
+      // corredores con raíles: dos carriles de hierro sobre traviesas de madera
+      const vert = W.get(tx, ty - 1) === T.PATH || W.get(tx, ty + 1) === T.PATH, u = vert ? lx : ly, v = vert ? ly : lx;
+      if (v % 8 < 3 && u > 5 && u < 27) return R('nWood', 3 - (v % 8 === 2 ? 1 : 0) + (u === 6 ? .6 : 0));
+      if (u === 10 || u === 21) return '#5e6066'; if (u === 11 || u === 22) return '#2c2e33';
+      return R('nEarth', 2.2 + (vnoise(x, y, 6, 74) - .5));
+    }
+    if (biome === 'volcano') {
+      if (m === T.PATH) { let k = 2.4 + (vnoise(x, y, 7, 71) - .5) * 1.3; if (hsh(x >> 1, y >> 1, 72) > .93) k += 1.2; return R('vAsh', k); }
+      const [f1, f2, sx, sy, id] = this.vor(x, y, 14, 21); const e = f2 - f1;
+      if (e < 1.4) return hsh(id, 5, 9) > .95 && vnoise(x, y, 5, 22) > .5 ? R('vLava', 1.6) : R('vRock', .6);   // juntas: muy pocas con brasas (la lava de verdad se ve distinta)
+      const dx = (x + .5 - sx) / 7, dy = (y + .5 - sy) / 7, lit = -(dx * .6 + dy * .8); let k = 2.8 + lit * .8 + (hsh(id, 1, 7) - .5) * .8; if (e < 2.4) k += lit > 0 ? .5 : -.8; if (hsh(x, y, 23) > .97) k -= .8;
+      return R('vRock', k);
+    }
+    // cueva: roca irregular con guijarros y destellos de cristal
+    const st = this.stone(R, (vnoise(x, y, 30, 31) > .55 ? S0.rockL : S0.rock), x, y, m === T.PATH ? 8 : 11, 31, 2.8);
+    if (!st) return R(S0.rock, 1);
+    if (hsh(x, y, 33) > .997) return R('cCrys', 5);
+    if (vnoise(x, y, 13, 34) > .8 && hsh(x, y, 35) > .6) return R('cCrys', 2);
+    return st;
+  },
+  /** Árbol rodeado de árboles por los cuatro lados: parte de la espesura. */
+  deepTree(W, tx, ty) { const q = (a, b) => !W.inBounds(a, b) || W.get(a, b) === T.TREE || W.get(a, b) === T.WALL; return q(tx - 1, ty) && q(tx + 1, ty) && q(tx, ty - 1) && q(tx, ty + 1); },
+  wall(W, S0, R, x, y, tx, ty, lx, ly, t, biome, canopyOnly = false) {
+    if (canopyOnly) { const [f1, f2, sx, sy] = this.vor(x, y, 10, 64), e = f2 - f1, lit = -((x + .5 - sx) * .6 + (y + .5 - sy) * .8) / 7; let k = 2.3 + lit * 1.4 - f1 / 8; if (e < 1.2) k -= 1.3; return R(S0.leaf, k); }
+    const isW = (a, b) => { const q = W.get(a, b); return q === T.WALL || q === T.SECRET || !W.inBounds(a, b); };
+    const below = isW(tx, ty + 1), above = isW(tx, ty - 1), left = isW(tx - 1, ty), right = isW(tx + 1, ty);
+    const faceY = 18, inFace = !below && ly >= faceY;
+    if (inFace) {   // cara frontal del muro (14 px)
+      const fy = ly - faceY; let col;
+      if (S0.face === 'roots') {   // bosque: tierra con raíces y musgo colgando
+        const root = (hsh(x >> 2, ty, 51) > .6 && (x & 3) < 2) || (vnoise(x, y * 3, 5, 52) > .78);
+        col = root ? R(S0.bark, 3.6 - fy / 14 * 1.4 + (x & 3 ? 0 : .6)) : R('fDirt', 3.4 - fy / 14 * 1.8 + (vnoise(x, y, 4, 53) - .5));
+        if (fy < 3 && hsh(x, ty, 54) > .35) col = R(S0.leaf, 3.2 - fy * .5);
+        if (fy < 8 && hsh(x, ty, 55) > .93) col = R(S0.leaf, 2.5);                  // musgo que cuelga
+      } else {   // estratos de roca con vetas
+        const band = Math.floor((fy + Math.sin(x * .19 + tx) * 1.6) / 4.5), bk = hsh(band, tx >> 1, 56);
+        let k = 3.9 - fy / 14 * 1.8 + (bk - .5) * .8; if (((fy + Math.round(Math.sin(x * .19 + tx) * 1.6)) % 5) === 0) k -= 1.1;
+        if (hsh(x >> 1, y >> 1, 57) > .94) k += .8;
+        col = R(S0.rockL || S0.rock, k);
+        const vein = Math.abs((vnoise(x, ty * 9, 11, 58) - .5) * 18 + 7 - fy) < .6 && vnoise(x, ty * 5, 30, 59) > .6; if (vein) col = R(S0.vein, 3.5 + Math.sin(x * .5));
+        if (S0.timber && tx % 4 === 0 && lx >= 12 && lx < 20) col = R(S0.timber, 3 + (lx === 12 ? 1 : lx === 19 ? -1.2 : 0) - fy / 14);   // puntal de la mina
+      }
+      if (fy === 13) col = '#050505';                                            // pie del muro
+      if ((!left && lx === 0) || (!right && lx === 31)) col = '#050505';
+      return col;
+    }
+    // parte de arriba del muro
+    let col;
+    if (S0.wallTop === 'leaves') {
+      const [f1, f2, sx, sy] = this.vor(x, y, 9, 61), d = f1 / 6.5, e = f2 - f1;
+      const lit = -((x + .5 - sx) * .6 + (y + .5 - sy) * .8) / 6; let k = 2.1 + lit * 1.4 - d * .6; if (e < 1.2) k -= 1.2; if (hsh(x, y, 62) > .93) k += .8;
+      col = R(S0.leaf, k);
+      if (hsh(Math.floor(x / 9), Math.floor(y / 9), 63) > .985 && f1 < 1.6) col = biome === 'marsh' ? '#8a5aa8' : '#a8402e';   // bayas o setas
+    } else {
+      // roca en bruto: rugosa (ruido en capas), grietas finas y algún guijarro; distinta del suelo
+      const n = vnoise(x, y, 7, 71) * .65 + vnoise(x, y, 3, 72) * .35; let k = 1 + n * 1.5;
+      const cr = Math.abs(vnoise(x, y, 16, 73) - .5); if (cr < .025) k = .3;
+      if (hsh(x >> 1, y >> 1, 74) > .95) k += .9;
+      col = R(S0.rock, k);
+      if (S0.vein && cr < .02 && vnoise(x, y, 40, 75) > .82) col = R(S0.vein, 2.4);
+    }
+    // bordes: labio iluminado arriba, contorno donde el muro termina
+    if (!above && ly < 2) col = ly === 0 ? '#050505' : (S0.wallTop === 'leaves' ? R(S0.leaf, 4.5) : R(S0.rockL || S0.rock, 4.2));
+    if (!left && lx < 2) col = lx === 0 ? '#050505' : (S0.wallTop === 'leaves' ? R(S0.leaf, 3.6) : R(S0.rockL || S0.rock, 3.4));
+    if (!right && lx > 29) col = lx === 31 ? '#050505' : R(S0.wallTop === 'leaves' ? S0.leaf : S0.rock, 1);
+    if (!below && ly === faceY - 1) col = S0.wallTop === 'leaves' ? R(S0.leaf, 1) : R(S0.rock, 4);   // canto superior de la cara
+    // pasaje secreto: grietas sutiles en la cara
+    return col;
+  },
+};
+TP.mLeaf = DP.mLeaf; TP.fLeaf = DP.fLeaf;
+
+/** Árboles de las mazmorras de bosque y ciénaga: sprites ordenados con los personajes (como en la aldea).
+    Los del interior de la espesura (rodeados de árboles) se pintan en el suelo como copas, sin sprite. */
+const DungeonScenery = {
+  _w: null, list: [], variants: {},
+  tree(kind, i) { const k = kind + i; return this.variants[k] || (this.variants[k] = TownArt.tree(101 + i * 23, [1.1, 1, .92, 1.05][i % 4], kind === 'marsh' ? 'mLeaf' : null)); },
+  build(W) {
+    this.list = []; const kind = PAL.terrain === 'marsh' ? 'marsh' : 'forest', TS = 32;
+    for (let ty = 0; ty < W.h; ty++) for (let tx = 0; tx < W.w; tx++) {
+      if (W.get(tx, ty) !== T.TREE || DungeonGround.deepTree(W, tx, ty)) continue;
+      const P = this.tree(kind, Math.floor(U.hash(tx, ty, 919) * 4)), jx = (U.hash(tx, ty, 921) - .5) * 8;
+      this.list.push(new TownSprite({ cv: P.cv || P.canvas(), x: Math.round((tx + .5) * TS - P.w / 2 + jx), top: Math.round((ty + 1) * TS - P.h + 3), y: (ty + 1) * TS - 2, fade: true, tx, ty }));
+    }
+  },
+  sprites(g, v) {
+    const W = g.world; if (!DungeonGround.SET[PAL.terrain] || (PAL.terrain !== 'forest' && PAL.terrain !== 'marsh')) return [];
+    if (this._w !== W) { this._w = W; this.build(W); }
+    return this.list.filter(s => s.x < v.r + 8 && s.x + s.w > v.l - 8 && s.top < v.b + 8 && s.top + s.h > v.t - 8 && W.get(s.tx, s.ty) === T.TREE);
+  },
+};
+
+/* ---------- Cofres en pixel art detallado (vista 3/4, en caché por tipo y fase de apertura) ---------- */
+const ChestArt = {
+  cache: {},
+  /** Colores en rampas de 6 tonos a partir de CHEST_LOOK. */
+  ramp(cols, k) { return cols[Math.max(0, Math.min(cols.length - 1, Math.round(k)))]; },
+  sprite(tier, step) {
+    const key = tier + step; if (this.cache[key]) return this.cache[key];
+    const L = CHEST_LOOK[tier] || CHEST_LOOK.cofre, Wd = L.wood, B = L.band, P = new Pix(36, 40), cx = 18, base = 34, INK = '#0b0907';
+    const wd = k => Wd[Math.max(0, Math.min(3, Math.round(k)))], bd = k => B[Math.max(0, Math.min(2, Math.round(k)))];
+    const big = tier === 'cofreJefe', w = big ? 30 : 26, x0 = cx - w / 2, h = big ? 14 : 12, y0 = base - h;
+    // cuerpo: tablones horizontales con veta
+    for (let y = y0; y < base; y++) for (let x = x0; x < x0 + w; x++) { const pl = Math.floor((y - y0) / 4); let k = 2.2 + ((y - y0) % 4 === 0 ? .9 : 0) - ((y - y0) % 4 === 3 ? .8 : 0) - (y - y0) / h * .6 + (x < x0 + 3 ? .4 : 0); if (U.hash(x >> 2, pl, 7) > .8) k -= .5; P.px(x, y, wd(k)); }
+    // refuerzos de las esquinas y franja central con remaches
+    for (const bx of [x0, x0 + w - 4]) for (let y = y0; y < base; y++) for (let x = bx; x < bx + 4; x++) P.px(x, y, bd(x === bx ? 2 : x === bx + 3 ? 0 : 1));
+    if (tier !== 'cofre') for (let x = x0; x < x0 + w; x++) { P.px(x, y0 + 5, bd(2)); P.px(x, y0 + 6, bd(1)); }
+    for (const bx of [x0 + 1, x0 + w - 3]) for (const ry of [y0 + 2, base - 3]) P.px(bx + 1, ry, bd(2));
+    const open = step / 3, lift = Math.round(open * 9);
+    if (step > 0) {   // interior: oscuro con el botín brillando
+      for (let y = y0 - 5; y < y0; y++) for (let x = x0 + 2; x < x0 + w - 2; x++) P.px(x, y, y < y0 - 3 ? '#1a0e06' : '#120a04');
+      for (let i = 0; i < 6; i++) { const gx = x0 + 5 + i * 3, gy = y0 - 2 - (i % 2); P.px(gx, gy, '#f2c14e'); P.px(gx + 1, gy, '#ffd97a'); P.px(gx, gy + 1, '#a8761c'); }
+    }
+    // tapa abovedada: se levanta y se inclina hacia atrás al abrir
+    const lh = Math.max(4, 10 - Math.round(open * 6)), ly = y0 - lh - (step > 0 ? 5 + lift - 4 : 0);
+    for (let y = ly; y < ly + lh; y++) for (let x = x0 - 1; x < x0 + w + 1; x++) {
+      const u = (y - ly) / lh, dome = Math.sin(Math.min(1, (x - x0 + 1) / (w + 1)) * Math.PI); if (u < .35 && dome < .35 - u) continue;
+      let k = 2.6 + (1 - u) * .9 - (x > x0 + w - 4 ? .6 : 0); if ((x - x0) % 6 === 0) k -= .7; P.px(x, y, wd(k));
+    }
+    for (let x = x0 - 1; x < x0 + w + 1; x++) P.px(x, ly + lh - 1, wd(.4));
+    for (const bx of [x0, x0 + w - 4]) for (let y = ly; y < ly + lh; y++) for (let x = bx; x < bx + 4; x++) if (P.get(x, y)) P.px(x, y, bd(x === bx ? 2 : x === bx + 3 ? 0 : 1));
+    // cerradura
+    if (step === 0) { P.rect(cx - 3, y0 - 3, 6, 7, bd(1)); P.rect(cx - 2, y0 - 2, 4, 5, bd(2)); P.px(cx - 1, y0, INK); P.px(cx, y0, INK); P.px(cx - 1, y0 + 1, INK); }
+    if (big) { P.rect(cx - 5, base - 7, 10, 3, bd(1)); P.hline(cx - 5, cx + 4, base - 7, bd(2)); }
+    P.outline(INK);
+    for (let y = base - 2; y < base + 5; y++) for (let x = 0; x < 36; x++) { const dx = (x + .5 - cx - 1) / (w / 2 + 3), dy = (y + .5 - base - 1) / 3; if (dx * dx + dy * dy <= 1 && !P.get(x, y)) P.px(x, y, '#000000', 90); }   // sombra de contacto
+    return (this.cache[key] = P.canvas());
+  },
+};
 
 class VillageRT {
   constructor(g) { this.g = g; this.world = g.world; this.near = null; this.npcs = {}; this.time = 0; this.mm = null; }
@@ -5531,6 +6594,13 @@ class VillageRT {
       this.npcs[id] = e; g.actors.push(e);
     }
     this.spawnIdleAllies();
+    // Pinta en segundo plano el suelo que aún no se ha visto, un trozo cada vez (así no hay tirones al pasear)
+    if (typeof TownGround !== 'undefined' && typeof document !== 'undefined') {
+      const W = this.world, N = CONFIG.CHUNK, list = [];
+      for (let cy = 0; cy < Math.ceil(W.h / N); cy++) for (let cx = 0; cx < Math.ceil(W.w / N); cx++) list.push([cx, cy]);
+      const step = () => { if (g.village !== this || !list.length) return; const [cx, cy] = list.shift(); TownGround.chunkCanvas(W, cx, cy); setTimeout(step, 40); };
+      setTimeout(step, 300);
+    }
   }
   /** Compañeros que no van en el grupo (o debilitados): pasean o duermen en el campamento. */
   spawnIdleAllies() {
@@ -5555,214 +6625,17 @@ class VillageRT {
   }
   interact() { if (this.near) { this.g.openStation(this.near); return true; } return false; }
   /** Luces de la aldea al atardecer: ventanas, faroles, hoguera y portal. */
+  /** Sprites de la aldea (edificios, objetos y árboles) que se ordenan con los personajes. */
+  sprites(view) { if (!this.scene) this.scene = TownScene.build(this.world, this.g); return TownScene.visible(this.scene, view); }
+  /** Luces de la aldea al atardecer: ventanas encendidas, antorchas, faroles, hoguera y portal. */
   lights(add, time) {
-    const TS = CONFIG.TILE, fl = Math.sin(time * 9) * 5;
-    // Velas en las ventanas encendidas (las mismas que dibuja drawObjects: misma semilla)
-    for (const [x0, y0, w, hgt, k, dark, skip] of [[6, 5, 9, 5, .46, .2, [1, 4]], [29, 5, 9, 5, .46, .35, [0, 1, 3, 4]], [14, 10, 5, 4, .5, .1], [3, 11, 4, 3, .5, .7], [37, 11, 4, 3, .5, .55]]) {
-      const X = x0 * TS, Y = y0 * TS, Wp = w * TS, wallTop = Y + hgt * TS * k, seed = x0 * 97 + y0 * 13, nWin = Math.max(1, Math.floor((Wp - 60) / 70));
-      for (let i = 0; i < nWin * 2; i++) if (!(skip && skip.includes(i)) && U.hash(seed, i, 12) > dark) { const wx = i < nWin ? X + 16 + i * 46 : X + Wp - 30 - (i - nWin) * 46; add(wx + 6, wallTop + 18, 34 + Math.sin(time * 7 + wx) * 2, [230, 150, 70], .55); }
-    }
-    add(19.5 * TS, 14.5 * TS - 8, 210 + fl, [255, 140, 55], 1);                 // la hoguera de la plaza: la luz de verdad de la aldea
-    add(11.6 * TS, 9.2 * TS, 46 + fl * .3, [240, 170, 90], .55);                 // farol de la puerta del gremio
-    add(22 * TS, 2 * TS, 90, [120, 220, 230], .55);
-    for (const [lx, ly] of LANTERNS) add(lx * TS, ly * TS - 18, 70 + fl * .4, [240, 170, 90], .6);
+    if (!this.scene) this.scene = TownScene.build(this.world, this.g);
+    for (const L of this.scene.lights) add(L.x, L.y, L.r + (L.f ? Math.sin(time * 9 + L.x) * L.r * .04 : 0), L.c, L.i);
   }
+  /** Capa del suelo: solo la marca de la estación cercana (lo demás son sprites ordenados). */
   drawObjects(c, g) {
     const TS = CONFIG.TILE, t = g.time;
-    const R = g.renderer, ink = '#0b0907';
-    const stoneRow = (X, Y, W, H, base) => { c.fillStyle = base; c.fillRect(X, Y, W, H); c.fillStyle = shade(base, -.35); for (let yy = 0; yy < H; yy += 5) { c.fillRect(X, Y + yy, W, 1); for (let xx = ((yy / 5) % 2) * 6; xx < W; xx += 12) c.fillRect(X + xx, Y + yy, 1, 5); } c.fillStyle = shade(base, .15); for (let yy = 1; yy < H; yy += 5) c.fillRect(X, Y + yy, W, 1); };
-    /** Casa de piedra de aldea pobre: mampostería, tejado de paja, ventanas con postigos y puerta de tablones. */
-    const house = (x0, y0, w, hgt, label, o = {}) => {
-      const X = x0 * TS, Y = y0 * TS, Wp = w * TS, Hp = hgt * TS, wallTop = Y + Hp * (o.roofK || .46), seed = x0 * 97 + y0 * 13;
-      c.fillStyle = 'rgba(0,0,0,.5)'; c.beginPath(); c.ellipse(X + Wp / 2 + 6, Y + Hp + 3, Wp / 2 + 8, 7, 0, 0, Math.PI * 2); c.fill();
-      VillageArt.rubble(c, X + 3, wallTop, Wp - 6, Y + Hp - wallTop, seed, o.stone || '#5a554c');
-      // ventanas pequeñas (alguna a oscuras: no hay velas para todos)
-      const nWin = Math.max(1, Math.floor((Wp - 60) / 70));
-      for (let i = 0; i < nWin * 2; i++) { if (o.winSkip && o.winSkip.includes(i)) continue; const left = i < nWin, wx = left ? X + 16 + i * 46 : X + Wp - 30 - (i - nWin) * 46; VillageArt.window(c, wx, wallTop + 12, U.hash(seed, i, 12) > (o.dark ?? .35), t); }
-      // puerta de tablones combada con dintel de piedra
-      const dw = o.door || 24, dx = X + Wp / 2 - dw / 2, dh = Math.min(32, Y + Hp - wallTop - 4);
-      c.fillStyle = ink; c.fillRect(dx - 2, Y + Hp - dh - 2, dw + 4, dh + 2);
-      c.fillStyle = '#3a2618'; c.fillRect(dx, Y + Hp - dh, dw, dh);
-      c.fillStyle = '#2a1a0e'; for (let q = 5; q < dw; q += 6) c.fillRect(dx + q, Y + Hp - dh, 1, dh);
-      c.fillStyle = '#4a3420'; c.fillRect(dx + 1, Y + Hp - dh + 1, 2, dh - 2);
-      c.fillStyle = '#3e4146'; c.fillRect(dx, Y + Hp - dh + 6, dw, 2); c.fillRect(dx, Y + Hp - 9, dw, 2);
-      c.fillStyle = '#8a6a32'; c.fillRect(dx + dw - 6, Y + Hp - dh / 2, 2, 2);
-      c.fillStyle = '#6e685c'; c.fillRect(dx - 4, Y + Hp - dh - 5, dw + 8, 4); c.fillStyle = '#4c4840'; c.fillRect(dx - 4, Y + Hp - dh - 2, dw + 8, 1);
-      // tejado de paja
-      VillageArt.thatch(c, X, Y - 6, Wp, Y - 6, wallTop + 6, seed, o.roof || '#7a6a3e', o.patched !== false);
-      c.fillStyle = 'rgba(0,0,0,.45)'; c.fillRect(X + 3, wallTop + 6, Wp - 6, 4);
-      // chimenea de piedra con humo (si hay)
-      if (o.chimney !== false) {
-        const chx = X + Wp * .7, chy = Y + (wallTop - Y) * .3;
-        c.fillStyle = ink; c.fillRect(chx - 1, chy - 14, 13, 20); VillageArt.rubble(c, chx, chy - 13, 11, 18, seed + 7, '#4c4840');
-        for (let q = 0; q < 4; q++) { const ph = (t * .3 + q * .25) % 1; c.globalAlpha = (1 - ph) * .22; c.fillStyle = '#8a847c'; c.beginPath(); c.arc(chx + 5 + Math.sin(ph * 6 + q) * 4 + ph * 12, chy - 18 - ph * 42, 3 + ph * 7, 0, Math.PI * 2); c.fill(); }
-        c.globalAlpha = 1;
-      }
-      // letrero de madera
-      if (label) {
-        const sx = X + Wp / 2 - 32, sy = wallTop - 4;
-        c.fillStyle = '#1e140c'; c.fillRect(sx + 6, sy - 6, 1, 6); c.fillRect(sx + 57, sy - 6, 1, 6);
-        c.fillStyle = ink; c.fillRect(sx - 1, sy - 1, 66, 15); c.fillStyle = '#463020'; c.fillRect(sx, sy, 64, 13); c.fillStyle = '#56402a'; c.fillRect(sx, sy, 64, 2);
-        R.label(label, X + Wp / 2, sy + 7, '#d8c8a0', 8, { stroke: 0, weight: 700 });
-      }
-      if (o.deco) o.deco(X, Y, Wp, Hp, wallTop);
-    };
-    const barrel = (bx, by) => { c.fillStyle = ink; c.fillRect(bx - 1, by - 1, 14, 16); c.fillStyle = '#5a3e24'; c.fillRect(bx, by, 12, 14); c.fillStyle = '#3a2618'; c.fillRect(bx, by + 4, 12, 1); c.fillRect(bx, by + 9, 12, 1); c.fillStyle = '#3e4146'; c.fillRect(bx, by + 1, 12, 1); c.fillRect(bx, by + 12, 12, 1); };
-    const firewood = (fx, fy) => { for (let r = 0; r < 3; r++) for (let q = 0; q < 4 - r; q++) { const lx = fx + q * 7 + r * 3.5, ly = fy - r * 6; c.fillStyle = ink; c.beginPath(); c.arc(lx, ly, 3.6, 0, Math.PI * 2); c.fill(); c.fillStyle = '#7a5a36'; c.beginPath(); c.arc(lx, ly, 2.8, 0, Math.PI * 2); c.fill(); c.fillStyle = '#a8845a'; c.fillRect(lx - 1, ly - 1, 2, 2); } };
-    const hay = (hx, hy) => { c.fillStyle = ink; c.fillRect(hx - 1, hy - 1, 22, 14); c.fillStyle = '#9a8648'; c.fillRect(hx, hy, 20, 12); c.fillStyle = '#7a6a36'; for (let q = 0; q < 20; q += 3) c.fillRect(hx + q, hy, 1, 12); c.fillStyle = '#5a4a26'; c.fillRect(hx, hy + 4, 20, 1); c.fillRect(hx, hy + 8, 20, 1); };
-    const banner = (bx, by, len, col, emb) => {   // estandarte de tela con cola de golondrina y emblema dorado
-      c.fillStyle = ink; c.fillRect(bx - 3, by - 2, 22, 3); c.fillStyle = '#4a3420'; c.fillRect(bx - 2, by - 1, 20, 1);
-      c.fillStyle = ink; c.beginPath(); c.moveTo(bx - 1, by); c.lineTo(bx + 17, by); c.lineTo(bx + 17, by + len + 1); c.lineTo(bx + 8, by + len - 5); c.lineTo(bx - 1, by + len + 1); c.closePath(); c.fill();
-      c.fillStyle = col; c.beginPath(); c.moveTo(bx, by + 1); c.lineTo(bx + 16, by + 1); c.lineTo(bx + 16, by + len - 1); c.lineTo(bx + 8, by + len - 6); c.lineTo(bx, by + len - 1); c.closePath(); c.fill();
-      c.fillStyle = shade(col, .18); c.fillRect(bx, by + 1, 3, len - 3); c.fillStyle = shade(col, -.3); c.fillRect(bx + 13, by + 1, 3, len - 3);
-      c.fillStyle = '#8a7038'; c.fillRect(bx, by + 3, 16, 1); c.fillRect(bx, by + len - 10, 16, 1);
-      if (emb) emb(bx + 8, by + len * .42);
-    };
-    const compass = (ex, ey) => { c.fillStyle = '#c8a24a'; c.beginPath(); c.moveTo(ex, ey - 6); c.lineTo(ex + 2, ey - 1.5); c.lineTo(ex + 6, ey); c.lineTo(ex + 2, ey + 1.5); c.lineTo(ex, ey + 6); c.lineTo(ex - 2, ey + 1.5); c.lineTo(ex - 6, ey); c.lineTo(ex - 2, ey - 1.5); c.closePath(); c.fill(); c.fillStyle = '#f0d890'; c.fillRect(ex - 1, ey - 5, 1, 4); c.fillStyle = '#1e2a40'; c.fillRect(ex - 1, ey - 1, 2, 2); };
-    house(6, 5, 9, 5, 'GREMIO', { stone: '#5e5850', roof: '#5e4e30', dark: .15, winSkip: [1, 4], deco: (X, Y, Wp, Hp, wt) => {
-      const base = Y + Hp, mid = X + Wp / 2;
-      // dos estandartes del gremio a los lados de la puerta (azul y rosa de los vientos dorada)
-      banner(mid - 44, wt + 8, 40, '#24365a', compass); banner(mid + 28, wt + 8, 40, '#24365a', compass);
-      // trofeo sobre la puerta: cráneo de bestia con cuernos
-      { const sx = mid, sy = base - 44; c.fillStyle = ink; c.fillRect(sx - 7, sy - 5, 14, 11); c.fillStyle = '#d6ccb0'; c.fillRect(sx - 6, sy - 4, 12, 9); c.fillStyle = '#b0a688'; c.fillRect(sx - 6, sy + 2, 12, 3);
-        c.fillStyle = ink; c.fillRect(sx - 4, sy - 1, 3, 2); c.fillRect(sx + 1, sy - 1, 3, 2); c.fillRect(sx - 1, sy + 2, 2, 2);
-        for (const d of [-1, 1]) { c.strokeStyle = ink; c.lineWidth = 3.4; c.beginPath(); c.moveTo(sx + d * 5, sy - 3); c.quadraticCurveTo(sx + d * 14, sy - 6, sx + d * 13, sy - 15); c.stroke(); c.strokeStyle = '#e8dcbc'; c.lineWidth = 1.8; c.stroke(); } }
-      // tablón de encargos en la pared (donde había una ventana) con papeles clavados
-      { const bx = X + 56, by = wt + 10; c.fillStyle = ink; c.fillRect(bx - 1, by - 1, 30, 24); c.fillStyle = '#5a3e24'; c.fillRect(bx, by, 28, 22); c.fillStyle = '#4a3220'; for (let q = 4; q < 28; q += 6) c.fillRect(bx + q, by, 1, 22);
-        for (const [px, py, w2] of [[2, 2, 8], [12, 3, 7], [20, 2, 6], [4, 12, 7], [14, 12, 10]]) { c.fillStyle = '#d6caa8'; c.fillRect(bx + px, by + py, w2, 8); c.fillStyle = '#8a7a5a'; c.fillRect(bx + px + 1, by + py + 3, w2 - 2, 1); c.fillRect(bx + px + 1, by + py + 5, w2 - 3, 1); c.fillStyle = '#7a2a22'; c.fillRect(bx + px + w2 / 2 - 1, by + py, 2, 1); } }
-      // placa con dos espadas cruzadas y un escudo (donde la otra ventana)
-      { const px = X + Wp - 66, py = wt + 22; for (const d of [-1, 1]) { c.strokeStyle = ink; c.lineWidth = 3; c.beginPath(); c.moveTo(px - d * 10, py - 10); c.lineTo(px + d * 10, py + 10); c.stroke(); c.strokeStyle = '#b8c0c8'; c.lineWidth = 1.4; c.stroke(); c.fillStyle = '#8a6a32'; c.fillRect(px + d * 8 - 2, py + 7, 4, 2); }
-        c.fillStyle = ink; c.beginPath(); c.moveTo(px - 7, py - 7); c.lineTo(px + 7, py - 7); c.lineTo(px + 7, py + 2); c.lineTo(px, py + 9); c.lineTo(px - 7, py + 2); c.closePath(); c.fill();
-        c.fillStyle = '#7a2a24'; c.beginPath(); c.moveTo(px - 6, py - 6); c.lineTo(px + 6, py - 6); c.lineTo(px + 6, py + 1.5); c.lineTo(px, py + 7.5); c.lineTo(px - 6, py + 1.5); c.closePath(); c.fill(); compass(px, py); }
-      // farol de hierro junto a la puerta
-      { const lx = mid + 20, ly = base - 40; c.fillStyle = ink; c.fillRect(lx, ly - 6, 8, 2); c.fillRect(lx + 6, ly - 6, 2, 6); c.fillRect(lx + 3, ly, 8, 9); c.fillStyle = '#e8b050'; c.fillRect(lx + 4, ly + 1, 6, 7); c.fillStyle = '#ffe0a0'; c.fillRect(lx + 6, ly + 2, 2, 3); }
-      // veleta en el caballete del tejado
-      { const vx = mid - 50, vy = Y - 8; c.fillStyle = ink; c.fillRect(vx, vy - 16, 2, 16); c.fillRect(vx - 7, vy - 14, 16, 2); c.beginPath(); c.moveTo(vx + 9, vy - 17); c.lineTo(vx + 13, vy - 13); c.lineTo(vx + 9, vy - 9); c.fill(); c.fillRect(vx - 9, vy - 16, 3, 6); }
-      // armero con lanzas, espadas y un hacha (casillas 6-7 de la fila de delante)
-      { const rx = X + 2, ry = base + 2; c.fillStyle = 'rgba(0,0,0,.4)'; c.fillRect(rx, ry + 26, 60, 4);
-        c.fillStyle = ink; c.fillRect(rx, ry - 14, 4, 42); c.fillRect(rx + 56, ry - 14, 4, 42); c.fillRect(rx, ry - 10, 60, 4); c.fillRect(rx, ry + 16, 60, 4);
-        c.fillStyle = '#5a3e24'; c.fillRect(rx + 1, ry - 13, 2, 40); c.fillRect(rx + 57, ry - 13, 2, 40); c.fillRect(rx + 1, ry - 9, 58, 2); c.fillRect(rx + 1, ry + 17, 58, 2);
-        for (let q = 0; q < 4; q++) { const sx = rx + 9 + q * 7; c.fillStyle = ink; c.fillRect(sx - 1, ry - 22, 3, 46); c.fillStyle = '#7a5a34'; c.fillRect(sx, ry - 20, 1, 44); c.fillStyle = '#b8c0c8'; c.beginPath(); c.moveTo(sx - 2, ry - 20); c.lineTo(sx + .5, ry - 28); c.lineTo(sx + 3, ry - 20); c.fill(); }
-        for (let q = 0; q < 2; q++) { const sx = rx + 40 + q * 8; c.fillStyle = ink; c.fillRect(sx - 2, ry - 16, 5, 34); c.fillStyle = '#c8d0d8'; c.fillRect(sx - 1, ry - 15, 3, 24); c.fillStyle = '#8a6a32'; c.fillRect(sx - 3, ry + 9, 7, 2); c.fillStyle = '#3a2618'; c.fillRect(sx - 1, ry + 11, 3, 6); } }
-      // muñeco de prácticas de paja con diana (casilla 13)
-      { const dx = X + 7 * TS + 16, dy = base + 28; c.fillStyle = 'rgba(0,0,0,.4)'; c.beginPath(); c.ellipse(dx, dy, 12, 4, 0, 0, Math.PI * 2); c.fill();
-        c.fillStyle = ink; c.fillRect(dx - 2, dy - 40, 5, 40); c.fillRect(dx - 14, dy - 32, 29, 5); c.fillStyle = '#5a3e24'; c.fillRect(dx - 1, dy - 39, 3, 39); c.fillRect(dx - 13, dy - 31, 27, 3);
-        c.fillStyle = ink; c.beginPath(); c.ellipse(dx + .5, dy - 26, 8, 11, 0, 0, Math.PI * 2); c.fill(); c.fillStyle = '#b4963c'; c.beginPath(); c.ellipse(dx + .5, dy - 26, 7, 10, 0, 0, Math.PI * 2); c.fill();
-        c.fillStyle = '#8a7028'; for (let q = -8; q < 9; q += 3) c.fillRect(dx - 6, dy - 26 + q, 13, 1);
-        c.fillStyle = '#ece4cc'; c.beginPath(); c.arc(dx + .5, dy - 25, 4, 0, Math.PI * 2); c.fill(); c.fillStyle = '#8a2a22'; c.beginPath(); c.arc(dx + .5, dy - 25, 2.6, 0, Math.PI * 2); c.fill(); c.fillStyle = '#ece4cc'; c.fillRect(dx, dy - 26, 1, 1);
-        c.fillStyle = ink; c.beginPath(); c.arc(dx + .5, dy - 40, 5.5, 0, Math.PI * 2); c.fill(); c.fillStyle = '#c4a84c'; c.beginPath(); c.arc(dx + .5, dy - 40, 4.5, 0, Math.PI * 2); c.fill();
-        c.strokeStyle = '#4a3a20'; c.lineWidth = 1; c.beginPath(); c.moveTo(dx - 4, dy - 36); c.lineTo(dx + 5, dy - 36); c.stroke(); c.fillStyle = '#5a5e66'; c.fillRect(dx + 6, dy - 31, 2, 9); }
-      barrel(X - 12, Y + Hp - 14); barrel(X - 14, Y + Hp - 30);
-    } });
-    const awning = (x0, x1, y0, y1) => {   // toldo de lona a rayas con el borde festoneado
-      const w = x1 - x0, n = Math.max(3, Math.round(w / 12)), sw = w / n;
-      c.fillStyle = ink; c.beginPath(); c.moveTo(x0 + 3, y0 - 1); c.lineTo(x1 - 3, y0 - 1); c.lineTo(x1 + 1, y1 + 1); c.lineTo(x0 - 1, y1 + 1); c.closePath(); c.fill();
-      for (let i = 0; i < n; i++) { const a = x0 + i * sw, b = a + sw, k = (y1 - y0);
-        c.fillStyle = i % 2 ? '#c4b088' : '#8a3a2c'; c.beginPath(); c.moveTo(a + 3 * (1 - i / n) + 3 * (i / n) * 0, y0); c.lineTo(b, y0); c.lineTo(b + (b - (x0 + x1) / 2) * .02, y1); c.lineTo(a + (a - (x0 + x1) / 2) * .02, y1); c.closePath(); c.fill();
-        c.fillStyle = i % 2 ? '#a8946c' : '#6e2c22'; c.fillRect(a, y1 - 4, sw + .5, 4);
-        c.fillStyle = ink; c.beginPath(); c.arc(a + sw / 2, y1 + 1, sw / 2 + 1, 0, Math.PI); c.fill();
-        c.fillStyle = i % 2 ? '#a8946c' : '#6e2c22'; c.beginPath(); c.arc(a + sw / 2, y1, sw / 2, 0, Math.PI); c.fill(); }
-      c.fillStyle = 'rgba(255,240,200,.12)'; c.fillRect(x0, y0, w, 2);
-      c.fillStyle = 'rgba(0,0,0,.35)'; c.fillRect(x0 + 2, y1 + sw / 2 + 1, w - 4, 5);                                          // sombra del toldo
-    };
-    const shelf = (sx, sy, w, h, seed) => {   // estantería de tablas con tarros, sacos y botellas
-      c.fillStyle = ink; c.fillRect(sx - 1, sy - 1, w + 2, h + 2); c.fillStyle = '#2e1e12'; c.fillRect(sx, sy, w, h);
-      c.fillStyle = '#5a3e24'; c.fillRect(sx, sy, 2, h); c.fillRect(sx + w - 2, sy, 2, h);
-      const rows = 3, rh = h / rows;
-      for (let r = 0; r < rows; r++) { const by = sy + (r + 1) * rh; c.fillStyle = '#6e4c2c'; c.fillRect(sx, by - 2, w, 2); c.fillStyle = '#3a2618'; c.fillRect(sx, by, w, 1);
-        let x = sx + 3; for (let q = 0; q < 6 && x < sx + w - 5; q++) { const kind = Math.floor(U.hash(seed + q, r, 5) * 4), iw = kind === 2 ? 6 : 4, ih = Math.min(rh - 4, kind === 2 ? 6 : kind === 1 ? 8 : 6);
-          const col = ['#7a5a3a', '#4a6a8a', '#c4b088', '#6a2a3a'][kind];
-          c.fillStyle = ink; c.fillRect(x - 1, by - 2 - ih - 1, iw + 2, ih + 1); c.fillStyle = col; c.fillRect(x, by - 2 - ih, iw, ih);
-          c.fillStyle = shade(col, .25); c.fillRect(x, by - 2 - ih, 1, ih); if (kind === 1) { c.fillStyle = '#d8d0c0'; c.fillRect(x + 1, by - 2 - ih - 2, 2, 2); }
-          x += iw + 2; } }
-    };
-    const table = (tx, ty, w, goods) => {   // mesa de mercado con la mercancía
-      c.fillStyle = 'rgba(0,0,0,.4)'; c.fillRect(tx + 2, ty + 24, w, 4);
-      c.fillStyle = ink; c.fillRect(tx - 1, ty - 1, w + 2, 14); c.fillRect(tx + 1, ty + 12, 4, 14); c.fillRect(tx + w - 5, ty + 12, 4, 14);
-      c.fillStyle = '#6e4c2c'; c.fillRect(tx, ty, w, 8); c.fillStyle = '#82603a'; c.fillRect(tx, ty, w, 2); c.fillStyle = '#4a3220'; c.fillRect(tx, ty + 8, w, 4); for (let q = 10; q < w; q += 14) c.fillRect(tx + q, ty, 1, 8);
-      c.fillStyle = '#4a3220'; c.fillRect(tx + 2, ty + 12, 2, 13); c.fillRect(tx + w - 4, ty + 12, 2, 13);
-      goods(tx, ty);
-    };
-    const basket = (bx, by, fruit) => { c.fillStyle = ink; c.beginPath(); c.ellipse(bx, by, 8, 4, 0, 0, Math.PI * 2); c.fill(); c.fillStyle = '#8a6a3a'; c.beginPath(); c.ellipse(bx, by, 7, 3.2, 0, 0, Math.PI * 2); c.fill();
-      for (let i = 0; i < 6; i++) { const fx = bx - 4.5 + (i % 3) * 4.5, fy = by - 2.5 - Math.floor(i / 3) * 2.5; c.fillStyle = ink; c.beginPath(); c.arc(fx, fy, 2.6, 0, Math.PI * 2); c.fill(); c.fillStyle = fruit; c.beginPath(); c.arc(fx, fy, 1.9, 0, Math.PI * 2); c.fill(); c.fillStyle = 'rgba(255,255,255,.4)'; c.fillRect(fx - 1, fy - 1, 1, 1); } };
-    const bottle = (bx, by, col) => { c.fillStyle = ink; c.fillRect(bx - 2, by - 9, 6, 10); c.fillRect(bx - 1, by - 12, 4, 4); c.fillStyle = col; c.fillRect(bx - 1, by - 8, 4, 8); c.fillStyle = shade(col, .35); c.fillRect(bx - 1, by - 8, 1, 7); c.fillStyle = '#8a6a3a'; c.fillRect(bx, by - 11, 2, 2); };
-    house(29, 5, 9, 5, 'TIENDA', { stone: '#57524a', roof: '#76663a', winSkip: [0, 1, 3, 4], deco: (X, Y, Wp, Hp, wt) => {
-      const base = Y + Hp, mid = X + Wp / 2;
-      // estanterías en la fachada, bajo el toldo
-      shelf(X + 14, wt + 14, 44, 46, 3); shelf(X + 64, wt + 14, 44, 46, 9); shelf(X + Wp - 58, wt + 14, 44, 46, 17); shelf(X + Wp - 108, wt + 14, 44, 46, 23);
-      // mesas de mercado delante (casillas 29-31 y 35-37)
-      table(X + 4, base + 4, 88, (tx, ty) => { basket(tx + 14, ty + 2, '#b8402e'); basket(tx + 34, ty + 2, '#c8a040');
-        for (let i = 0; i < 3; i++) { c.fillStyle = ink; c.beginPath(); c.ellipse(tx + 52 + i * 9, ty + 1, 4.6, 3, 0, 0, Math.PI * 2); c.fill(); c.fillStyle = '#b88a44'; c.beginPath(); c.ellipse(tx + 52 + i * 9, ty, 3.8, 2.3, 0, 0, Math.PI * 2); c.fill(); c.fillStyle = '#d8b068'; c.fillRect(tx + 50 + i * 9, ty - 1, 3, 1); }   // hogazas
-        c.fillStyle = ink; c.beginPath(); c.ellipse(tx + 79, ty + 1, 7, 4, 0, 0, Math.PI * 2); c.fill(); c.fillStyle = '#d8b850'; c.beginPath(); c.ellipse(tx + 79, ty, 6, 3, 0, 0, Math.PI * 2); c.fill(); c.fillStyle = '#b8983c'; c.fillRect(tx + 75, ty + 1, 8, 2); });   // queso
-      table(X + Wp - 92, base + 4, 88, (tx, ty) => { const cols = ['#c83a3a', '#3a7ac8', '#4ab848', '#c8a03a', '#9a4ac8']; cols.forEach((col, i) => bottle(tx + 8 + i * 8, ty + 4, col));
-        for (let i = 0; i < 3; i++) { c.fillStyle = ink; c.fillRect(tx + 50 + i * 11, ty - 4, 10, 8); c.fillStyle = ['#5a6a8a', '#8a5a3a', '#6a7a4a'][i]; c.fillRect(tx + 51 + i * 11, ty - 3, 8, 6); c.fillStyle = 'rgba(255,255,255,.2)'; c.fillRect(tx + 51 + i * 11, ty - 3, 8, 1); }   // rollos de tela
-        c.fillStyle = ink; c.fillRect(tx + 81, ty - 12, 2, 12); c.fillRect(tx + 74, ty - 12, 16, 2); c.fillStyle = '#c4922b'; c.beginPath(); c.ellipse(tx + 75, ty - 6, 3, 1.2, 0, 0, Math.PI * 2); c.ellipse(tx + 89, ty - 6, 3, 1.2, 0, 0, Math.PI * 2); c.fill(); });   // balanza
-      // toldos a rayas sobre las estanterías y las mesas (la puerta queda libre) con sus postes
-      for (const [a, b] of [[X + 4, mid - 20], [mid + 20, X + Wp - 4]]) { awning(a, b, wt + 4, wt + 22);
-        for (const px of [a + 2, b - 4]) { c.fillStyle = ink; c.fillRect(px - 1, wt + 22, 4, base + 30 - wt - 22); c.fillStyle = '#5a3e24'; c.fillRect(px, wt + 22, 2, base + 29 - wt - 22); } }
-      // cartel colgante con una bolsa de monedas
-      { const sx = mid + 22, sy = base - 46; c.fillStyle = ink; c.fillRect(sx, sy - 8, 16, 2); c.fillRect(sx + 3, sy - 6, 1, 4); c.fillRect(sx + 12, sy - 6, 1, 4); c.fillRect(sx - 1, sy - 2, 18, 13); c.fillStyle = '#5a3e24'; c.fillRect(sx, sy - 1, 16, 11);
-        c.fillStyle = ink; c.beginPath(); c.ellipse(sx + 8, sy + 5, 4.5, 4, 0, 0, Math.PI * 2); c.fill(); c.fillStyle = '#c4922b'; c.beginPath(); c.ellipse(sx + 8, sy + 5, 3.5, 3, 0, 0, Math.PI * 2); c.fill(); c.fillStyle = '#e8c458'; c.fillRect(sx + 7, sy + 3, 2, 2); }
-      barrel(X - 12, Y + Hp - 14); barrel(X + Wp, Y + Hp - 16);
-    } });
-    house(14, 10, 5, 4, 'ALCALDE', { stone: '#605a50', roof: '#6a5a34', roofK: .5, dark: .1, door: 22, deco: (X, Y, Wp, Hp, wt) => {   // la única casa con dos velas encendidas
-      firewood(X + Wp + 4, Y + Hp - 4);
-    } });
-    house(3, 11, 4, 3, '', { stone: '#524d45', roof: '#6a5c34', roofK: .5, dark: .7, door: 18, chimney: false, deco: (X, Y, Wp, Hp) => hay(X + Wp + 2, Y + Hp - 12) });
-    house(37, 11, 4, 3, '', { stone: '#56514a', roof: '#5e5230', roofK: .5, dark: .55, door: 18, deco: (X, Y, Wp, Hp) => firewood(X - 26, Y + Hp - 4) });
-    // Tablón de misiones con tejadillo
-    { const X = 24 * TS, Y = 11 * TS;
-      c.fillStyle = 'rgba(0,0,0,.4)'; c.beginPath(); c.ellipse(X + 34, Y + 31, 34, 4, 0, 0, Math.PI * 2); c.fill();
-      c.fillStyle = ink; c.fillRect(X + 5, Y - 2, 6, 34); c.fillRect(X + 53, Y - 2, 6, 34); c.fillStyle = '#3a2618'; c.fillRect(X + 6, Y - 2, 4, 33); c.fillRect(X + 54, Y - 2, 4, 33);
-      c.fillStyle = ink; c.fillRect(X - 1, Y - 17, 66, 33); c.fillStyle = '#4e3622'; c.fillRect(X, Y - 16, 64, 31); c.fillStyle = '#3e2a1a'; for (let k = 0; k < 64; k += 8) c.fillRect(X + k, Y - 16, 1, 31);
-      c.fillStyle = ink; c.beginPath(); c.moveTo(X - 6, Y - 16); c.lineTo(X + 32, Y - 28); c.lineTo(X + 70, Y - 16); c.closePath(); c.fill(); c.fillStyle = '#33281e'; c.beginPath(); c.moveTo(X - 4, Y - 17); c.lineTo(X + 32, Y - 26); c.lineTo(X + 68, Y - 17); c.closePath(); c.fill();
-      const jobs = (g.save && g.save.board) ? g.save.board.length : 0;
-      for (let i = 0; i < Math.min(6, jobs); i++) { const px = X + 4 + i * 10, py = Y - 12 + (i % 2) * 5; c.fillStyle = i % 3 ? '#c8b48e' : '#d8c8a0'; c.fillRect(px, py, 8, 11); c.fillStyle = '#8a7a5a'; c.fillRect(px + 1, py + 3, 6, 1); c.fillRect(px + 1, py + 6, 5, 1); c.fillStyle = '#6a2a22'; c.fillRect(px + 3, py, 2, 1); }
-      if (g.save && g.save.jobs.some(j => j.state === 'done')) R.label('!', X + 32, Y - 34 + Math.sin(t * 4) * 2, '#c8e8a0', 12); }
-    // Puerta de las mazmorras: pilares de piedra con braseros y arco tallado
-    { const X = 18 * TS, Y = 2 * TS;
-      for (const px of [X + 4, X + 196]) {
-        c.fillStyle = 'rgba(0,0,0,.45)'; c.fillRect(px + 4, Y + 62, 56, 8);
-        c.fillStyle = ink; c.fillRect(px - 1, Y - 21, 58, 86); stoneRow(px, Y - 20, 56, 84, '#4e4c46');
-        c.fillStyle = '#3d5a2c'; for (let k = 0; k < 56; k += 4) if (U.hash(px + k, 1, 3) > .4) c.fillRect(px + k, Y - 21, 4, 2 + U.hash(px + k, 2, 3) * 4);
-        c.fillStyle = ink; c.fillRect(px + 18, Y - 30, 20, 10); c.fillStyle = '#2e2c28'; c.fillRect(px + 19, Y - 29, 18, 8);
-        const f = 1 + Math.sin(t * 11 + px) * .15; c.fillStyle = '#e8551a'; c.beginPath(); c.ellipse(px + 28, Y - 33, 6, 7 * f, 0, 0, Math.PI * 2); c.fill(); c.fillStyle = '#ffc46a'; c.beginPath(); c.ellipse(px + 28, Y - 31, 3, 4 * f, 0, 0, Math.PI * 2); c.fill();
-      }
-      c.strokeStyle = ink; c.lineWidth = 18; c.beginPath(); c.arc(X + 128, Y + 4, 100, Math.PI * 1.08, Math.PI * 1.92); c.stroke();
-      c.strokeStyle = '#4e4c46'; c.lineWidth = 14; c.stroke();
-      c.strokeStyle = '#2e2c28'; c.lineWidth = 1; for (let a = 1.12; a < 1.9; a += .08) { c.beginPath(); c.moveTo(X + 128 + Math.cos(a * Math.PI) * 93, Y + 4 + Math.sin(a * Math.PI) * 93); c.lineTo(X + 128 + Math.cos(a * Math.PI) * 107, Y + 4 + Math.sin(a * Math.PI) * 107); c.stroke(); }
-      c.fillStyle = ink; c.fillRect(X + 117, Y - 103, 22, 18); c.fillStyle = '#5e5c56'; c.fillRect(X + 118, Y - 102, 20, 16); c.fillStyle = '#62d2e8'; c.globalAlpha = .6 + .3 * Math.sin(t * 2); c.fillRect(X + 126, Y - 98, 4, 8); c.globalAlpha = 1;
-      R.label('MAZMORRAS', X + 128, Y - 74, '#d8c8a0', 9, { weight: 700 });
-      const k = (t * .6) % 1; c.globalAlpha = .22 * (1 - k); c.fillStyle = '#62d2e8'; c.beginPath(); c.ellipse(X + 128, Y + 8 - k * 26, 46, 12, 0, 0, Math.PI * 2); c.fill(); c.globalAlpha = 1; }
-    // Hoguera de la plaza: anillo de piedras, troncos y bancos
-    { const x = 19.5 * TS, y = 14.5 * TS;
-      for (let k = 0; k < 9; k++) { const a = k / 9 * Math.PI * 2; c.fillStyle = ink; c.fillRect(x + Math.cos(a) * 12 - 3, y + Math.sin(a) * 6 - 2, 6, 5); c.fillStyle = '#5e5c56'; c.fillRect(x + Math.cos(a) * 12 - 2, y + Math.sin(a) * 6 - 2, 4, 3); }
-      c.fillStyle = '#2e1e12'; c.save(); c.translate(x, y); c.rotate(.4); c.fillRect(-10, -2, 20, 4); c.rotate(-.8); c.fillRect(-10, -2, 20, 4); c.restore();
-      const f = 1 + Math.sin(t * 12) * .12; c.fillStyle = '#c8401a'; c.beginPath(); c.ellipse(x, y - 8 * f, 6, 11 * f, 0, 0, Math.PI * 2); c.fill(); c.fillStyle = '#ff9a3d'; c.beginPath(); c.ellipse(x, y - 7, 4, 7 * f, 0, 0, Math.PI * 2); c.fill(); c.fillStyle = '#ffe0a0'; c.beginPath(); c.ellipse(x, y - 5, 2, 3.5 * f, 0, 0, Math.PI * 2); c.fill();
-      for (const bx of [x - 18, x + 40]) { c.fillStyle = ink; c.fillRect(bx - 1, y + 19, 38, 9); c.fillStyle = '#4a3220'; c.fillRect(bx, y + 20, 36, 7); c.fillStyle = '#5e4028'; c.fillRect(bx, y + 20, 36, 2); c.fillStyle = '#6a4a2e'; c.beginPath(); c.arc(bx + 2, y + 23.5, 2.5, 0, Math.PI * 2); c.arc(bx + 34, y + 23.5, 2.5, 0, Math.PI * 2); c.fill(); } }
-    // Pozo de piedra (donde estaba la antigua zona de descanso)
-    { const x = 15.5 * TS, y = 26.5 * TS; c.fillStyle = 'rgba(0,0,0,.4)'; c.beginPath(); c.ellipse(x + 2, y + 8, 20, 6, 0, 0, Math.PI * 2); c.fill();
-      c.fillStyle = ink; c.beginPath(); c.ellipse(x, y, 17, 9, 0, 0, Math.PI * 2); c.fill(); VillageArt.rubble(c, x - 16, y - 6, 32, 12, 4401, '#5e5a52');
-      c.fillStyle = '#101414'; c.beginPath(); c.ellipse(x, y - 4, 11, 5, 0, 0, Math.PI * 2); c.fill(); c.fillStyle = '#1e3a40'; c.beginPath(); c.ellipse(x, y - 3, 8, 3, 0, 0, Math.PI * 2); c.fill();
-      for (const px of [x - 15, x + 13]) { c.fillStyle = ink; c.fillRect(px - 1, y - 36, 4, 34); c.fillStyle = '#5a3e24'; c.fillRect(px, y - 35, 2, 33); }
-      c.fillStyle = ink; c.beginPath(); c.moveTo(x - 22, y - 32); c.lineTo(x, y - 46); c.lineTo(x + 22, y - 32); c.closePath(); c.fill(); c.fillStyle = '#6a5a34'; c.beginPath(); c.moveTo(x - 19, y - 33); c.lineTo(x, y - 44); c.lineTo(x + 19, y - 33); c.closePath(); c.fill();
-      c.fillStyle = ink; c.fillRect(x - 14, y - 30, 28, 3); c.fillStyle = '#4a3220'; c.fillRect(x - 13, y - 29, 26, 1); c.fillStyle = '#8a7a5a'; c.fillRect(x, y - 27, 1, 14);
-      c.fillStyle = ink; c.fillRect(x - 4, y - 14, 9, 8); c.fillStyle = '#6a4a2a'; c.fillRect(x - 3, y - 13, 7, 6); c.fillStyle = '#3e4146'; c.fillRect(x - 3, y - 11, 7, 1); }
-    // Tiendas de campaña de lona
-    for (const [tx, col] of [[29, '#5a4a3a'], [37, '#4a4048']]) { const X = tx * TS, Y = 23 * TS;
-      c.fillStyle = 'rgba(0,0,0,.4)'; c.beginPath(); c.ellipse(X + 34, Y + 62, 36, 6, 0, 0, Math.PI * 2); c.fill();
-      c.fillStyle = ink; c.beginPath(); c.moveTo(X - 4, Y + 63); c.lineTo(X + 32, Y - 8); c.lineTo(X + 68, Y + 63); c.closePath(); c.fill();
-      c.fillStyle = col; c.beginPath(); c.moveTo(X - 2, Y + 62); c.lineTo(X + 32, Y - 6); c.lineTo(X + 66, Y + 62); c.closePath(); c.fill();
-      c.fillStyle = shade(col, .15); c.beginPath(); c.moveTo(X - 2, Y + 62); c.lineTo(X + 32, Y - 6); c.lineTo(X + 18, Y + 62); c.closePath(); c.fill();
-      c.fillStyle = '#120c08'; c.beginPath(); c.moveTo(X + 23, Y + 62); c.lineTo(X + 32, Y + 30); c.lineTo(X + 41, Y + 62); c.closePath(); c.fill();
-      c.fillStyle = '#2e1e12'; c.fillRect(X + 31, Y - 12, 2, 8); }
-    // Faroles
-    for (const [lx, ly] of LANTERNS) { const x = lx * TS, y = ly * TS;
-      c.fillStyle = 'rgba(0,0,0,.4)'; c.fillRect(x - 3, y, 8, 2);
-      c.fillStyle = ink; c.fillRect(x - 1.5, y - 22, 3, 22); c.fillStyle = '#2e2218'; c.fillRect(x - .5, y - 22, 1, 22);
-      c.fillStyle = ink; c.fillRect(x - 4, y - 28, 8, 8); c.fillStyle = '#e8b050'; c.fillRect(x - 3, y - 27, 6, 6); c.fillStyle = '#ffe0a0'; c.fillRect(x - 1, y - 26, 2, 3); c.fillStyle = ink; c.fillRect(x - 5, y - 29, 10, 2); }
-    // Marca de la estación cercana
-    if (this.near) { const st = STATIONS[this.near], x = (st.at[0] + .5) * TS, y = (st.at[1] + .5) * TS; c.globalAlpha = .45 + .25 * Math.sin(t * 4); c.strokeStyle = '#c9a24a'; c.lineWidth = 1; c.beginPath(); c.ellipse(x, y, 20, 8, 0, 0, Math.PI * 2); c.stroke(); c.beginPath(); c.ellipse(x, y, 16, 6, 0, 0, Math.PI * 2); c.stroke(); c.globalAlpha = 1; }
+    if (this.near) { const st = STATIONS[this.near], x = (st.at[0] + .5) * TS, y = (st.at[1] + .5) * TS; c.globalAlpha = .45 + .25 * Math.sin(t * 4); c.strokeStyle = '#e8c060'; c.lineWidth = 1; c.beginPath(); c.ellipse(x, y, 20, 8, 0, 0, Math.PI * 2); c.stroke(); c.beginPath(); c.ellipse(x, y, 16, 6, 0, 0, Math.PI * 2); c.stroke(); c.globalAlpha = 1; }
   }
   drawMinimap(cv, g) {
     const c = cv.getContext('2d'), W = this.world, s = Math.min(cv.width / W.w, cv.height / W.h), ox = (cv.width - W.w * s) / 2, oy = (cv.height - W.h * s) / 2;
@@ -6011,6 +6884,11 @@ class Renderer {
       const t = W.get(tx, ty);
       if (t !== T.WATER && t !== T.LAVA) continue;
       const h = U.hash(tx, ty, 5);
+      if (PAL.village) {   // aldea: destellos de píxel que aparecen y se apagan (el agua tiene bordes redondeados)
+        for (let q = 0; q < 2; q++) { const ph = this.time * (1.1 + q * .4) + h * 17 + q * 3, a = Math.sin(ph); if (a < .55) continue; const hx = U.hash(tx, ty, 11 + q), hy = U.hash(tx, ty, 13 + q);
+          c.globalAlpha = (a - .55) * 1.6; c.fillStyle = '#8ab4d0'; c.fillRect(Math.round(tx * TS + 6 + hx * 20), Math.round(ty * TS + 6 + hy * 20), 4, 1); c.fillRect(Math.round(tx * TS + 7 + hx * 20), Math.round(ty * TS + 5 + hy * 20), 2, 1); }
+        continue;
+      }
       if (t === T.LAVA) {
         const ph = this.time * 1.6 + h * 9;
         c.globalAlpha = .22 + .16 * Math.sin(ph); c.fillStyle = '#ffb347';
@@ -6034,7 +6912,7 @@ class Renderer {
       else if (g.village && g.mode === 'village') g.village.drawObjects(c, g);
       for (const a of g.actors) if (a instanceof Enemy && a.alive) a.drawTelegraph(c, g, alpha);
       for (const e of g.effects) if (e.layer === 'mid') e.draw(c, e.t / e.life);
-      const list = g.actors.filter(a => a.alive || a === g.player).concat(g.boulders && g.boulders.length ? g.boulders : []).sort((a, b) => a.y - b.y);
+      const list = g.actors.filter(a => a.alive || a === g.player).concat(g.boulders && g.boulders.length ? g.boulders : [], g.village && g.mode === 'village' ? g.village.sprites(view) : [], g.floorRT && typeof DungeonScenery !== 'undefined' ? DungeonScenery.sprites(g, view) : []).sort((a, b) => a.y - b.y);
       for (const a of list) a.draw(c, g, alpha);
       if (P) {
         const ftx = Math.floor(prx / TS), fty = Math.floor(pry / TS);
@@ -6043,11 +6921,11 @@ class Renderer {
       for (const p of g.projectiles) p.draw(c, g.time);
       for (const z of g.zones) if (z.layer === 'top') z.draw(c, g);
       for (const e of g.effects) if (e.layer === 'top') e.draw(c, e.t / e.life);
-    }
+    } else if (g.village && g.mode === 'village') for (const sp of g.village.sprites(view)) sp.draw(c, g, alpha);   // menús y escenas: la aldea sigue en pie
     g.fx.draw(c);
     Atmo.draw(c, false);
     for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) {
-      if (W.get(tx, ty) !== T.TREE) continue;
+      if (W.get(tx, ty) !== T.TREE || PAL.village || (typeof DungeonGround !== 'undefined' && DungeonGround.SET[PAL.terrain] && (PAL.terrain === 'forest' || PAL.terrain === 'marsh'))) continue;   // aldea y bosques: los árboles son sprites ordenados
       let a = 1;
       if (P) { const dx = prx - (tx * TS + 16), dy = (pry - 14) - (ty * TS + 2); if (dx * dx / 400 + dy * dy / 380 < 1.2) a = .45; }
       TileArt.canopy(c, tx, ty, a, this.time);

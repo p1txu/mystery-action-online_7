@@ -1,4 +1,4 @@
-// GENERADO por tools/split-prototype.mjs a partir de prototype/mystery-action.html (sha256 07f91d9ef784be4c).
+// GENERADO por tools/split-prototype.mjs a partir de prototype/mystery-action.html (sha256 9f91365d83f4b19c).
 // No lo edites a mano: cambia el prototipo y vuelve a ejecutar «npm run split».
 /* eslint-disable */
 /**
@@ -827,6 +827,7 @@ class ChunkCache {
   /** Repinta solo los trozos afectados por un cambio de casilla (puertas, pasajes secretos). */
   invalidateTile(tx, ty) {
     const N = CONFIG.CHUNK;
+    if (typeof DungeonGround !== 'undefined') DungeonGround.invalidate(this.world, tx, ty);
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) this.map.delete(Math.floor((tx + dx) / N) + ',' + Math.floor((ty + dy) / N));
   }
   get(cx, cy) {
@@ -843,10 +844,29 @@ class ChunkCache {
     const cv = document.createElement('canvas');
     cv.width = Math.ceil(size * k) + 2; cv.height = Math.ceil(size * k) + 2; // +2: solape para evitar costuras
     const c = cv.getContext('2d');
+    if (PAL.village && typeof TownGround !== 'undefined') {   // aldea: suelo pintado píxel a píxel (los edificios y árboles son sprites aparte)
+      const P = TownGround.chunkCanvas(this.world, cx, cy); c.imageSmoothingEnabled = false; c.drawImage(P, 0, 0, P.width * k, P.height * k);
+      return cv;
+    }
+    const pixGround = typeof DungeonGround !== 'undefined' && DungeonGround.SET[PAL.terrain];   // mazmorras: suelo y muros pintados píxel a píxel
+    if (pixGround) { const P = DungeonGround.chunkCanvas(this.world, cx, cy, PAL.terrain); c.imageSmoothingEnabled = false; c.drawImage(P, 0, 0, P.width * k, P.height * k); }
     c.setTransform(k, 0, 0, k, -cx * size * k, -cy * size * k);
     c.beginPath(); c.rect(cx * size, cy * size, size + 2 / k, size + 2 / k); c.clip();
     const tx0 = cx * N - 1, ty0 = cy * N - 1, tx1 = tx0 + N + 1, ty1 = ty0 + N + 1, W = this.world;
     setTileSeed(W.seed);
+    if (pixGround) {
+      const deco = W.deco && W.deco.map;
+      if (deco) for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) { const a = deco.get(ty * W.w + tx); if (a) for (const d of a) Deco.draw(c, d, tx * 32, ty * 32); }
+      for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) {
+        const t = W.get(tx, ty);
+        if (OBJ_TILES.has(t) && !(t === T.TREE && (PAL.terrain === 'forest' || PAL.terrain === 'marsh'))) TileArt.object(c, W, tx, ty);   // los árboles del bosque son sprites ordenados
+        else if (t === T.SECRET && W.inBounds(tx, ty + 1) && !isWallT(W.get(tx, ty + 1))) {   // grietas sutiles: pista de pasaje secreto
+          const x = tx * 32, y = ty * 32; c.fillStyle = '#060606'; for (const [a, b] of [[9, 20], [10, 21], [11, 22], [12, 22], [13, 23], [14, 24], [15, 24], [16, 23], [17, 22], [19, 22], [20, 23]]) c.fillRect(x + a, y + b, 1, 1);
+          c.fillStyle = 'rgba(255,240,200,.25)'; c.fillRect(x + 14, y + 23, 1, 1);
+        }
+      }
+      return cv;
+    }
     for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) if (W.inBounds(tx, ty)) TileArt.ground(c, W, tx, ty);
     const deco = W.deco && W.deco.map;
     if (deco) for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) { const a = deco.get(ty * W.w + tx); if (a) for (const d of a) Deco.draw(c, d, tx * 32, ty * 32); }
@@ -3065,8 +3085,8 @@ const BIOMES = {
     loot: { berry: 40, crystal: 15, gems: 30, relic: 15 }, dropBerry: .22,
     mm: { floor: '#4a6a3e', corr: '#7a6446' },
     pal: {
-      bg: '#050705', vignette: 'rgba(0,0,0,.6)', objBase: 'grass', flowerStyle: 'flowers', wallStyle: 'foliage',
-      ambient: [6, 12, 9, .3], rays: .055, atmo: 'leaves', terrain: 'forest', foliageDeep: ['#0f1a0f', '#142214'],
+      bg: '#050705', vignette: 'rgba(0,0,0,.42)', objBase: 'grass', flowerStyle: 'flowers', wallStyle: 'foliage',
+      ambient: [6, 12, 9, .2], rays: .055, atmo: 'leaves', terrain: 'forest', foliageDeep: ['#0f1a0f', '#142214'],
       grass: ['#26371f', '#2a3c22', '#23331d', '#2d4024'], blade: '#3b5530', bladeDark: '#1b2716',
       litter: ['#5a4426', '#4a3a20', '#6a5530'], roots: '#3a2a1a', moss: '#3d5a2c', vines: '#2f4a24', mushroom: '#7a3426', fern: '#3a5428',
       path: '#3d3022', pathEdge: '#241c13', pebble: '#5e5040',
@@ -3088,8 +3108,8 @@ const BIOMES = {
     loot: { berry: 20, crystal: 35, gems: 40, relic: 15 }, dropBerry: .12,
     mm: { floor: '#3e5068', corr: '#2f3c50' },
     pal: {
-      bg: '#020304', vignette: 'rgba(0,0,0,.7)', objBase: 'floor', flowerStyle: 'crystal', wallStyle: 'rock',
-      ambient: [3, 5, 12, .52], terrain: 'cave', atmo: 'dust', dustColor: '#9fdcff', glowDecal: '#4fb8d0', floorStyle: 'rock',
+      bg: '#020304', vignette: 'rgba(0,0,0,.5)', objBase: 'floor', flowerStyle: 'crystal', wallStyle: 'rock',
+      ambient: [3, 5, 12, .36], terrain: 'cave', atmo: 'dust', dustColor: '#9fdcff', glowDecal: '#4fb8d0', floorStyle: 'rock',
       grass: ['#22252e', '#22252e', '#22252e', '#22252e'], blade: '#2c303b', bladeDark: '#181a21',
       path: '#262a33', pathEdge: '#15171c', pebble: '#3c414e',
       floor: ['#262932', '#23262e', '#2a2d37'], floorLine: '#121318', rubble: true,
@@ -3110,8 +3130,8 @@ const BIOMES = {
     loot: { berry: 25, crystal: 20, gems: 35, relic: 25 }, dropBerry: .15,
     mm: { floor: '#6a3a2e', corr: '#4a3028' },
     pal: {
-      bg: '#050202', vignette: 'rgba(8,0,0,.65)', objBase: 'floor', flowerStyle: 'ember', wallStyle: 'rock',
-      ambient: [16, 5, 3, .46], terrain: 'volcano', atmo: 'embers', glowDecal: '#ff5a1a',
+      bg: '#050202', vignette: 'rgba(8,0,0,.48)', objBase: 'floor', flowerStyle: 'ember', wallStyle: 'rock',
+      ambient: [16, 5, 3, .32], terrain: 'volcano', atmo: 'embers', glowDecal: '#ff5a1a',
       grass: ['#241c1a', '#241c1a', '#241c1a', '#241c1a'], blade: '#2e2421', bladeDark: '#161110',
       path: '#2b211e', pathEdge: '#140f0d', pebble: '#433531',
       floor: ['#262020', '#221c1c', '#2b2423'], floorLine: '#171111', rubble: true,
@@ -3135,7 +3155,7 @@ BIOMES.marsh = biomeVariant('forest', {
   loot: { berry: 35, crystal: 15, gems: 32, relic: 18 }, dropBerry: .18,
   mm: { floor: '#3a5a4a', corr: '#5a5040' },
   pal: {
-    bg: '#030605', vignette: 'rgba(0,4,2,.66)', ambient: [4, 10, 9, .42], terrain: 'marsh', rays: .03, atmo: 'dust', dustColor: '#c8f0a0',
+    bg: '#030605', vignette: 'rgba(0,4,2,.48)', ambient: [4, 10, 9, .3], terrain: 'marsh', rays: .03, atmo: 'dust', dustColor: '#c8f0a0',
     foliageDeep: ['#0c1612', '#101c16'], grass: ['#1f2e24', '#22332a', '#1c2a21', '#26372b'], blade: '#2f4a3a', bladeDark: '#16231b',
     litter: ['#3a3a26', '#2e3020', '#4a4a30'], moss: '#2f5040', vines: '#24402e', mushroom: '#6a3a7a', fern: '#2e4a36',
     path: '#2e2a20', pathEdge: '#1a170f', pebble: '#4a4636',
@@ -3151,7 +3171,7 @@ BIOMES.mine = biomeVariant('cave', {
   loot: { berry: 20, crystal: 30, gems: 40, relic: 20 }, dropBerry: .12,
   mm: { floor: '#6a5a3e', corr: '#4a3e2e' },
   pal: {
-    ambient: [12, 7, 3, .5], terrain: 'mine', dustColor: '#ffd9a0', glowDecal: '#e8a040',
+    ambient: [12, 7, 3, .36], terrain: 'mine', dustColor: '#ffd9a0', glowDecal: '#e8a040',
     grass: ['#28221d', '#28221d', '#28221d', '#28221d'], blade: '#342c25', bladeDark: '#1a1612',
     path: '#2e2722', pathEdge: '#17130f', pebble: '#4a4036',
     floor: ['#2c2620', '#29231e', '#302923'], floorLine: '#15110d',
@@ -3448,6 +3468,12 @@ const CHEST_LOOK = {
   cofreJefe: { name: 'Cofre del guardián', wood: ['#2a1206', '#6a2a10', '#9a4a1c', '#c8702c'], band: ['#3a2a06', '#e0b040', '#fff2a8'], light: [255, 210, 120] },
 };
 function drawChest(c, x, y, tier, open, t) {
+  if (typeof ChestArt !== 'undefined' && typeof document !== 'undefined') {   // sprite detallado en caché (4 fases de apertura)
+    const cv = ChestArt.sprite(tier, Math.min(3, Math.round(open * 3))); c.drawImage(cv, Math.round(x - 18), Math.round(y - 30));
+    if (tier !== 'cofre' && open < 1) { const a = .3 + .25 * Math.sin(t * 4); c.globalAlpha = a; c.fillStyle = '#ffffff'; c.fillRect(x - 14, y - 16, 1, 1); c.fillRect(x + 13, y - 10 + Math.round(Math.sin(t * 3) * 2), 1, 1); c.fillRect(x + 4, y - 20 + Math.round(Math.cos(t * 2.4) * 2), 1, 1); c.globalAlpha = 1; }
+    if (open > 0 && open < 1 && tier !== 'cofre') { c.globalAlpha = .5 * (1 - open); c.fillStyle = 'rgba(255,240,180,.8)'; c.fillRect(x - 9, y - 22 - open * 8, 18, 8 + open * 8); c.globalAlpha = 1; }
+    return;
+  }
   const L = CHEST_LOOK[tier] || CHEST_LOOK.cofre, W = L.wood, B = L.band, R = (a, b, w, h, col) => { c.fillStyle = col; c.fillRect(x + a, y + b, w, h); };
   R(-13, 7, 26, 3, 'rgba(0,0,0,.35)'); R(-11, 9, 22, 1, 'rgba(0,0,0,.25)');
   // cuerpo
@@ -4434,4 +4460,4 @@ const Quests = {
 
   return { CONFIG, U, T, SOLID, TILE_NAMES, World, Particles, CLASSES, CLASS_STATS, ELITE, eliteChance, floorEnemies, FAMILIES, Deco, Terrain, ALLY_ABILITY, canEquip, OLD_EQUIP_SLOTS, FRACTION_STATS, fmtStat, DMG, classMoves, groundTarget, SPECIES, EVOLVED, FORMS, Progress, EVOLUTIONS, EVO_ITEM_MIN_LEVEL, Combat, Effects, Projectile, Zone, BLOCKS_SHOT, TYPES, TYPE_CHART, typeEff, calcStats, MAX_LEVEL, expNeed, expYield, MOVES, BOONS, Boons, BOSS_RAGE, GEODA, Geoda, Boulder, Actor, Player, Enemy, STOP, ENEMIES, ENEMY_VARIANTS, makeKind, BOSSES, makeBossKind, BIOMES, RARITIES, CATEGORIES, EQUIP_SLOTS, ITEMS, QUICK, RARITY_ORDER, STAT_NAMES, BASE_SHOP, SHOP_TIERS, shopStock, sellPrice, RECIPES, newUid, LOOT, Loot, Inventory, finalStats, freshEquip, equipRegen, TRAPS, DUNGEONS, dungeonById, dungeonOpen, COURIER_INTRO, enemyLevel, RANKS, rankOf, weighted, Jobs, ECONOMY, SAVE_VERSION, checksum, Save, FloorGen, hashStr, RECRUIT, ORDERS, gridPath, Companion, LEGACY_JOBS, isLegacyJob, Quests };
 }
-export const SOURCE_HASH = '07f91d9ef784be4c';
+export const SOURCE_HASH = '9f91365d83f4b19c';

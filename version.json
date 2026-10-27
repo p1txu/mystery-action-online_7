@@ -1,12 +1,14 @@
 {
-  "build": 36,
-  "version": "0.36",
+  "build": 37,
+  "version": "0.37",
   "date": "2026-10-27",
   "notes": [
-    "Vecinos humanos según su oficio: el alcalde con abrigo de piel, cadena y bastón; la maestra del gremio con su gabán, banda y registro; el cartero con cartera y gorra de pluma; el mercader con su fardo; la curandera de la hoguera; el guardia con capacete y lanza, y el mozo del campamento con sombrero de paja y cayado.",
-    "La tienda tiene toldos a rayas, estanterías y mesas de mercado con fruta, pan, queso, pociones, telas y una balanza. El gremio, estandartes, un trofeo, tablón de encargos, armero, muñeco de prácticas, farol y veleta. La hoguera y su cuidadora están ahora en la plaza, junto a la casa del alcalde; donde estaba, un pozo.",
-    "Arreglado el temblor al empezar a andar (la animación se aceleraba al ganar velocidad).",
-    "Todos los personajes van un 15 % más lentos (los enemigos un 10 %). Más adelante, unas botas podrán subir la velocidad.",
-    "Balance (tras simular 160 expediciones con el motor del juego): la quemadura y el veneno quitan mucho menos y la armadura los reduce; Asesino −13 % en el básico; Arquero +15 %; Guerrero +12 % y más ataque al subir de nivel."
+    "Aldea reconstruida al estilo de la referencia: adoquines uno a uno con musgo, tierra y grietas; plaza de losas en anillos con rosa de los vientos; hierba con matas y flores; estanque de orilla de piedra.",
+    "13 casas de sillería y entramado con tejados de teja verde y roja, pizarra azul y paja: el gremio con estandartes y antorchas, la tienda con estanterías y puestos con toldo, la casa del alcalde, una taberna con terraza y seis casas nuevas.",
+    "Objetos con su colisión: barriles, cajas, sacos, mesas, sillas, puestos, carro, heno, pozo, farolas, macetas, armero, muñeco, tiendas de campaña, árboles, rocas y juncos. La puerta de las mazmorras es ahora dos torres con braseros y un arco.",
+    "Profundidad: puedes pasar por delante y por detrás de casas, árboles y objetos; si algo te tapa, se vuelve semitransparente.",
+    "Luz de atardecer cálida sin velo oscuro: ventanas encendidas, antorchas y braseros con llama animada, farolas y hoguera.",
+    "Mazmorras pintadas píxel a píxel por bioma (bosque, ciénaga, cueva, mina con raíles y cráter de basalto), con muros de cara y canto, sombra junto a los muros y menos oscuridad. Árboles del bosque ordenados en profundidad.",
+    "Cofres nuevos con 4 fases de apertura e interfaz de madera con remaches de latón."
   ]
 }
