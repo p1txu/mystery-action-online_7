@@ -237,7 +237,7 @@ h1 span{display:block;color:var(--amber)}
 .inv-stats em{font-size:.72rem}
 .rowlist .ii{width:28px;height:28px}
 .buff{color:#7dffa0}
-#dialog p{margin:0;font-size:1rem;line-height:1.5}
+#dialog p{margin:0;font-size:1rem;line-height:1.5;white-space:pre-line}
 #boons{position:absolute;bottom:calc(112px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);z-index:6;text-align:center;pointer-events:auto;max-width:calc(100vw - 32px)}
 #boons .boons-title{font-family:var(--serif,serif);color:#f3e7c8;font-size:1rem;margin-bottom:6px;text-shadow:0 2px 6px #000}
 #boons .boons-title small{display:block;font-family:inherit;font-size:.72rem;color:#b9ab8c}
@@ -748,7 +748,7 @@ class World {
   inBounds(tx, ty) { return tx >= 0 && ty >= 0 && tx < this.w && ty < this.h; }
   get(tx, ty) { return this.inBounds(tx, ty) ? this.tiles[ty * this.w + tx] : T.WALL; }
   set(tx, ty, t) { if (this.inBounds(tx, ty)) this.tiles[ty * this.w + tx] = t; }
-  isSolid(tx, ty) { return SOLID[this.get(tx, ty)] === 1 || (this.blk !== null && this.inBounds(tx, ty) && this.blk[ty * this.w + tx] === 1); }
+  isSolid(tx, ty) { if (this.pass && this.inBounds(tx, ty) && this.pass[ty * this.w + tx] === 1) return this.blk !== null && this.blk[ty * this.w + tx] === 1; return SOLID[this.get(tx, ty)] === 1 || (this.blk !== null && this.inBounds(tx, ty) && this.blk[ty * this.w + tx] === 1); }   // pass: puentes sobre el agua
   /** Bloqueo temporal de una casilla (no cambia el dibujo del suelo). */
   block(tx, ty, on) { if (!this.inBounds(tx, ty)) return; if (!this.blk) this.blk = new Uint8Array(this.w * this.h); this.blk[ty * this.w + tx] = on ? 1 : 0; }
   blockedAt(px, py) { if (!this.blk) return false; const s = CONFIG.TILE, tx = Math.floor(px / s), ty = Math.floor(py / s); return this.inBounds(tx, ty) && this.blk[ty * this.w + tx] === 1; }
@@ -1393,6 +1393,9 @@ const Deco = {
     for (const o of L.objects) mark(o.tx, o.ty, 1);
     for (const it of L.items) mark(it.tx, it.ty, 0);
     for (const t of L.traps) mark(t.tx, t.ty, 0);
+    for (const m of L.mechs || []) { if (m.tx != null) mark(m.tx, m.ty, 1); for (const i of m.tiles || []) mark(i % W, (i / W) | 0, 1); }   // mecanismos: siempre a la vista
+    for (const l of L.lore || []) mark(l.tx, l.ty, 1);
+    for (const a of L.alcoves || []) for (let y = a.y; y < a.y + a.h; y++) for (let x = a.x; x < a.x + a.w; x++) mark(x, y, 0);
     for (const n of L.npcs) mark(n.tx, n.ty, 1);
     for (const e of L.enemies) mark(e.tx, e.ty, e.boss ? 3 : 1);
     const solid = (x, y) => SOLID[world.get(x, y)] === 1;
@@ -1772,7 +1775,7 @@ const Combat = {
   /** Círculo centrado en (x,y). hitSet evita golpear dos veces al mismo objetivo con el mismo ataque. */
   circle(g, team, x, y, r, o, hitSet) {
     let n = 0;
-    if (g.onCombatArea) g.onCombatArea(team, x, y, r);
+    if (g.onCombatArea) g.onCombatArea(team, x, y, r, o && o.src);
     for (const t of this.foes(g, team)) {
       if (hitSet && hitSet.has(t)) continue;
       const dx = t.x - x, dy = t.y - y, d = Math.hypot(dx, dy);
@@ -1799,7 +1802,7 @@ const Combat = {
   /** Sector circular: alcance range, semiángulo half (radianes), orientado según ang. */
   arc(g, team, x, y, ang, range, half, o, hitSet) {
     let n = 0;
-    if (g.onCombatArea) g.onCombatArea(team, x + Math.cos(ang) * range * .5, y + Math.sin(ang) * range * .5, range * .6);
+    if (g.onCombatArea) g.onCombatArea(team, x + Math.cos(ang) * range * .5, y + Math.sin(ang) * range * .5, range * .6, o && o.src);
     for (const t of this.foes(g, team)) {
       if (hitSet && hitSet.has(t)) continue;
       const dx = t.x - x, dy = t.y - y, d = Math.hypot(dx, dy);
@@ -1971,7 +1974,9 @@ class Projectile {
     for (let i = 0; i < steps && this.alive; i++) {
       this.x += this.vx * dt / steps; this.y += this.vy * dt / steps;
       const tt = g.world.tileAt(this.x, this.y);
-      if (BLOCKS_SHOT[tt] || g.world.blockedAt(this.x, this.y)) { if (tt === T.SECRET && this.team === 'player' && g.dungeon) g.dungeon.hitArea(this.x, this.y, 6); this.alive = false; Effects.burst(g, this.x, this.y - this.h, this.color, 6, 70, .25); return; }
+      const by = this.src || (this.hit && this.hit.src) || null;
+      if (this.team === 'player' && g.onShotMove && g.onShotMove(this.x, this.y, by)) { this.alive = false; Effects.burst(g, this.x, this.y - this.h, this.color, 6, 70, .25); return; }   // palanca o altar
+      if (BLOCKS_SHOT[tt] || g.world.blockedAt(this.x, this.y)) { if (this.team === 'player' && g.onCombatArea) g.onCombatArea('shot', this.x, this.y, 6, by); this.alive = false; Effects.burst(g, this.x, this.y - this.h, this.color, 6, 70, .25); return; }
       for (const t of Combat.foes(g, this.team)) {
         if (this.hitSet.has(t)) continue;
         if (Math.hypot(t.x - this.x, t.y - this.y) > this.r + t.radius) continue;
@@ -2419,7 +2424,7 @@ class Player extends Actor {
     this.hp = Math.min(this.maxHp, this.hp + n); this.belly = Math.min(this.bellyMax, this.belly + belly);
     return true;
   }
-  get dmgMul() { return this.mods.dmg * (this.focusT > 0 ? 1.5 : 1); }
+  get dmgMul() { return this.mods.dmg * (this.focusT > 0 ? 1.5 : 1) * (this.altarMul || 1); }   // altarMul: altar de savia (solo en ese piso)
   /** Maná o energía máximos de la clase (atributo mp). */
   get maxEnergy() { return (this.stats && this.stats.mp) || CONFIG.ENERGY_MAX; }
   get maxDodge() { return CONFIG.DODGE_CHARGES + ((this.boons && this.boons.esquiva) || 0); }
@@ -4738,9 +4743,14 @@ const FloorGen = {
     // Alfombra de la tienda
     if (L.shopRoom >= 0) { const r = rooms[L.shopRoom]; for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) if (!SOLID[world.tiles[idx(x, y)]]) world.tiles[idx(x, y)] = T.CARPET; }
 
+    // 7b. Salas con propósito (DungeonPlan): papeles, nichos, mecanismos y textos. Generador aleatorio propio:
+    // no cambia la secuencia del resto del piso.
+    const occupied = new Set();
+    L.mechs = []; L.lore = []; L.alcoves = []; L.events = [];
+    const plan = { world, rooms, start, stairsRoom, dng, floorNo, biome, rnd: this.rng(seed, dng, floorNo, attempt, 0xD1C3), L, occupied, mouthNear: corrNear };
+    if (!dng.noPlan) DungeonPlan.apply(plan);
     // 8. Contenido
     const R0 = reach(spawnIdx).seen, R1 = reach(spawnIdx, t => t === T.DOOR).seen;
-    const occupied = new Set();
     const roomOk = (r, x, y, seenArr, clear = 0) => {
       if (x < r.x + clear || y < r.y + clear || x >= r.x + r.w - clear || y >= r.y + r.h - clear) return false;
       for (let j = -clear; j <= clear; j++) for (let i = -clear; i <= clear; i++) { const k = idx(x + i, y + j); if (SOLID[world.tiles[k]] || !seenArr[k] || world.tiles[k] === T.STAIRS) return false; }
@@ -4817,7 +4827,7 @@ const FloorGen = {
     }
     // Enemigos iniciales (lejos de la entrada)
     const nEn = Math.min(Z.enemies[1], Math.round((dng.enemyBase + Math.floor(floorNo / (dng.enemyStep || 2)) + ri(0, 2)) * Z.enemies[0]));   // (factor 1: el cooperativo no añade enemigos por el tamaño del mapa; ver COOP_SCALING)
-    const enemyRooms = rooms.filter(r => r.type === 'normal'), pool = floorEnemies(dng, floorNo), pE = eliteChance(dng, floorNo), elites = {};
+    const enemyRooms = rooms.filter(r => r.type === 'normal' && r.role !== 'rest' && r.role !== 'miniboss'), pool = floorEnemies(dng, floorNo), pE = eliteChance(dng, floorNo), elites = {};
     for (let i = 0; i < nEn * 3 && L.enemies.length < nEn && enemyRooms.length; i++) {
       const r = pick(enemyRooms), s = spotIn(r, R0, 1, 9); if (!s) continue;
       const variant = weighted(pool, rnd), fam = makeKind(variant).family || ENEMY_VARIANTS[variant].base;
@@ -4829,6 +4839,20 @@ const FloorGen = {
       if (pk && !elite) for (let k = 1, n = pk[0] + Math.floor(rnd() * (pk[1] - pk[0] + 1)); k < n; k++) {
         for (let t = 0; t < 8; t++) { const x = s.tx + ri(-2, 2), y = s.ty + ri(-2, 2); if (roomOk(r, x, y, R0, 1) && Math.hypot(x - start.cx, y - start.cy) >= 9) { occupied.add(idx(x, y)); L.enemies.push({ variant, tx: x, ty: y, room: r.id, elite: false, pack: L.enemies.length }); break; } }
       }
+    }
+    // Sala de élite: un élite con dos guardias y un cofre de plata
+    for (const r of rooms.filter(r => r.role === 'elite')) {
+      const s = spotIn(r, R0, 1, 9); if (!s) { r.role = 'combat'; continue; }
+      const variant = weighted(pool, rnd); L.enemies.push({ variant, tx: s.tx, ty: s.ty, room: r.id, elite: true, eliteRoom: true });
+      for (let g = 0; g < 2; g++) { const q = spotIn(r, R0, 1, 9); if (q) L.enemies.push({ variant: weighted(pool, rnd), tx: q.tx, ty: q.ty, room: r.id, elite: false, guard: true }); }
+      const c = spotChest(r); if (c) { const ch = { type: 'chest', tier: 'cofrePlata', tx: c.tx, ty: c.ty, room: r.id, reward: true }; chests.push(ch); L.objects.push(ch); }
+    }
+    // Minijefe (penúltimo piso): enemigo con nombre, más PS, y un cofre raro que aparece al vencerlo
+    if (plan.mini && ENEMY_VARIANTS[plan.mini.variant]) {
+      const r = plan.mini.room, s = spotIn(r, R0, 2, 9);
+      if (s) { L.enemies.push({ variant: plan.mini.variant, tx: s.tx, ty: s.ty, room: r.id, elite: true, mini: plan.mini.hp, name: plan.mini.name });
+        const c = spotIn(r, R0, 1); if (c) L.objects.push({ type: 'chest', tier: 'cofreRaro', tx: c.tx, ty: c.ty, room: r.id, hiddenUntil: 'mini', reward: true }); }
+      else r.role = 'combat';
     }
     // Objetivos de los encargos aceptados para este piso
     for (const j of jobs) {
@@ -4857,7 +4881,7 @@ const FloorGen = {
     const R0 = reach(null), R1 = reach(t => t === T.DOOR);
     const solid = (x, y) => SOLID[world.tiles[idx(x, y)]];
     const inRect = (r, x, y) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
-    const roomOf = (x, y) => L.rooms.find(r => inRect(r, x, y));
+    const roomOf = (x, y) => L.rooms.find(r => inRect(r, x, y)) || (L.alcoves || []).find(a => inRect(a, x, y));
     const reachFor = (x, y) => { const r = roomOf(x, y); return r && r.type === 'treasure' ? R1 : R0; };
     const c = {};
     c.spawnClear = [-1, 0, 1].every(j => [-1, 0, 1].every(i => !solid(L.spawn.tx + i, L.spawn.ty + j))) && !!roomOf(L.spawn.tx, L.spawn.ty);
@@ -4874,13 +4898,545 @@ const FloorGen = {
     c.trapsInRooms = L.traps.every(t => roomOf(t.tx, t.ty) && !solid(t.tx, t.ty) && !taken.has(idx(t.tx, t.ty)) && !(t.tx === L.spawn.tx && t.ty === L.spawn.ty) && world.tiles[idx(t.tx, t.ty)] !== T.STAIRS);
     c.enemiesClear = L.enemies.every(e => [-1, 0, 1].every(j => [-1, 0, 1].every(i => !solid(e.tx + i, e.ty + j))) && R0[idx(e.tx, e.ty)]);
     c.enemiesAwayFromSpawn = L.enemies.every(e => L.kind === 'boss' || Math.hypot(e.tx - L.spawn.tx, e.ty - L.spawn.ty) >= 6);
-    c.chestsInRooms = L.objects.filter(o => o.type === 'chest').every(o => roomOf(o.tx, o.ty) && !solid(o.tx, o.ty) && reachFor(o.tx, o.ty)[idx(o.tx, o.ty)] && !taken.has(idx(o.tx, o.ty)) && !L.traps.some(t => t.tx === o.tx && t.ty === o.ty));
+    c.chestsInRooms = L.objects.filter(o => o.type === 'chest').every(o => roomOf(o.tx, o.ty) && !solid(o.tx, o.ty) && (o.alcove || reachFor(o.tx, o.ty)[idx(o.tx, o.ty)]) && !taken.has(idx(o.tx, o.ty)) && !L.traps.some(t => t.tx === o.tx && t.ty === o.ty));   // los de nicho los comprueba el resolutor
     c.npcsReachable = L.npcs.every(n => !solid(n.tx, n.ty) && R0[idx(n.tx, n.ty)]);
     c.hiddenStairs = !L.hiddenStairs || (!solid(L.hiddenStairs.tx, L.hiddenStairs.ty) && !!R0[idx(L.hiddenStairs.tx, L.hiddenStairs.ty)]);
     c.keyForDoor = L.doors.length === 0 || L.items.some(i => i.id === 'llave' && R0[idx(i.tx, i.ty)]);
-    return { ok: Object.values(c).every(Boolean), checks: c };
+    // Mecanismos: todo alcanzable en solitario, escalera sin depender de ellos y sin bloqueos permanentes
+    const mech = (L.mechs && L.mechs.length) || (L.alcoves && L.alcoves.length) ? MechSolver.solve(world, L) : { ok: true, checks: {} };
+    c.mechsSolvable = mech.ok; if (!mech.ok) c.mechDetail = mech;
+    { const ids = (L.mechs || []).map(m => m.id); c.mechIdsUnique = new Set(ids).size === ids.length; }
+    c.mechsInside = (L.mechs || []).every(m => (m.tx == null || (!solid(m.tx, m.ty) && roomOf(m.tx, m.ty))) && (m.type === 'ambush' || m.type === 'spikes' || m.type === 'hazard' || (m.tiles || []).every(i => world.tiles[i] !== T.STAIRS)));
+    c.loreReachable = (L.lore || []).every(l => !solid(l.tx, l.ty) && R0[idx(l.tx, l.ty)]);
+    const okAll = Object.entries(c).every(([k, v]) => k === 'mechDetail' || Boolean(v));
+    return { ok: okAll, checks: c };
   },
 };
+
+/* ---------- 18b. Mazmorras: salas con propósito, mecanismos y resolutor ----------
+   Amplía FloorGen sin sustituirlo: después de excavar salas y pasillos, `DungeonPlan` da un papel a
+   algunas salas (puzle, historia, trampa, emboscada, élite, descanso, evento, minijefe) y aplica una
+   plantilla (`Prefabs`). Las plantillas ponen sus premios en NICHOS excavados en la roca junto a la sala,
+   así el camino principal nunca depende de un mecanismo. `MechSolver` recorre los estados posibles
+   (palancas, placas de tiempo, roturas) y comprueba que todo se puede alcanzar en solitario y que no hay
+   bloqueos permanentes. `Mechs` es el estado en juego: lo usan el navegador sin red y el servidor. */
+
+/** Textos que se leen en el escenario (narrativa ambiental, coherente con la biblia narrativa). */
+const LORE = {
+  forest: [
+    { id: 'f_carro', title: 'Restos de un carro', text: 'Un eje partido y una lona quemada con un sol de siete rayos. Uno de los rayos está tachado a cuchillo. Huele a ceniza vieja, de hace pocas semanas.' },
+    { id: 'f_estela', title: 'Estela cubierta de musgo', text: 'Letras que no se parecen a ninguna conocida. Al tocarla, el musgo se aparta solo y la piedra está tibia, como si algo latiera muy abajo.' },
+    { id: 'f_lenador', title: 'Diario de un leñador', text: '«Los robles se pudren por dentro y por fuera parecen sanos. Anoche pasaron ratas, limos y hasta un cuervo, todos cuesta arriba. Ninguno me miró.»' },
+    { id: 'f_explorador', title: 'Marca del gremio', text: 'Una marca de tiza del gremio de la Aldea Raíz: «Explorador Irene, piso 3, todo bien». Debajo, otra mano añadió: «No volvió a pasar».' },
+    { id: 'f_raiz', title: 'Raíz luminosa', text: 'Una raíz gruesa asoma del suelo y brilla como el cuarzo. Va hacia el centro del bosque, hacia el roble más viejo.' },
+    { id: 'f_nido', title: 'Nido abandonado', text: 'Un nido de cuervo lleno de cosas brillantes: botones, una hebilla de la Orden, monedas. Los cuervos se fueron con prisa.' },
+    { id: 'f_tumba', title: 'Túmulo de piedras', text: 'Siete piedras en círculo, una más pequeña en el centro. Alguien dejó flores frescas. No hay huellas que lleguen ni que se vayan.' },
+  ],
+};
+
+const DungeonPlan = {
+  /** Papeles por bioma: [piso mínimo, probabilidad por piso, máximo por piso]. Los biomas sin tabla usan `forest` como base. */
+  ROLES: {
+    forest: { story: [1, .8, 1], puzzle: [1, .85, 1], secret: [1, .55, 1], trap: [2, .55, 1], ambush: [2, .45, 1], elite: [2, .5, 1], rest: [3, .5, 1], event: [1, .4, 1], breakable: [1, .5, 1], coop: [2, .45, 1] },
+  },
+  /** Minijefe del bioma: variante, nombre y multiplicador de PS (en el penúltimo piso). */
+  MINI: { forest: { variant: 'zarza', name: 'Zarzal Madre', hp: 3 }, marsh: { variant: 'musgon', name: 'Musgón Viejo', hp: 3 }, cave: { variant: 'geodon', name: 'Geodón Antiguo', hp: 3 }, mine: { variant: 'ferron', name: 'Ferrón Capataz', hp: 3 }, volcano: { variant: 'basalton', name: 'Basaltón Ígneo', hp: 3 } },
+  table(biome) { return this.ROLES[biome] || null; },   // etapa 1: solo Brumaverde; los demás biomas siguen con el generador de siempre hasta su etapa
+
+  /** Da papeles y aplica plantillas. Se llama dentro de FloorGen.buildNormal con su propio generador aleatorio. */
+  apply(ctx) {
+    const { rooms, start, stairsRoom, dng, floorNo, biome, rnd, L } = ctx;
+    const T0 = this.table(biome.id), pick = a => a[Math.floor(rnd() * a.length)];
+    L.mechs = L.mechs || []; L.lore = L.lore || []; L.alcoves = L.alcoves || []; L.events = L.events || [];
+    if (!T0) { for (const r of rooms) r.role = r.type === 'start' ? 'start' : r.type === 'treasure' ? 'treasure' : r.type === 'shop' ? 'shop' : r.type === 'monsterhouse' ? 'ambush' : 'combat'; return; }
+    const free = () => rooms.filter(r => r.type === 'normal' && !r.role && r !== start);
+    const tryRole = (role, list) => {
+      const pre = Prefabs.list.filter(p => p.role === role && (!p.biomes || p.biomes.includes(biome.id)) && (!p.floors || (floorNo >= p.floors[0] && floorNo <= p.floors[1])));
+      if (!pre.length) return false;
+      for (let k = 0; k < 6; k++) {
+        const cand = list().filter(r => pre.some(p => r.w >= p.min[0] && r.h >= p.min[1]));
+        if (!cand.length) return false;
+        const r = pick(cand), opts = pre.filter(p => r.w >= p.min[0] && r.h >= p.min[1]);
+        let tot = opts.reduce((s, p) => s + (p.weight || 1), 0), q = rnd() * tot, P = opts[0];
+        for (const p of opts) if ((q -= p.weight || 1) < 0) { P = p; break; }
+        const snap = Prefabs.snapshot(ctx);
+        if (P.build(Object.assign({}, ctx, { room: r, P }))) { r.role = role; r.prefab = P.id; return true; }
+        Prefabs.restore(ctx, snap);
+      }
+      return false;
+    };
+    // Minijefe en el penúltimo piso (si hay sala grande)
+    const M = this.MINI[biome.id];
+    if (M && floorNo === dng.floors - 1) {
+      const big = free().filter(r => r !== stairsRoom && r.w * r.h >= 60).sort((a, b) => b.w * b.h - a.w * a.h)[0];
+      if (big) { big.role = 'miniboss'; ctx.mini = { room: big, ...M }; }
+    }
+    const order = ['puzzle', 'story', 'secret', 'breakable', 'coop', 'trap', 'event', 'rest', 'ambush', 'elite'];
+    for (const role of order) {
+      const t = T0[role]; if (!t || floorNo < t[0]) continue;
+      for (let n = 0; n < t[2]; n++) if (rnd() < t[1]) {
+        if (role === 'ambush' || role === 'elite' || role === 'rest') { const c = free().filter(r => r !== stairsRoom && r.w >= 6 && r.h >= 5); if (c.length) { const r = pick(c); r.role = role; if (role === 'ambush') Prefabs.ambush(ctx, r); if (role === 'rest') Prefabs.rest(ctx, r); } }
+        else tryRole(role, free);
+      }
+    }
+    for (const r of rooms) if (!r.role) r.role = r.type === 'start' ? 'start' : r.type === 'treasure' ? 'treasure' : r.type === 'shop' ? 'shop' : r.type === 'monsterhouse' ? 'ambush' : 'combat';
+  },
+};
+
+/** Plantillas de sala. `build(ctx)` devuelve false si no cabe (se deshace y se prueba otra). */
+const Prefabs = {
+  /** Copia de lo que una plantilla puede tocar, para deshacerla si no cabe. */
+  snapshot(ctx) { return { tiles: ctx.world.tiles.slice(), mechs: ctx.L.mechs.length, lore: ctx.L.lore.length, alcoves: ctx.L.alcoves.length, objects: ctx.L.objects.length, items: ctx.L.items.length, occ: new Set(ctx.occupied) }; },
+  restore(ctx, s) { ctx.world.tiles.set(s.tiles); ctx.L.mechs.length = s.mechs; ctx.L.lore.length = s.lore; ctx.L.alcoves.length = s.alcoves; ctx.L.objects.length = s.objects; ctx.L.items.length = s.items; ctx.occupied.clear(); s.occ.forEach(v => ctx.occupied.add(v)); },
+  uid(ctx, p) { const L = ctx.L; L.mechN = (L.mechN || 0) + 1; return p + L.mechN; },   // contador en el piso (las plantillas reciben copias de ctx)
+  /** Casilla libre dentro de la sala, lejos de las paredes `pad` casillas y de lo ya ocupado. */
+  spot(ctx, r, pad = 1, avoid = []) {
+    const { world, rnd, occupied } = ctx, W = world.w;
+    for (let k = 0; k < 60; k++) {
+      const x = r.x + pad + Math.floor(rnd() * Math.max(1, r.w - pad * 2)), y = r.y + pad + Math.floor(rnd() * Math.max(1, r.h - pad * 2)), i = y * W + x;
+      if (SOLID[world.tiles[i]] || occupied.has(i) || world.tiles[i] === T.STAIRS) continue;
+      if (avoid.some(([ax, ay, d]) => Math.hypot(ax - x, ay - y) < d)) continue;
+      if (ctx.mouthNear && ctx.mouthNear[i]) continue;
+      occupied.add(i); return { tx: x, ty: y };
+    }
+    return null;
+  },
+  /**
+   * Excava un nicho de `w`×`h` en la roca junto a la sala, separado por una franja de 1 casilla (la boca,
+   * de `mouth` casillas de ancho). Solo si alrededor todo es roca (no toca pasillos ni otras salas).
+   * Devuelve { x, y, w, h, mouth: [índices], side, inner: [tx, ty] (casilla del fondo) }.
+   */
+  alcove(ctx, r, w, h, mouth = 2) {
+    const { world, rnd, biome } = ctx, W = world.w, H = world.h, idx = (x, y) => y * W + x;
+    const sides = [0, 1, 2, 3]; for (let k = 3; k > 0; k--) { const j = Math.floor(rnd() * (k + 1)); [sides[k], sides[j]] = [sides[j], sides[k]]; }   // barajado propio: sort con azar no es reproducible
+    for (const side of sides) {
+      for (let k = 0; k < 6; k++) {
+        let x, y, mx, my, horiz;
+        if (side === 0) { horiz = false; x = r.x + r.w + 1; y = r.y + Math.floor(rnd() * Math.max(1, r.h - h + 1)); }
+        else if (side === 1) { horiz = false; x = r.x - 1 - w; y = r.y + Math.floor(rnd() * Math.max(1, r.h - h + 1)); }
+        else if (side === 2) { horiz = true; y = r.y + r.h + 1; x = r.x + Math.floor(rnd() * Math.max(1, r.w - w + 1)); }
+        else { horiz = true; y = r.y - 1 - h; x = r.x + Math.floor(rnd() * Math.max(1, r.w - w + 1)); }
+        if (x < 2 || y < 2 || x + w > W - 2 || y + h > H - 2) continue;
+        // todo roca en el nicho + 1 de margen, salvo la franja de la boca que linda con la sala
+        let ok = true;
+        for (let ty = y - 1; ty <= y + h && ok; ty++) for (let tx = x - 1; tx <= x + w && ok; tx++) {
+          const inGap = side === 0 ? tx === x - 1 && ty >= y && ty < y + h : side === 1 ? tx === x + w && ty >= y && ty < y + h : side === 2 ? ty === y - 1 && tx >= x && tx < x + w : ty === y + h && tx >= x && tx < x + w;
+          if (inGap) continue;
+          if (world.tiles[idx(tx, ty)] !== T.WALL) ok = false;
+        }
+        if (!ok) continue;
+        // boca: `mouth` casillas centradas en el lado que da a la sala, dentro del tramo compartido
+        const m = [], len = horiz ? w : h, off = Math.floor((len - mouth) / 2);
+        for (let k2 = 0; k2 < mouth; k2++) {
+          if (side === 0) m.push(idx(x - 1, y + off + k2)); else if (side === 1) m.push(idx(x + w, y + off + k2));
+          else if (side === 2) m.push(idx(x + off + k2, y - 1)); else m.push(idx(x + off + k2, y + h));
+        }
+        // la boca debe tocar la sala por el otro lado
+        const touches = m.every(i => { const tx = i % W, ty = (i / W) | 0, nx = side === 0 ? tx - 1 : side === 1 ? tx + 1 : tx, ny = side === 2 ? ty - 1 : side === 3 ? ty + 1 : ty; return nx >= r.x && nx < r.x + r.w && ny >= r.y && ny < r.y + r.h && !SOLID[world.tiles[idx(nx, ny)]]; });
+        if (!touches) continue;
+        for (let ty = y; ty < y + h; ty++) for (let tx = x; tx < x + w; tx++) world.tiles[idx(tx, ty)] = biome.roomTile;
+        m.forEach(i => world.tiles[i] = biome.roomTile);
+        // casilla del fondo (la más alejada de la boca)
+        const inner = side === 0 ? [x + w - 1, y + (h >> 1)] : side === 1 ? [x, y + (h >> 1)] : side === 2 ? [x + (w >> 1), y + h - 1] : [x + (w >> 1), y];
+        const a = { x, y, w, h, mouth: m, side, inner, room: r.id };
+        ctx.L.alcoves.push(a);
+        m.forEach(i => ctx.occupied.add(i));
+        return a;
+      }
+    }
+    return null;
+  },
+  chest(ctx, a, tier, extra = {}) { const [tx, ty] = a.inner; ctx.occupied.add(ty * ctx.world.w + tx); ctx.L.objects.push(Object.assign({ type: 'chest', tier, tx, ty, room: a.room, alcove: true, reward: true }, extra)); },   // reward: premio de una sala (aparte de los 1-3 cofres del piso)
+  addMech(ctx, m) { ctx.L.mechs.push(m); if (m.tx != null) ctx.occupied.add(m.ty * ctx.world.w + m.tx); return m; },
+  lore(ctx, r, pool) {
+    const used = new Set(ctx.L.lore.map(l => l.id)), list = (LORE[ctx.biome.id] || LORE.forest).filter(l => !pool || pool.includes(l.id)).filter(l => !used.has(l.id));
+    if (!list.length) return false;
+    const s = this.spot(ctx, r, 1); if (!s) return false;
+    const l = list[Math.floor(ctx.rnd() * list.length)];
+    ctx.L.lore.push({ id: l.id, tx: s.tx, ty: s.ty, room: r.id });
+    return true;
+  },
+  /** Emboscada: rejas en las bocas de la sala que se cierran al llegar al centro y se abren al vencer la oleada. */
+  ambush(ctx, r) {
+    const { world, L } = ctx, W = world.w, mouths = [];
+    for (let x = r.x - 1; x <= r.x + r.w; x++) for (let y = r.y - 1; y <= r.y + r.h; y++) {
+      const edge = x === r.x - 1 || x === r.x + r.w || y === r.y - 1 || y === r.y + r.h; if (!edge) continue;
+      const corner = (x === r.x - 1 || x === r.x + r.w) && (y === r.y - 1 || y === r.y + r.h); if (corner) continue;
+      if (x < 0 || y < 0 || x >= W || y >= world.h) continue;
+      const i = y * W + x; if (!SOLID[world.tiles[i]]) mouths.push(i);
+    }
+    if (!mouths.length) return;
+    this.addMech(ctx, { id: this.uid(ctx, 'am'), type: 'ambush', room: r.id, tiles: mouths, rect: [r.x, r.y, r.w, r.h], wave: 3 + Math.min(3, ctx.floorNo >> 1), look: ctx.biome.id === 'forest' || ctx.biome.id === 'marsh' ? 'roots' : 'bars' });
+  },
+  rest(ctx, r) { const s = this.spot(ctx, r, 2); if (s) ctx.L.objects.push({ type: 'campfire', tx: s.tx, ty: s.ty, room: r.id, rest: true }); },
+
+  list: [
+    { id: 'raices_tiempo', role: 'puzzle', min: [7, 6], weight: 3, desc: 'Dos placas de tiempo abren unas raíces que guardan un nicho con un cofre',
+      build(ctx) {
+        const P = Prefabs, r = ctx.room, a = P.alcove(ctx, r, 3, 3, 2); if (!a) return false;
+        const p1 = P.spot(ctx, r, 1), p2 = p1 && P.spot(ctx, r, 1, [[p1.tx, p1.ty, 3]]); if (!p1 || !p2) return false;
+        if (Math.abs(p1.tx - p2.tx) + Math.abs(p1.ty - p2.ty) > 9) return false;   // a tiro de una carrera
+        const A = P.addMech(ctx, { id: P.uid(ctx, 'pl'), type: 'plate', mode: 'timer', time: 6, tx: p1.tx, ty: p1.ty, room: r.id });
+        const B = P.addMech(ctx, { id: P.uid(ctx, 'pl'), type: 'plate', mode: 'timer', time: 6, tx: p2.tx, ty: p2.ty, room: r.id });
+        P.addMech(ctx, { id: P.uid(ctx, 'gt'), type: 'gate', tiles: a.mouth.slice(), inputs: [A.id, B.id], logic: 'all', latch: true, look: 'roots', room: r.id, hint: 'Pisa las dos placas antes de que se apaguen' });
+        P.chest(ctx, a, 'cofrePlata'); return true;
+      } },
+    { id: 'palanca_puente', role: 'puzzle', min: [6, 5], weight: 2, desc: 'Una palanca levanta un puente de troncos sobre el agua de un nicho',
+      build(ctx) {
+        const P = Prefabs, r = ctx.room, a = P.alcove(ctx, r, 3, 4, 2); if (!a) return false;
+        // franja de agua entre la boca y el fondo; el puente (2 casillas) la cruza
+        const W = ctx.world.w, water = [], bridge = [], horiz = a.side >= 2;
+        const lines = horiz ? [a.side === 2 ? a.y + 1 : a.y + a.h - 2] : [a.side === 0 ? a.x + 1 : a.x + a.w - 2];
+        for (const L0 of lines) for (let k = 0; k < (horiz ? a.w : a.h); k++) { const tx = horiz ? a.x + k : L0, ty = horiz ? L0 : a.y + k; water.push(ty * W + tx); }
+        const mid = Math.floor(water.length / 2) - 1; bridge.push(water[mid], water[mid + 1]);
+        water.forEach(i => ctx.world.tiles[i] = T.WATER);
+        const s = P.spot(ctx, r, 1); if (!s) return false;
+        const lv = P.addMech(ctx, { id: P.uid(ctx, 'lv'), type: 'lever', tx: s.tx, ty: s.ty, room: r.id, hint: 'Golpea la palanca' });
+        P.addMech(ctx, { id: P.uid(ctx, 'br'), type: 'bridge', tiles: bridge, inputs: [lv.id], logic: 'any', look: 'logs', room: r.id });
+        P.chest(ctx, a, 'cofrePlata'); return true;
+      } },
+    { id: 'muro_agrietado', role: 'secret', min: [5, 5], weight: 3, desc: 'Una pared agrietada esconde una cámara',
+      build(ctx) {
+        const P = Prefabs, r = ctx.room, a = P.alcove(ctx, r, 4, 3, 1); if (!a) return false;
+        a.mouth.forEach(i => ctx.world.tiles[i] = T.SECRET);
+        P.addMech(ctx, { id: P.uid(ctx, 'fw'), type: 'falsewall', tiles: a.mouth.slice(), hp: 2, room: r.id, hint: 'Esa pared suena hueca' });
+        P.chest(ctx, a, ctx.rnd() < .3 ? 'cofreRaro' : 'cofrePlata', { secret: true });
+        return true;
+      } },
+    { id: 'raices_rompibles', role: 'breakable', min: [5, 5], weight: 2, desc: 'Raíces gruesas tapan un nicho; hay que romperlas a golpes',
+      build(ctx) {
+        const P = Prefabs, r = ctx.room, a = P.alcove(ctx, r, 3, 3, 2); if (!a) return false;
+        P.addMech(ctx, { id: P.uid(ctx, 'bk'), type: 'breakable', tiles: a.mouth.slice(), hp: 4, look: ctx.biome.id === 'forest' || ctx.biome.id === 'marsh' ? 'roots' : 'rocks', room: r.id, hint: 'Rómpelas a golpes' });
+        P.chest(ctx, a, 'cofre'); return true;
+      } },
+    { id: 'peso_compartido', role: 'coop', min: [9, 7], weight: 2, desc: 'Dos placas de peso (en grupo) o una palanca tras unas raíces (en solitario) abren un nicho',
+      build(ctx) {
+        const P = Prefabs, r = ctx.room, a = P.alcove(ctx, r, 3, 3, 2); if (!a) return false;
+        const b = P.alcove(ctx, r, 2, 2, 1); if (!b) return false;   // nicho pequeño con la palanca, tras raíces
+        const p1 = P.spot(ctx, r, 1), p2 = p1 && P.spot(ctx, r, 1, [[p1.tx, p1.ty, 5]]); if (!p1 || !p2) return false;
+        const A = P.addMech(ctx, { id: P.uid(ctx, 'pl'), type: 'plate', mode: 'hold', tx: p1.tx, ty: p1.ty, room: r.id });
+        const B = P.addMech(ctx, { id: P.uid(ctx, 'pl'), type: 'plate', mode: 'hold', tx: p2.tx, ty: p2.ty, room: r.id });
+        const RL = P.addMech(ctx, { id: P.uid(ctx, 'rl'), type: 'relay', inputs: [A.id, B.id], logic: 'all', room: r.id });
+        const [lx, ly] = b.inner; ctx.occupied.add(ly * ctx.world.w + lx);
+        const LV = P.addMech(ctx, { id: P.uid(ctx, 'lv'), type: 'lever', tx: lx, ty: ly, room: r.id, hint: 'Golpea la palanca' });
+        P.addMech(ctx, { id: P.uid(ctx, 'bk'), type: 'breakable', tiles: b.mouth.slice(), hp: 6, look: 'roots', room: r.id, hint: 'En solitario: rompe las raíces y usa la palanca' });
+        P.addMech(ctx, { id: P.uid(ctx, 'gt'), type: 'gate', tiles: a.mouth.slice(), inputs: [RL.id, LV.id], logic: 'any', latch: true, look: 'roots', room: r.id, hint: 'Hace falta peso en las dos placas a la vez' });
+        P.chest(ctx, a, 'cofrePlata'); return true;
+      } },
+    { id: 'raices_punzantes', role: 'trap', min: [7, 6], weight: 2, desc: 'Raíces punzantes que suben y bajan; una palanca las detiene. También hieren a los enemigos',
+      build(ctx) {
+        const P = Prefabs, r = ctx.room, W = ctx.world.w, tiles = [];
+        const vertical = r.w >= r.h, cut = vertical ? r.x + 2 + Math.floor(ctx.rnd() * (r.w - 4)) : r.y + 2 + Math.floor(ctx.rnd() * (r.h - 4));
+        for (let k = 0; k < (vertical ? r.h : r.w); k++) for (let d = 0; d < 2; d++) {
+          const tx = vertical ? cut + d : r.x + k, ty = vertical ? r.y + k : cut + d, i = ty * W + tx;
+          if (tx >= r.x + r.w || ty >= r.y + r.h || SOLID[ctx.world.tiles[i]] || ctx.world.tiles[i] === T.STAIRS || ctx.occupied.has(i)) continue;
+          tiles.push(i);
+        }
+        if (tiles.length < 4) return false;
+        tiles.forEach(i => ctx.occupied.add(i));
+        const s = P.spot(ctx, r, 1); if (!s) return false;
+        const lv = P.addMech(ctx, { id: P.uid(ctx, 'lv'), type: 'lever', tx: s.tx, ty: s.ty, room: r.id, hint: 'Golpea la palanca para detener las raíces' });
+        P.addMech(ctx, { id: P.uid(ctx, 'sp'), type: 'spikes', tiles, inputs: [lv.id], logic: 'any', invert: true, period: 2.6, up: .9, warn: .6, pct: .1, look: 'thorns', room: r.id });
+        return true;
+      } },
+    { id: 'esporas', role: 'trap', min: [7, 6], weight: 2, desc: 'Setas que sueltan esporas venenosas sobre media sala; rompiéndolas se acaba el veneno. El veneno daña a todos',
+      build(ctx) {
+        const P = Prefabs, r = ctx.room, hw = Math.max(3, r.w >> 1), rect = [r.x + (ctx.rnd() < .5 ? 0 : r.w - hw), r.y, hw, r.h];
+        const src = P.spot(ctx, { x: rect[0], y: rect[1], w: rect[2], h: rect[3] }, 1); if (!src) return false;
+        const W = ctx.world.w, i0 = src.ty * W + src.tx;
+        const sh = P.addMech(ctx, { id: P.uid(ctx, 'bk'), type: 'breakable', tiles: [i0], hp: 3, look: 'shroom', room: r.id, hint: 'Rompe la seta para acabar con las esporas' });
+        P.addMech(ctx, { id: P.uid(ctx, 'hz'), type: 'hazard', kind: 'poison', rect, inputs: [sh.id], logic: 'any', invert: true, room: r.id });
+        // premio dentro de la nube
+        const c = P.spot(ctx, { x: rect[0], y: rect[1], w: rect[2], h: rect[3] }, 1, [[src.tx, src.ty, 2]]); if (c) ctx.L.objects.push({ type: 'chest', tier: 'cofre', tx: c.tx, ty: c.ty, room: r.id, reward: true });
+        return true;
+      } },
+    { id: 'estela', role: 'story', min: [5, 5], weight: 3, desc: 'Un texto en el escenario (estela, diario, restos)', build(ctx) { return Prefabs.lore(ctx, ctx.room); } },
+    { id: 'altar_savia', role: 'event', min: [5, 5], weight: 2, desc: 'Altar de savia: golpéalo para cambiar un 20 % de tus PS por +20 % de daño en este piso',
+      build(ctx) { const P = Prefabs, s = P.spot(ctx, ctx.room, 2); if (!s) return false; P.addMech(ctx, { id: P.uid(ctx, 'al'), type: 'altar', tx: s.tx, ty: s.ty, room: ctx.room.id, hint: 'Golpea el altar: −20 % de PS, +20 % de daño en este piso' }); return true; } },
+  ],
+};
+
+/** Velocidad mínima de una clase en casillas por segundo (el Mago, 99 px/s), con margen para el resolutor. */
+const SOLVER_TILES_PER_S = 99 / 32 * .75;
+
+/**
+ * Resolutor de mecanismos. Estado = (palancas encendidas, roturas hechas, rejas fijadas, región del jugador).
+ * - Romper y fijar son monótonos: se aplican en cuanto algo es alcanzable.
+ * - Las placas de peso («hold») se ignoran: en solitario no se puede estar en dos sitios. Así se garantiza
+ *   que siempre hay una solución individual.
+ * - Las placas de tiempo solo pueden abrir rejas que se fijan (latch); vale si hay un orden de pisada en
+ *   que la carrera entre la primera y la última cabe en su tiempo.
+ * Comprueba: cada objetivo es alcanzable en algún estado, y desde cualquier estado alcanzable se puede
+ * llegar a la escalera (ningún bloqueo permanente).
+ */
+const MechSolver = {
+  solve(world, L, o = {}) {
+    const W = L.w, H = L.h, N = W * H, mechs = L.mechs || [], byId = new Map(mechs.map(m => [m.id, m]));
+    const levers = mechs.filter(m => m.type === 'lever'), LI = new Map(levers.map((m, i) => [m.id, i]));
+    const gateTiles = new Map();   // casilla → mecanismo que la bloquea/abre
+    for (const m of mechs) if (m.tiles && (m.type === 'gate' || m.type === 'breakable' || m.type === 'falsewall' || m.type === 'bridge')) for (const i of m.tiles) gateTiles.set(i, m);
+    // Puertas de la cámara del tesoro: se abren con la llave del piso (eso lo comprueba keyForDoor en validate)
+    const keyDoor = new Set(); for (const d of L.doors || []) for (const i of d.tiles) keyDoor.add(i);
+    const evalM = (m, S, transient) => {   // ¿está activo el mecanismo m en el estado S?
+      if (m.type === 'lever') return !!(S.bits & (1 << LI.get(m.id)));
+      if (m.type === 'plate') return m.mode === 'latch' ? S.latched.has(m.id) : m.mode === 'timer' ? !!(transient && transient.has(m.id)) : false;
+      if (m.type === 'breakable' || m.type === 'falsewall') return S.broken.has(m.id);
+      const ins = (m.inputs || []).map(id => byId.get(id)).filter(Boolean).map(x => evalM(x, S, transient));
+      let v = m.logic === 'all' || m.logic === 'seq' ? ins.length > 0 && ins.every(Boolean) : ins.some(Boolean);
+      if (m.invert) v = !v;
+      if (m.type === 'gate' && m.latch && S.latched.has(m.id)) v = true;
+      return v;
+    };
+    const passable = (i, S, transient) => {
+      const m = gateTiles.get(i);
+      if (m) {
+        if (m.type === 'breakable' || m.type === 'falsewall') return S.broken.has(m.id);
+        if (m.type === 'gate') return evalM(m, S, transient);
+        if (m.type === 'bridge') return evalM(m, S, transient);
+      }
+      return keyDoor.has(i) || !SOLID[world.tiles[i]];
+    };
+    const flood = (from, S, transient, limit = Infinity) => {
+      const dist = new Int32Array(N).fill(-1), q = [from]; dist[from] = 0;
+      for (let h = 0; h < q.length; h++) {
+        const i = q[h]; if (dist[i] >= limit) continue;
+        const x = i % W;
+        for (const j of [i + 1, i - 1, i + W, i - W]) { if (j < 0 || j >= N || dist[j] >= 0) continue; if (Math.abs((j % W) - x) > 1) continue; if (!passable(j, S, transient)) continue; dist[j] = dist[i] + 1; q.push(j); }
+      }
+      return dist;
+    };
+    const adjacentTo = (dist, tiles) => tiles.some(i => [i + 1, i - 1, i + W, i - W].some(j => j >= 0 && j < N && dist[j] >= 0));
+    const key = S => S.bits + '|' + [...S.broken].sort().join(',') + '|' + [...S.latched].sort().join(',') + '|' + S.pos;
+    const spawn = L.spawn.ty * W + L.spawn.tx;
+    /** Aplica lo monótono (romper, fijar) hasta que no cambie nada. Devuelve el estado y su región. */
+    const settle = S => {
+      for (let guard = 0; guard < 40; guard++) {
+        const d = flood(S.pos, S); let ch = false;
+        for (const m of mechs) {
+          if ((m.type === 'breakable' || m.type === 'falsewall') && !S.broken.has(m.id) && adjacentTo(d, m.tiles)) { S.broken.add(m.id); ch = true; }
+          if (m.type === 'plate' && m.mode === 'latch' && !S.latched.has(m.id) && d[m.ty * W + m.tx] >= 0) { S.latched.add(m.id); ch = true; }
+          if (m.type === 'gate' && m.latch && !S.latched.has(m.id) && evalM(m, S)) { S.latched.add(m.id); ch = true; }
+          // rejas de placas de tiempo: ¿hay un orden de pisada que quepa en el tiempo?
+          if (m.type === 'gate' && m.latch && !S.latched.has(m.id)) {
+            const ins = (m.inputs || []).map(id => byId.get(id)).filter(Boolean);
+            const timers = ins.filter(x => x.type === 'plate' && x.mode === 'timer');
+            if (timers.length && timers.every(p => d[p.ty * W + p.tx] >= 0)) {
+              const others = ins.filter(x => !timers.includes(x)).every(x => evalM(x, S));
+              if ((m.logic === 'all' || m.logic === 'seq') ? others && this.timerOrder(timers, flood, S, W) : this.timerOrder([timers[0]], flood, S, W)) { S.latched.add(m.id); ch = true; }
+            }
+          }
+        }
+        if (!ch) return { S, d };
+      }
+      return { S, d: flood(S.pos, S) };
+    };
+    const start = settle({ bits: 0, broken: new Set(), latched: new Set(), pos: spawn });
+    const seen = new Map(), states = [], edges = [];
+    const push = (st, from) => { const k = key(st.S); if (!seen.has(k)) { seen.set(k, states.length); states.push(st); edges.push([]); } if (from != null) edges[from].push(seen.get(k)); return seen.get(k); };
+    push(start, null);
+    const ever = new Uint8Array(N);
+    for (let si = 0; si < states.length && states.length < (o.maxStates || 600); si++) {
+      const { S, d } = states[si];
+      for (let i = 0; i < N; i++) if (d[i] >= 0) ever[i] = 1;
+      for (const lv of levers) {
+        const li = lv.ty * W + lv.tx;
+        // la palanca se golpea desde una casilla vecina alcanzable (o estando encima)
+        if (!(d[li] >= 0 || [li + 1, li - 1, li + W, li - W].some(j => d[j] >= 0))) continue;
+        const n = { bits: S.bits ^ (1 << LI.get(lv.id)), broken: new Set(S.broken), latched: new Set(S.latched), pos: d[li] >= 0 ? li : [li + 1, li - 1, li + W, li - W].find(j => d[j] >= 0) };
+        push(settle(n), si);
+      }
+    }
+    // ¿Desde cada estado se puede llegar a la escalera?
+    const stairs = L.stairs ? L.stairs.ty * W + L.stairs.tx : null;
+    const good = new Uint8Array(states.length);
+    if (stairs == null) good.fill(1); else states.forEach((st, i) => { if (st.d[stairs] >= 0) good[i] = 1; });
+    for (let changed = true; changed;) { changed = false; for (let i = 0; i < states.length; i++) if (!good[i] && edges[i].some(j => good[j])) { good[i] = 1; changed = true; } }
+    const checks = { stairsWithoutMechs: stairs == null || start.d[stairs] >= 0, noPermanentLock: good.every(Boolean), statesBounded: states.length < (o.maxStates || 600) };
+    const goals = [];
+    for (const ob of L.objects || []) if (ob.type === 'chest' || ob.type === 'campfire') goals.push(['objeto ' + ob.type, ob.ty * W + ob.tx]);
+    for (const it of L.items || []) goals.push(['objeto ' + it.id, it.ty * W + it.tx]);
+    for (const l of L.lore || []) goals.push(['texto ' + l.id, l.ty * W + l.tx]);
+    for (const m of mechs) if (m.tx != null) goals.push([m.type + ' ' + m.id, m.ty * W + m.tx, m.type === 'lever' || m.type === 'altar']);
+    // Palancas y altares se golpean desde una casilla vecina: para ellos basta con alcanzar un vecino.
+    // Todo lo demás (cofres, hogueras, objetos, textos) hay que pisarlo.
+    const missing2 = goals.filter(([, i, fromNear]) => !ever[i] && !(fromNear && [i + 1, i - 1, i + W, i - W].some(j => j >= 0 && j < N && ever[j])))
+      .map(([n, i]) => `${n} (${i % W},${(i / W) | 0})`);
+    checks.goalsReachable = missing2.length === 0;
+    return { ok: Object.values(checks).every(Boolean), checks, missing: missing2, states: states.length };
+  },
+  /** ¿Hay un orden de las placas de tiempo cuya carrera (casillas) quepa en el tiempo de la primera? */
+  timerOrder(plates, flood, S, W) {
+    if (plates.length <= 1) return true;
+    const t = Math.min(...plates.map(p => p.time || 5)), budget = t * SOLVER_TILES_PER_S;
+    const perms = a => a.length <= 1 ? [a] : a.flatMap((x, i) => perms(a.filter((_, j) => j !== i)).map(r => [x, ...r]));
+    for (const ord of perms(plates)) {
+      let tot = 0, ok = true;
+      for (let k = 0; k + 1 < ord.length && ok; k++) { const d = flood(ord[k].ty * W + ord[k].tx, S), dd = d[ord[k + 1].ty * W + ord[k + 1].tx]; if (dd < 0) ok = false; else tot += dd; }
+      if (ok && tot <= budget) return true;
+    }
+    return false;
+  },
+};
+
+/**
+ * Estado de los mecanismos en juego. `host` da lo que depende de quién lo use:
+ *  hurt(actor, o) → daño (Combat.hit) · spawn(room, n) → enemigos creados · setTile(i, t) · fx(kind, m, info)
+ *  players() → jugadores · actors() → todos los actores · onAltar(player)
+ * En línea el cliente no simula: aplica la cadena del servidor (`apply`) y solo dibuja.
+ */
+class Mechs {
+  constructor(world, L, host = {}) {
+    this.world = world; this.L = L; this.host = host; this.time = 0; this.W = L.w;
+    this.list = (L.mechs || []).map(m => Object.assign({}, m, { on: false, t: 0, hp: m.hp || 0, hp0: m.hp || 0, open: false, broken: false, seq: 0, done: false, state: 'idle', cd: 0, used: [] }));
+    this.byId = new Map(this.list.map(m => [m.id, m]));
+    for (const m of this.list) {
+      if (m.type === 'gate' || m.type === 'breakable') this.block(m, true);
+      if (m.type === 'bridge') this.pass(m, false);
+    }
+  }
+  block(m, on) { for (const i of m.tiles) this.world.block(i % this.W, (i / this.W) | 0, on); }
+  pass(m, on) { if (!this.world.pass) this.world.pass = new Uint8Array(this.world.w * this.world.h); for (const i of m.tiles) this.world.pass[i] = on ? 1 : 0; }
+  tileOf(a) { return Math.floor(a.y / 32) * this.W + Math.floor(a.x / 32); }
+  occupied(m) { const acts = this.host.actors ? this.host.actors() : []; return acts.some(a => a.alive && m.tiles.includes(this.tileOf(a))); }
+  fx(kind, m, info) { if (this.host.fx) this.host.fx(kind, m, info); }
+  value(m) {
+    if (m.type === 'lever' || m.type === 'plate') return m.on;
+    if (m.type === 'breakable' || m.type === 'falsewall') return m.broken;
+    return m.on;
+  }
+  update(dt, players = [], actors = []) {
+    this.time += dt;
+    for (const m of this.list) {
+      if (m.cd > 0) m.cd -= dt;
+      if (m.type === 'plate') {
+        const ti = m.ty * this.W + m.tx, pressed = actors.some(a => a.alive && !a.flying && !(a.kind && a.kind.fly) && this.tileOf(a) === ti);
+        const was = m.on;
+        if (m.mode === 'timer') { if (pressed) m.t = m.time; else m.t = Math.max(0, m.t - dt); m.on = pressed || m.t > 0; }
+        else if (m.mode === 'latch') m.on = m.on || pressed;
+        else m.on = pressed;
+        if (m.on && !was) this.fx('plateOn', m); else if (!m.on && was) this.fx('plateOff', m);
+      }
+    }
+    // Nodos derivados (en orden: relés y secuencias primero)
+    for (let pass = 0; pass < 2; pass++) for (const m of this.list) {
+      if (!m.inputs) continue;
+      const ins = m.inputs.map(id => this.byId.get(id)).filter(Boolean), vals = ins.map(x => this.value(x));
+      let v;
+      if (m.logic === 'seq') {
+        // hay que activar las entradas en orden; un error reinicia
+        for (let k = 0; k < vals.length; k++) { const rising = vals[k] && !(m.prev && m.prev[k]); if (!rising) continue; if (k === m.seq) { m.seq++; if (m.seq < vals.length) this.fx('seqStep', m, { n: m.seq }); } else if (m.seq < vals.length) { m.seq = 0; this.fx('seqFail', m); } }
+        m.prev = vals; v = m.seq >= vals.length;
+      } else v = m.logic === 'all' ? vals.length > 0 && vals.every(Boolean) : vals.some(Boolean);
+      if (m.invert) v = !v;
+      if (m.latch && m.done) v = true;
+      if (m.type === 'relay') { if (v !== m.on) this.fx(v ? 'relayOn' : 'relayOff', m); m.on = v; }
+      else if (m.type === 'gate') {
+        if (v && !m.open) { m.open = true; m.on = true; if (m.latch) m.done = true; this.block(m, false); this.fx('gateOpen', m); }
+        else if (!v && m.open && !m.latch && !this.occupied(m)) { m.open = false; m.on = false; this.block(m, true); this.fx('gateClose', m); }
+      } else if (m.type === 'bridge') { if (v !== m.on) { m.on = v; this.pass(m, v); this.fx(v ? 'bridgeUp' : 'bridgeDown', m); } }
+      else if (m.type === 'spikes' || m.type === 'hazard') { if (v !== m.on) this.fx(v ? 'hazardOn' : 'hazardOff', m); m.on = v; }
+    }
+    // Pinchos: ciclo subir/avisar/bajar cuando están activos; dañan a jugadores y enemigos
+    for (const m of this.list) {
+      if (m.type === 'spikes') {
+        const ph = (this.time + (m.offset || 0)) % m.period, up = m.on && ph >= m.period - m.up, warn = m.on && !up && ph >= m.period - m.up - m.warn;
+        if (up && !m.up_) { m.hitSet = new Set(); this.fx('spikesUp', m); }
+        m.up_ = up; m.warn_ = warn;
+        if (up) for (const a of actors) if (a.alive && a.team !== 'neutral' && !m.hitSet.has(a) && m.tiles.includes(this.tileOf(a)) && !a.dash) { m.hitSet.add(a); this.host.hurt && this.host.hurt(a, { team: 'trap', dmg: 1, pct: m.pct || .1 }); }
+      } else if (m.type === 'hazard' && m.on) {
+        m.tick = (m.tick || 0) - dt; if (m.tick > 0) continue; m.tick = .5;
+        const [rx, ry, rw, rh] = m.rect;
+        for (const a of actors) { if (!a.alive || a.team === 'neutral') continue; const tx = Math.floor(a.x / 32), ty = Math.floor(a.y / 32); if (tx < rx || ty < ry || tx >= rx + rw || ty >= ry + rh) continue;
+          if (m.kind === 'poison') { this.host.hurt && this.host.hurt(a, { team: 'trap', dmg: 1, pct: .025, dot: true }); }
+          else if (m.kind === 'ice' && a.status) { a.status.slow = Math.max(a.status.slow || 0, .6); a.status.slowAmt = Math.max(a.status.slowAmt || 0, .4); }
+          else if (m.kind === 'fire') this.host.hurt && this.host.hurt(a, { team: 'trap', dmg: 1, pct: .03, dot: true }); }
+      } else if (m.type === 'ambush') this.ambush(m, dt, players);
+    }
+  }
+  ambush(m, dt, players) {
+    const [rx, ry, rw, rh] = m.rect, inside = p => { const tx = Math.floor(p.x / 32), ty = Math.floor(p.y / 32); return tx >= rx + 1 && ty >= ry + 1 && tx < rx + rw - 1 && ty < ry + rh - 1; };
+    if (m.state === 'idle' && players.some(p => p.alive && inside(p))) {
+      m.state = 'armed'; m.t = 0; m.wait = true; this.fx('ambush', m);
+      m.foes = this.host.spawn ? this.host.spawn(m, m.wave) || [] : [];
+    }
+    if (m.state === 'armed') {
+      m.t += dt;
+      if (m.wait && !this.occupied(m)) { m.wait = false; m.on = true; this.block(m, true); this.fx('gateClose', m); }
+      const cleared = !m.foes.some(e => e.alive);
+      if ((cleared && m.t > 1.5) || m.t > 45) { m.state = 'done'; m.on = false; if (!m.wait) this.block(m, false); m.wait = false; this.fx('gateOpen', m, { cleared }); }
+    }
+  }
+  /** Un ataque de un jugador (o su proyectil) en un área: palancas, altares y cosas rompibles. */
+  hit(team, x, y, r, by = null) {
+    if (team !== 'player' && team !== 'shot') return;
+    if (by && !by.cls) return;                        // los compañeros (sin clase) no tocan los mecanismos
+    for (const m of this.list) {
+      if (m.cd > 0) continue;
+      if (m.type === 'lever' || m.type === 'altar') {
+        const cx = (m.tx + .5) * 32, cy = (m.ty + .5) * 32; if (Math.hypot(cx - x, cy - y) > r + 16) continue;
+        if (!this.world.los(x, y, cx, cy)) continue;   // no a través de muros, raíces ni rejas
+        m.cd = .5;
+        if (m.type === 'lever') { m.on = !m.on; this.fx('lever', m); }
+        else if (!m.usedAll) { const ps = this.host.players ? this.host.players() : []; const p = by || ps.filter(q => q.alive).sort((a, b) => Math.hypot(a.x - cx, a.y - cy) - Math.hypot(b.x - cx, b.y - cy))[0];
+          if (p && !m.used.includes(p.netId || 'solo')) { m.used.push(p.netId || 'solo'); this.host.onAltar && this.host.onAltar(p, m); this.fx('altar', m); } }
+      } else if ((m.type === 'breakable' || m.type === 'falsewall') && !m.broken) {
+        const hitTile = m.tiles.some(i => { const tx = i % this.W, ty = (i / this.W) | 0, cx = (tx + .5) * 32, cy = (ty + .5) * 32; return Math.abs(cx - x) <= 16 + r && Math.abs(cy - y) <= 16 + r; });
+        if (!hitTile) continue;
+        m.cd = .25; m.hp--; this.fx('crack', m, { hp: m.hp });
+        if (m.hp <= 0) this.breakIt(m);
+      }
+    }
+  }
+  /** Un disparo de un héroe que pasa por encima de una palanca o un altar los activa (y se detiene). */
+  shotAt(x, y, by = null) {
+    if (by && !by.cls) return false;
+    for (const m of this.list) {
+      if ((m.type !== 'lever' && m.type !== 'altar') || m.cd > 0) continue;
+      if (Math.hypot((m.tx + .5) * 32 - x, (m.ty + .5) * 32 - 8 - y) > 14) continue;
+      this.hit('shot', (m.tx + .5) * 32, (m.ty + .5) * 32, 1, by); return true;
+    }
+    return false;
+  }
+  /** Centro en píxeles de un mecanismo (para efectos y sonidos). */
+  center(m) {
+    if (m.tx != null) return { x: (m.tx + .5) * 32, y: (m.ty + .5) * 32 };
+    if (m.rect) return { x: (m.rect[0] + m.rect[2] / 2) * 32, y: (m.rect[1] + m.rect[3] / 2) * 32 };
+    const t = m.tiles || [], n = t.length || 1;
+    return { x: (t.reduce((s, i) => s + i % this.W, 0) / n + .5) * 32, y: (t.reduce((s, i) => s + ((i / this.W) | 0), 0) / n + .5) * 32 };
+  }
+  breakIt(m) {
+    m.broken = true; m.on = true;
+    if (m.type === 'breakable') this.block(m, false);
+    else for (const i of m.tiles) { const t = this.host.floorTile != null ? this.host.floorTile : T.FLOOR; this.world.tiles[i] = t; this.host.setTile && this.host.setTile(i, t); }
+    this.fx(m.type === 'falsewall' ? 'secret' : 'break', m);
+  }
+  /** Estado compacto para la red: «id:bits[:extra]» separados por comas. */
+  serialize() {
+    return this.list.map(m => {
+      const b = (m.on ? 1 : 0) | (m.open ? 2 : 0) | (m.broken ? 4 : 0) | (m.done ? 8 : 0) | (m.up_ ? 16 : 0) | (m.warn_ ? 32 : 0) | (m.state === 'armed' ? 64 : m.state === 'done' ? 128 : 0);
+      const extra = m.type === 'plate' && m.mode === 'timer' ? ':' + Math.round(m.t * 10) : m.type === 'breakable' || m.type === 'falsewall' ? ':' + m.hp : m.type === 'gate' && m.logic === 'seq' ? ':' + m.seq : m.type === 'altar' ? ':' + m.used.length : '';
+      return m.id + ':' + b + extra;
+    }).join(',');
+  }
+  /** Aplica el estado del servidor (cliente en línea): mismo resultado de bloqueos que la simulación. */
+  apply(str) {
+    if (!str) return;
+    for (const part of str.split(',')) {
+      const [id, bs, ex] = part.split(':'), m = this.byId.get(id); if (!m) continue;
+      const b = +bs, on = !!(b & 1), open = !!(b & 2), broken = !!(b & 4);
+      if (m.type === 'gate') { if (open !== m.open) { m.open = open; this.block(m, !open); this.fx(open ? 'gateOpen' : 'gateClose', m); } }
+      else if (m.type === 'ambush') { const st = b & 64 ? 'armed' : b & 128 ? 'done' : 'idle'; if (on !== m.on) { this.block(m, on); this.fx(on ? 'gateClose' : 'gateOpen', m); } if (st === 'armed' && m.state === 'idle') this.fx('ambush', m); m.state = st; }
+      else if (m.type === 'bridge') { if (on !== m.on) { this.pass(m, on); this.fx(on ? 'bridgeUp' : 'bridgeDown', m); } }
+      else if ((m.type === 'breakable' || m.type === 'falsewall')) { const hp = ex != null ? +ex : m.hp; if (hp < m.hp && !broken) this.fx('crack', m, { hp }); m.hp = hp; if (broken && !m.broken) this.breakIt(m); }
+      else if (m.type === 'lever') { if (on !== m.on) this.fx('lever', m); }
+      else if (m.type === 'plate') { if (on !== m.on) this.fx(on ? 'plateOn' : 'plateOff', m); if (ex != null) m.t = +ex / 10; }
+      else if (m.type === 'spikes') { const up = !!(b & 16); if (up && !m.up_) this.fx('spikesUp', m); m.up_ = up; m.warn_ = !!(b & 32); }
+      else if (m.type === 'altar' && ex != null) { if (+ex > m.used.length) this.fx('altar', m); m.used.length = +ex; }
+      m.on = on; m.done = !!(b & 8);
+      if (m.type === 'gate') m.open = open;
+    }
+  }
+}
 
 /* ---------- 19. FloorRT: un piso en juego ---------- */
 class FloorRT {
@@ -4900,13 +5456,67 @@ class FloorRT {
     this.mhTriggered = false; this.thief = false; this.unpaid = []; this.inShop = false;
     this.enteredRooms = new Set();
     this.stats = { defeated: 0 };
+    // Mecanismos, textos del escenario y cofres que aparecen al vencer al minijefe (sección 18b)
+    this.lore = (this.L.lore || []).map(l => Object.assign({}, l, { x: (l.tx + .5) * TS, y: (l.ty + .5) * TS, read: false }));
+    this.mechs = this.L.mechs && this.L.mechs.length ? new Mechs(this.world, this.L, this.mechHost()) : null;
+    this.hinted = new Set();
+    if (g.player) g.player.altarMul = 1;
+  }
+  /** Lo que los mecanismos necesitan del juego sin red (el servidor les da su propia versión). */
+  mechHost() {
+    const g = this.g;
+    return {
+      floorTile: this.biome.roomTile,
+      actors: () => g.actors,
+      players: () => g.player ? [g.player] : [],
+      hurt: (a, o) => Combat.hit(g, a, o),
+      setTile: (i, t) => this.setTile(i, t),
+      spawn: (m, n) => this.spawnAmbush(m, n),
+      onAltar: p => this.onAltar(p),
+      fx: (kind, m, info) => MechArt.event(g, this, kind, m, info),
+    };
+  }
+  /** Emboscada: la oleada aparece en la sala, lejos del jugador. */
+  spawnAmbush(m, n) {
+    const g = this.g, p = g.player, TS = CONFIG.TILE, [rx, ry, rw, rh] = m.rect, lvl = enemyLevel(this.dng, this.floorNo), out = [];
+    for (let k = 0; k < 80 && out.length < n; k++) {
+      const tx = rx + Math.floor(Math.random() * rw), ty = ry + Math.floor(Math.random() * rh), x = (tx + .5) * TS, y = (ty + .5) * TS;
+      if (p && Math.hypot(x - p.x, y - p.y) < 110) continue;
+      const e = new Enemy(makeKind(weighted(floorEnemies(this.dng, this.floorNo), Math.random)), x, y, { level: lvl, hpMul: this.dng.hpMul || 1 });
+      if (!e.free(this.world, x, y)) continue;
+      e.aggro = true; e.level = lvl; e.tag = 'ambush'; g.actors.push(e); out.push(e); Effects.burst(g, x, y - 12, '#ef5b4b', 10, 100);
+    }
+    return out;
+  }
+  /** Altar de savia: −20 % de PS ahora, +20 % de daño hasta el siguiente piso. */
+  onAltar(p) {
+    p.hp = Math.max(1, Math.round(p.hp - p.maxHp * .2)); p.altarMul = 1.2;
+    Effects.floater(this.g, p.x, p.y - p.height - 10, '+20 % de daño', '#f2b84b', 11);
+    if (p === this.g.player) this.say('El altar bebe tu sangre: +20 % de daño en este piso', '#f2b84b');
+  }
+  /** Pista de los mecanismos de una sala (una vez por sala) y textos del escenario cercanos. */
+  explore(r, p, online) {
+    if (r && this.mechs && !this.hinted.has(r.id)) {
+      this.hinted.add(r.id);
+      const m = this.mechs.list.find(q => q.room === r.id && q.hint && !q.broken && !q.done);
+      if (m) setTimeout(() => { if (this.g.floorRT === this) this.say(m.hint, '#d8c79a'); }, 900);
+    }
+    for (const l of this.lore) {
+      if (l.read || Math.hypot(l.x - p.x, l.y - p.y) > 30) continue;
+      const info = (LORE[this.biome.id] || LORE.forest).find(q => q.id === l.id); if (!info) { l.read = true; continue; }
+      if (!online && this.g.actors.some(a => a.team === 'enemy' && a.alive && a.aggro && Math.hypot(a.x - p.x, a.y - p.y) < 320)) { this.say('Hay algo escrito aquí… cuando no haya peligro', '#d8c79a', 3); continue; }
+      l.read = true; Sfx.play('open');
+      if (online) UI.toast(`${info.title}: ${info.text}`, '#e8dcb8');
+      else UI.ask(`${info.title}\n\n${info.text}`, [{ label: 'Seguir', main: true, fn: () => {} }]);
+    }
   }
   spawnInitial() {
     if (this.g.net) return;                       // en línea los enemigos los crea el servidor
     const TS = CONFIG.TILE, L = this.L, lvl = enemyLevel(this.dng, this.floorNo);
     for (const s of L.enemies) {
       const kind = s.boss ? makeBossKind(s.boss) : makeKind(s.variant);
-      const e = new Enemy(kind, (s.tx + .5) * TS, (s.ty + .5) * TS, { level: s.boss ? enemyLevel(this.dng, this.dng.floors) + 2 : lvl, elite: s.elite, final: s.final, hpMul: this.dng.hpMul || 1 });
+      const e = new Enemy(kind, (s.tx + .5) * TS, (s.ty + .5) * TS, { level: s.boss ? enemyLevel(this.dng, this.dng.floors) + 2 : lvl, elite: s.elite, final: s.final, hpMul: (this.dng.hpMul || 1) * (s.mini || 1) });
+      if (s.mini) { e.mini = true; e.nameTag = s.name; }
       if (s.outlaw) { e.outlaw = s.outlaw; e.nameTag = s.name; e.kind = Object.assign({}, e.kind, { brain: outlawBrain, baseBrain: e.kind.brain, name: s.name }); }
       if (s.boss) this.boss = e;
       this.g.actors.push(e);
@@ -4952,6 +5562,7 @@ class FloorRT {
     if (r) { if (!this.enteredRooms.has(r.id)) { this.enteredRooms.add(r.id); this.revealRoom(r); this.onEnterRoom(r); } }
     else this.revealAround(tx, ty, 2);
     if (!p.alive) return;
+    if (!g.paused) { this.explore(r, p, false); if (this.mechs) this.mechs.update(dt, [p], g.actors); }
     // Viento: tres avisos y expulsión
     if (this.kind === 'normal') {
       const lim = this.dng.wind, steps = [[.6, 'Algo se agita…'], [.8, 'Algo se acerca…'], [.92, '¡Está muy cerca!']];
@@ -4991,7 +5602,7 @@ class FloorRT {
       if (o.type === 'campfire' && d < 80) { p.hp = Math.min(p.maxHp, p.hp + 2.5 * dt); p.energy = Math.min(p.maxEnergy, p.energy + 6 * dt); }
       if (o.type === 'portal' && d < 22 && !o.asking) { o.asking = true; UI.ask('¿Volver a la aldea? Conservas las monedas, los objetos y los encargos cumplidos.', [{ label: 'Volver a la aldea', main: true, fn: () => g.endRun('return') }, { label: 'Seguir explorando', fn: () => { p.placeAt(p.x + 40, p.y); setTimeout(() => o.asking = false, 600); } }]); }
       if (o.type === 'warp' && d < 22) { g.endRun('clear'); return; }
-      if (o.type === 'chest' && !o.opened && d < 24) this.openChest(o);
+      if (o.type === 'chest' && !o.opened && d < 24 && !(o.hiddenUntil && !o.revealed)) this.openChest(o);
     }
     // Puertas con llave
     for (const dr of this.doors) {
@@ -5115,6 +5726,9 @@ class FloorRT {
     if (p) Effects.ring(g, p.x, p.y, 10, 150, 'rgba(255,242,208,.5)', .55, 3, 'ground');
     if (r.type === 'shop') this.say('Tienda del mercader Tobías: coge lo que quieras y paga antes de salir', '#f2b84b');
     else if (r.type === 'treasure') this.say('Cámara del tesoro', '#f2b84b');
+    else if (r.role === 'miniboss') { const m = this.L.enemies.find(s => s.mini); if (m) { this.say(`Guarida de ${m.name}`, '#e0b8ff'); Sfx.play('ambush'); } }
+    else if (r.role === 'elite') this.say('Algo fuerte vigila esta sala', '#ff9a4a');
+    else if (r.role === 'rest') this.say('Un claro tranquilo: junto a la hoguera recuperas fuerzas', '#9be36b');
     else if (r.type === 'monsterhouse' && !this.mhTriggered) {
       this.mhTriggered = true;
       const lvl = enemyLevel(this.dng, this.floorNo), TS = CONFIG.TILE, n = 5 + Math.floor(lvl / 4);
@@ -5161,6 +5775,7 @@ class FloorRT {
     const g = this.g;
     this.stats.defeated++;
     if (e.outlaw) g.completeJob(e.outlaw, `Has derrotado al forajido ${e.nameTag}`);
+    if (e.mini) this.revealMini(e);
     if (e.kind.isBoss) {
       g.actors.forEach(a => { if (a.summoner === e && a.alive) a.die(g); });
       const r = this.L.rooms[0];
@@ -5175,18 +5790,27 @@ class FloorRT {
     }
   }
 
+  /** Minijefe vencido: aparece su cofre (también en línea, cuando el servidor lo comunica). */
+  revealMini(e) {
+    let n = 0;
+    for (const o of this.objects) if (o.hiddenUntil === 'mini' && !o.revealed) { o.revealed = true; n++; Effects.burst(this.g, o.x, o.y - 10, '#e0b8ff', 26, 150); Effects.ring(this.g, o.x, o.y, 6, 46, '#e0b8ff', .5, 4, 'ground'); }
+    this.dirty = true; Sfx.play('solve');
+    this.say(`¡${(e && e.nameTag) || 'El minijefe'} ha caído!${n ? ' Ha aparecido un cofre' : ''}`, '#e0b8ff');
+  }
   /** Luces locales del piso: hogueras, portales, cofres y objetos especiales. */
   lights(add, time) {
     if (this.world.deco) for (const l of this.world.deco.lights) add(l.x, l.y - 4, l.type === 'vent' ? 40 : 30, l.c, l.type === 'vent' ? .45 + .15 * Math.sin(time * 5 + l.x) : .35);
     for (const o of this.objects) {
       if (o.type === 'campfire') add(o.x, o.y - 8, 190 + Math.sin(time * 9) * 6 + Math.sin(time * 23) * 3, [255, 150, 60], 1);
       else if (o.type === 'portal' || o.type === 'warp') add(o.x, o.y - 6, 80, o.type === 'warp' ? [255, 210, 120] : [120, 220, 230], .8);
-      else if (o.type === 'chest' && !o.opened) add(o.x, o.y - 6, o.tier === 'cofre' ? 34 : 54, CHEST_LOOK[o.tier] ? CHEST_LOOK[o.tier].light : [255, 200, 120], .5);
+      else if (o.type === 'chest' && !o.opened && !(o.hiddenUntil && !o.revealed)) add(o.x, o.y - 6, o.tier === 'cofre' ? 34 : 54, CHEST_LOOK[o.tier] ? CHEST_LOOK[o.tier].light : [255, 200, 120], .5);
     }
     if (this.hidden && this.hidden.found) add((this.hidden.tx + .5) * 32, (this.hidden.ty + .5) * 32, 50, [120, 220, 230], .6);
+    if (this.mechs) MechArt.lights(this, add, time);
   }
   drawObjects(c, g) {
     const t = g.time, TS = CONFIG.TILE;
+    if (this.mechs || this.lore.length) MechArt.ground(c, g, this);
     for (const tr of this.traps) {
       if (tr.hidden) continue;
       const x = (tr.tx + .5) * TS, y = (tr.ty + .5) * TS, col = TRAPS[tr.type].color;
@@ -5210,6 +5834,7 @@ class FloorRT {
         c.fillStyle = '#5a3a20'; c.save(); c.translate(x, y); c.rotate(.4); c.fillRect(-11, -2, 22, 4); c.rotate(-.8); c.fillRect(-11, -2, 22, 4); c.restore();
         const f = 1 + Math.sin(t * 12) * .12; U.ellipse(c, x, y - 8 * f, 6, 10 * f, '#ff8a3d'); U.ellipse(c, x, y - 6, 3.5, 6 * f, '#ffe08a');
       } else if (o.type === 'chest') {
+        if (o.hiddenUntil && !o.revealed) continue;
         if (o.opened && o.openAt == null) o.openAt = t;                     // también los que abre otro jugador en línea
         drawChest(c, Math.round(x), Math.round(y), o.tier, o.opened ? U.clamp((t - o.openAt) / .35, 0, 1) : 0, t);
       } else if (o.type === 'portal' || o.type === 'warp') {
@@ -5269,7 +5894,7 @@ class FloorRT {
       if (this.hidden && this.hidden.found) dot(this.hidden.tx, this.hidden.ty, '#7fe3e8', 3);
       for (const it of this.items) if (!it.taken && this.seen[it.ty * W + it.tx]) dot(it.tx, it.ty, it.id === 'job' ? '#7dffa0' : '#5cc8ff', 1.5);
       for (const tr of this.traps) if (!tr.hidden && this.seen[tr.ty * W + tr.tx]) dot(tr.tx, tr.ty, '#ef5b4b', 1.2);
-      for (const o of this.objects) if (this.seen[o.ty * W + o.tx]) dot(o.tx, o.ty, o.type === 'campfire' ? '#ff8a3d' : o.type === 'chest' ? (o.opened ? '#6b5a3a' : '#ffd166') : '#7fe3e8', 2);
+      for (const o of this.objects) if (this.seen[o.ty * W + o.tx] && !(o.hiddenUntil && !o.revealed)) dot(o.tx, o.ty, o.type === 'campfire' ? '#ff8a3d' : o.type === 'chest' ? (o.opened ? '#6b5a3a' : '#ffd166') : '#7fe3e8', 2);
     }
     const c = cv.getContext('2d');
     c.clearRect(0, 0, cv.width, cv.height); c.drawImage(this.mm, 0, 0);
@@ -7317,6 +7942,262 @@ class VillageRT {
   }
 }
 
+/* ---------- Mecanismos de las mazmorras: dibujo, luces y avisos (sección 18b en juego) ----------
+   Solo lee el estado de `Mechs`: las colisiones las ponen las capas `blk` y `pass` del mundo. */
+const MechArt = {
+  PAL: {
+    roots: { bark: '#5a3a1e', dark: '#33200f', light: '#8a6234', leaf: '#5f8f3a' },
+    bars: { bark: '#6c7078', dark: '#33363c', light: '#aab0ba', leaf: '#8a6a3a' },
+    rocks: { bark: '#6d6458', dark: '#3c362f', light: '#9a9182', leaf: '#5d7a3a' },
+  },
+  /** Avisos de un cambio: sonido (si está cerca), partículas y, a veces, un mensaje. */
+  event(g, f, kind, m, info = {}) {
+    if (!f || !f.mechs) return;
+    const c = f.mechs.center(m), p = g.player, d = p ? Math.hypot(c.x - p.x, c.y - p.y) : 0, near = d < 460;
+    const S = n => { if (near) Sfx.play(n); };
+    const once = (key, text, col) => { f.mechSaid = f.mechSaid || new Set(); if (f.mechSaid.has(key)) return; f.mechSaid.add(key); if (near) f.say(text, col); };
+    const P = this.PAL[m.look] || this.PAL.roots;
+    switch (kind) {
+      case 'plateOn': S('click'); Effects.ring(g, c.x, c.y, 4, 22, '#9be36b', .3, 2, 'ground'); break;
+      case 'plateOff': S('clickOff'); break;
+      case 'lever': S('lever'); Effects.burst(g, c.x, c.y - 14, '#f2d27a', 8, 80, .25); break;
+      case 'relayOn': S('solve'); break;
+      case 'gateOpen':
+        S('gateOpen'); this.debris(g, f, m, P.light);
+        if (m.type === 'ambush') { if (info.cleared) once(m.id + 'end', 'La emboscada ha terminado: las raíces se retiran', '#9be36b'); }
+        else if (m.latch) once(m.id, '¡Se abre un paso!', '#9be36b');
+        break;
+      case 'gateClose': S('gateClose'); this.debris(g, f, m, P.dark); if (near) g.shake = Math.max(g.shake, 2); break;
+      case 'bridgeUp': S('gateOpen'); once(m.id, 'Un puente de troncos cruza el agua', '#9be36b'); break;
+      case 'bridgeDown': S('gateClose'); break;
+      case 'crack': S('crack'); this.debris(g, f, m, m.look === 'shroom' ? '#c8a0e8' : m.type === 'falsewall' ? '#8a8072' : P.light, 6); break;
+      case 'break': S('break'); this.debris(g, f, m, m.look === 'shroom' ? '#c8a0e8' : P.light, 18); if (near) g.shake = Math.max(g.shake, 3); break;
+      case 'secret': S('secret'); this.debris(g, f, m, '#8a8072', 22); once(m.id, '¡Has encontrado una cámara secreta!', '#7fe3e8'); f.dirty = true; break;
+      case 'hazardOff': S('solve'); once(m.id, m.kind === 'poison' ? 'Las esporas se disipan' : 'El peligro se ha detenido', '#9be36b'); break;
+      case 'hazardOn': break;
+      case 'spikesUp': if (d < 300) Sfx.play('spikes'); break;
+      case 'ambush': S('ambush'); f.say('¡Emboscada! Las raíces cierran la sala', '#ef5b4b'); g.shake = Math.max(g.shake, 5); break;
+      case 'altar': S('altar'); Effects.burst(g, c.x, c.y - 18, '#f2b84b', 20, 120, .5); Effects.ring(g, c.x, c.y, 6, 40, '#f2b84b', .45, 3, 'ground'); break;
+      case 'seqStep': S('click'); break;
+      case 'seqFail': S('fail'); break;
+    }
+  },
+  debris(g, f, m, color, n = 10) {
+    const W = f.L.w;
+    for (const i of (m.tiles || []).slice(0, 6)) Effects.burst(g, (i % W + .5) * 32, ((i / W) | 0) * 32 + 12, color, Math.ceil(n / Math.min(6, m.tiles.length)), 110, .45);
+    if (!m.tiles) { const c = f.mechs.center(m); Effects.burst(g, c.x, c.y - 10, color, n, 110, .45); }
+  },
+  /** Animación suave hacia el estado real (0..1). */
+  ease(m, key, want, g) { const k = 1 - Math.exp(-(g.renderer.dtDraw || .016) * 10); m[key] = m[key] == null ? want : m[key] + (want - m[key]) * k; return m[key]; },
+  roomOfPlayer(f, g) { const p = g.player; return p ? f.roomAt(Math.floor(p.x / 32), Math.floor(p.y / 32)) : null; },
+
+  /** Capa del suelo: placas, conexiones, pinchos, nubes, puentes, restos de rejas abiertas y grietas. */
+  ground(c, g, f) {
+    const M = f.mechs, t = g.time, W = f.L.w, pr = this.roomOfPlayer(f, g);
+    if (!M) return;
+    // Conexiones: una raíz luminosa del interruptor a lo que mueve (solo en la sala en la que estás)
+    for (const m of M.list) {
+      if (!m.inputs || m.type === 'relay' || m.type === 'hazard' || !pr || m.room !== pr.id) continue;
+      const to = M.center(m);
+      for (const src of this.leaves(M, m)) {
+        if (src.tx == null) continue;
+        const a = M.center(src), on = M.value(src);
+        c.save(); c.globalAlpha = on ? .55 + .2 * Math.sin(t * 6) : .22; c.strokeStyle = on ? '#9be36b' : '#b8a27a'; c.lineWidth = on ? 2 : 1.5; c.setLineDash([3, 5]); c.lineDashOffset = -t * (on ? 30 : 6);
+        c.beginPath(); c.moveTo(a.x, a.y); c.quadraticCurveTo((a.x + to.x) / 2, (a.y + to.y) / 2 + 18, to.x, to.y); c.stroke(); c.restore();
+      }
+    }
+    for (const m of M.list) {
+      if (m.type === 'plate') this.plate(c, m, t);
+      else if (m.type === 'spikes') this.spikes(c, m, W, t, g);
+      else if (m.type === 'hazard' && m.on) this.cloud(c, m, t);
+      else if (m.type === 'bridge') this.bridge(c, m, W, g);
+      else if ((m.type === 'gate' && m.open) || (m.type === 'ambush' && !m.on && m.state !== 'idle') || (m.type === 'breakable' && m.broken && m.look !== 'shroom')) this.stubs(c, m, W);
+      else if (m.type === 'falsewall' && !m.broken && m.hp < (m.hp0 || 2)) this.cracks(c, m, W);
+      else if (m.type === 'breakable' && m.broken && m.look === 'shroom') { for (const i of m.tiles) U.ellipse(c, (i % W + .5) * 32, ((i / W) | 0) * 32 + 22, 9, 4, '#4a3a52'); }
+    }
+  },
+  /** Entradas «hoja» de un mecanismo (atraviesa relés). */
+  leaves(M, m, out = [], depth = 0) {
+    for (const id of m.inputs || []) { const s = M.byId.get(id); if (!s) continue; if (s.inputs && depth < 4) this.leaves(M, s, out, depth + 1); else out.push(s); }
+    return out;
+  },
+  plate(c, m, t) {
+    const x = m.tx * 32 + 4, y = m.ty * 32 + 4, dn = m.on ? 2 : 0;
+    c.fillStyle = 'rgba(0,0,0,.35)'; c.fillRect(x - 1, y + 1, 26, 26);
+    c.fillStyle = '#4a4438'; c.fillRect(x, y, 24, 24);
+    c.fillStyle = m.on ? '#6f7a52' : '#7a705e'; c.fillRect(x + 2, y + 2 + dn, 20, 20 - dn);
+    c.fillStyle = m.on ? '#8a9662' : '#948a74'; c.fillRect(x + 2, y + 2 + dn, 20, 2);
+    // runa: reloj de arena (tiempo), dos pies (peso, en grupo) o anillo (fija)
+    c.strokeStyle = m.on ? '#c8ff8a' : '#3a342a'; c.lineWidth = 1.5; c.globalAlpha = m.on ? .7 + .3 * Math.sin(t * 8) : .8;
+    const cx = x + 12, cy = y + 12 + dn / 2;
+    c.beginPath();
+    if (m.mode === 'timer') { c.moveTo(cx - 5, cy - 6); c.lineTo(cx + 5, cy - 6); c.lineTo(cx - 5, cy + 6); c.lineTo(cx + 5, cy + 6); c.closePath(); }
+    else if (m.mode === 'hold') { c.ellipse(cx - 4, cy, 2.5, 5, 0, 0, Math.PI * 2); c.moveTo(cx + 6.5, cy); c.ellipse(cx + 4, cy, 2.5, 5, 0, 0, Math.PI * 2); }
+    else { c.arc(cx, cy, 6, 0, Math.PI * 2); }
+    c.stroke(); c.globalAlpha = 1;
+    if (m.mode === 'timer' && m.t > 0 && m.time) {   // tiempo que le queda encendida
+      c.strokeStyle = '#c8ff8a'; c.lineWidth = 2.5; c.beginPath(); c.arc(cx, cy, 15, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (m.t / m.time)); c.stroke();
+    }
+  },
+  spikes(c, m, W, t, g) {
+    const k = this.ease(m, 'vis', m.up_ ? 1 : 0, g);
+    for (const i of m.tiles) {
+      const x = (i % W) * 32, y = ((i / W) | 0) * 32;
+      c.fillStyle = m.on ? 'rgba(30,18,10,.45)' : 'rgba(30,18,10,.22)';
+      for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) c.fillRect(x + 6 + a * 9, y + 6 + b * 9, 4, 3);
+      if (m.warn_ && k < .2) { c.fillStyle = `rgba(201,74,58,${.5 + .4 * Math.sin(t * 22)})`; for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) c.fillRect(x + 7 + a * 9, y + 5 + b * 9, 2, 2); }
+      if (k > .02) {
+        const h = 11 * k;
+        for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) {
+          const sx = x + 8 + a * 9, sy = y + 9 + b * 9;
+          c.fillStyle = '#5a3a1e'; c.beginPath(); c.moveTo(sx - 2.5, sy); c.lineTo(sx, sy - h); c.lineTo(sx + 2.5, sy); c.closePath(); c.fill();
+          c.fillStyle = '#d8c79a'; c.fillRect(sx - .5, sy - h, 1, Math.max(1, h * .3));
+        }
+      }
+    }
+  },
+  cloud(c, m, t) {
+    const [rx, ry, rw, rh] = m.rect, col = m.kind === 'poison' ? [127, 191, 58] : m.kind === 'ice' ? [150, 210, 255] : [255, 140, 60];
+    c.fillStyle = `rgba(${col.join(',')},.10)`; c.fillRect(rx * 32, ry * 32, rw * 32, rh * 32);
+    const n = Math.min(40, rw * rh);
+    for (let k = 0; k < n; k++) {
+      const hx = U.hash(k, m.rect[0], 31), hy = U.hash(k, m.rect[1], 37), ph = t * (.3 + hx * .4) + k;
+      const x = (rx + ((hx + Math.sin(ph) * .05 + 1) % 1) * rw) * 32, y = (ry + ((hy + t * .03 * (1 + hx)) % 1) * rh) * 32;
+      c.globalAlpha = .18 + .12 * Math.sin(ph * 2); U.ellipse(c, x, y, 10 + hx * 8, 6 + hy * 4, `rgb(${col.join(',')})`);
+    }
+    c.globalAlpha = 1;
+  },
+  bridge(c, m, W, g) {
+    const k = this.ease(m, 'vis', m.on ? 1 : 0, g); if (k < .02) return;
+    const horizStrip = m.tiles.length > 1 && m.tiles[1] - m.tiles[0] === 1;   // franja horizontal ⇒ se cruza en vertical
+    c.globalAlpha = k;
+    for (const i of m.tiles) {
+      const x = (i % W) * 32, y = ((i / W) | 0) * 32;
+      c.fillStyle = 'rgba(0,0,0,.3)'; c.fillRect(x + 1, y + 3, 32, 32);
+      for (let q = 0; q < 4; q++) {
+        const sh = q % 2 ? '#7a5230' : '#8a6038';
+        c.fillStyle = sh;
+        if (horizStrip) { c.fillRect(x, y + q * 8 + 1, 32, 6); c.fillStyle = '#a87a4a'; c.fillRect(x, y + q * 8 + 1, 32, 1); }
+        else { c.fillRect(x + q * 8 + 1, y, 6, 32); c.fillStyle = '#a87a4a'; c.fillRect(x + q * 8 + 1, y, 1, 32); }
+      }
+      c.fillStyle = '#c8b080';
+      if (horizStrip) { c.fillRect(x + 2, y, 2, 32); c.fillRect(x + 28, y, 2, 32); } else { c.fillRect(x, y + 2, 32, 2); c.fillRect(x, y + 28, 32, 2); }
+    }
+    c.globalAlpha = 1;
+  },
+  stubs(c, m, W) {
+    const P = this.PAL[m.look] || this.PAL.roots;
+    for (const i of m.tiles) {
+      const x = (i % W) * 32, y = ((i / W) | 0) * 32;
+      if (m.look === 'bars') { c.fillStyle = '#26282c'; for (let q = 0; q < 4; q++) c.fillRect(x + 5 + q * 7, y + 22, 3, 3); continue; }
+      for (let q = 0; q < 3; q++) { const sx = x + 6 + q * 10 + U.hash(i, q, 3) * 3; U.ellipse(c, sx, y + 24, 4, 2.5, P.dark); U.ellipse(c, sx, y + 23, 3, 1.8, P.bark); }
+    }
+  },
+  cracks(c, m, W) {
+    c.strokeStyle = 'rgba(20,14,10,.8)'; c.lineWidth = 1.5;
+    for (const i of m.tiles) {
+      const x = (i % W) * 32, y = ((i / W) | 0) * 32; c.beginPath();
+      c.moveTo(x + 8, y + 4); c.lineTo(x + 14, y + 14); c.lineTo(x + 10, y + 22); c.moveTo(x + 14, y + 14); c.lineTo(x + 24, y + 18); c.lineTo(x + 26, y + 28); c.stroke();
+    }
+  },
+
+  /** Sprites ordenados en profundidad con los personajes: rejas, raíces, setas, palancas, altares y estelas. */
+  sprites(g, v) {
+    const f = g.floorRT; if (!f) return [];
+    const out = [], W = f.L.w, inView = (x, y) => x > v.l - 48 && x < v.r + 48 && y > v.t - 16 && y < v.b + 64;
+    const add = (y, fn) => out.push({ y, draw: c => fn(c) });
+    if (f.mechs) for (const m of f.mechs.list) {
+      if (m.type === 'gate' || m.type === 'ambush') {
+        const closed = m.type === 'gate' ? !m.open : !!m.on, k = this.ease(m, 'vis', closed ? 1 : 0, g); if (k < .03) continue;
+        for (const i of m.tiles) { const x = (i % W) * 32, y = ((i / W) | 0) * 32; if (inView(x, y)) add(y + 30, c => this.barrier(c, x, y, m.look, k, i, 1)); }
+      } else if (m.type === 'breakable' && !m.broken) {
+        const dmg = 1 - m.hp / (m.hp0 || m.hp || 1);
+        for (const i of m.tiles) { const x = (i % W) * 32, y = ((i / W) | 0) * 32; if (!inView(x, y)) continue; if (m.look === 'shroom') add(y + 28, c => this.shroom(c, x, y, g.time, dmg)); else add(y + 30, c => this.barrier(c, x, y, m.look, 1, i, 1, dmg)); }
+      } else if (m.type === 'lever') { const x = m.tx * 32, y = m.ty * 32; if (inView(x, y)) add(y + 26, c => this.lever(c, x, y, m, g)); }
+      else if (m.type === 'altar') { const x = m.tx * 32, y = m.ty * 32; if (inView(x, y)) add(y + 26, c => this.altar(c, x, y, m, g)); }
+    }
+    for (const l of f.lore) { const x = l.tx * 32, y = l.ty * 32; if (inView(x, y)) add(y + 26, c => this.stele(c, x, y, l, g.time)); }
+    return out;
+  },
+  /** Raíces enredadas (o barrotes) que tapan una casilla; `k` = cuánto han subido; `dmg` = grietas. */
+  barrier(c, x, y, look, k, seed, _, dmg = 0) {
+    const P = this.PAL[look] || this.PAL.roots, base = y + 30, H = 40 * k;
+    U.ellipse(c, x + 16, base, 15, 4, 'rgba(0,0,0,.35)');
+    if (look === 'bars') {
+      c.fillStyle = P.dark; c.fillRect(x + 2, base - H, 28, 3); c.fillRect(x + 2, base - H * .45, 28, 2);
+      for (let q = 0; q < 4; q++) { const bx = x + 4 + q * 7; c.fillStyle = P.bark; c.fillRect(bx, base - H, 3, H); c.fillStyle = P.light; c.fillRect(bx, base - H, 1, H); c.fillStyle = P.dark; c.fillRect(bx + 2, base - H, 1, H); }
+      c.fillStyle = P.light; c.fillRect(x + 2, base - H, 28, 1); return;
+    }
+    if (look === 'rocks') {
+      const r = 12 + 2 * k; U.ellipse(c, x + 16, base - r * .8, r + 2, r * .9, P.dark); U.ellipse(c, x + 15, base - r * .9, r, r * .8, P.bark); U.ellipse(c, x + 11, base - r * 1.2, r * .4, r * .25, P.light);
+    } else {
+      for (let q = 0; q < 4; q++) {
+        const h = H * (.75 + U.hash(seed, q, 7) * .3), sx = x + 4 + q * 8 + U.hash(seed, q, 9) * 3, bend = (U.hash(seed, q, 11) - .5) * 14;
+        c.strokeStyle = P.dark; c.lineWidth = 6; c.lineCap = 'round'; c.beginPath(); c.moveTo(sx, base); c.quadraticCurveTo(sx + bend, base - h * .6, sx - bend * .4, base - h); c.stroke();
+        c.strokeStyle = P.bark; c.lineWidth = 4; c.stroke();
+        c.strokeStyle = P.light; c.lineWidth = 1; c.beginPath(); c.moveTo(sx - 1, base - 2); c.quadraticCurveTo(sx + bend - 1, base - h * .6, sx - bend * .4 - 1, base - h + 1); c.stroke();
+        if (U.hash(seed, q, 13) < .5) U.ellipse(c, sx - bend * .4 + 2, base - h + 2, 3, 1.8, P.leaf);
+      }
+      c.lineCap = 'butt';
+      // espinas
+      c.fillStyle = '#d8c79a'; for (let q = 0; q < 5; q++) { const px = x + 5 + U.hash(seed, q, 17) * 22, py = base - 6 - U.hash(seed, q, 19) * (H - 10); c.fillRect(px, py, 2, 1); }
+    }
+    if (dmg > 0) {   // grietas y astillas según el daño recibido
+      c.strokeStyle = 'rgba(255,236,190,.75)'; c.lineWidth = 1; c.beginPath();
+      const n = Math.ceil(dmg * 4);
+      for (let q = 0; q < n; q++) { const px = x + 6 + U.hash(seed, q, 23) * 20, py = base - 8 - U.hash(seed, q, 29) * 24; c.moveTo(px, py); c.lineTo(px + 4, py + 5); c.lineTo(px + 1, py + 9); }
+      c.stroke();
+    }
+  },
+  shroom(c, x, y, t, dmg) {
+    const cx = x + 16, base = y + 28, pulse = 1 + .04 * Math.sin(t * 3);
+    U.ellipse(c, cx, base, 13, 4, 'rgba(0,0,0,.35)');
+    c.fillStyle = '#d8cbb0'; c.fillRect(cx - 4, base - 16, 8, 16); c.fillStyle = '#b8a888'; c.fillRect(cx + 2, base - 16, 2, 16);
+    U.ellipse(c, cx, base - 18, 15 * pulse, 10 * pulse, '#4a2a5a'); U.ellipse(c, cx, base - 19, 14 * pulse, 9 * pulse, '#8a5aa8');
+    for (const [dx, dy, r] of [[-6, -22, 2.5], [4, -24, 2], [8, -18, 1.8], [-2, -16, 1.5]]) U.ellipse(c, cx + dx, base + dy, r, r * .8, '#e8d0f8');
+    if (dmg > 0) { c.strokeStyle = 'rgba(40,20,50,.9)'; c.lineWidth = 1.2; c.beginPath(); c.moveTo(cx - 8, base - 24); c.lineTo(cx - 2, base - 18); c.lineTo(cx - 5, base - 13); if (dmg > .5) { c.moveTo(cx + 9, base - 22); c.lineTo(cx + 3, base - 17); } c.stroke(); }
+    // esporas que salen
+    for (let q = 0; q < 4; q++) { const ph = (t * .6 + q * .25) % 1; c.globalAlpha = (1 - ph) * .7; U.ellipse(c, cx + Math.sin(q * 2 + t) * 8, base - 26 - ph * 20, 2, 2, '#b8e07a'); }
+    c.globalAlpha = 1;
+  },
+  lever(c, x, y, m, g) {
+    const a = this.ease(m, 'vis', m.on ? .55 : -.55, g), cx = x + 16, base = y + 26;
+    U.ellipse(c, cx, base, 12, 4, 'rgba(0,0,0,.35)');
+    c.fillStyle = '#4a4438'; c.fillRect(cx - 9, base - 8, 18, 8); c.fillStyle = '#7a705e'; c.fillRect(cx - 9, base - 8, 18, 2);
+    c.save(); c.translate(cx, base - 6); c.rotate(a);
+    c.fillStyle = '#5a3a1e'; c.fillRect(-1.5, -20, 3, 20); c.fillStyle = '#8a6234'; c.fillRect(-1.5, -20, 1, 20);
+    U.ellipse(c, 0, -21, 4, 4, m.on ? '#9be36b' : '#c94a3a'); U.ellipse(c, -1, -22, 1.5, 1.5, 'rgba(255,255,255,.6)');
+    c.restore();
+  },
+  altar(c, x, y, m, g) {
+    const cx = x + 16, base = y + 26, used = m.used && m.used.length > 0, t = g.time;
+    U.ellipse(c, cx, base, 14, 4, 'rgba(0,0,0,.35)');
+    c.fillStyle = '#5a5246'; c.fillRect(cx - 11, base - 14, 22, 14); c.fillStyle = '#7a705e'; c.fillRect(cx - 13, base - 18, 26, 5); c.fillStyle = '#948a74'; c.fillRect(cx - 13, base - 18, 26, 1);
+    c.fillStyle = '#3c362f'; c.fillRect(cx - 7, base - 10, 2, 6); c.fillRect(cx + 5, base - 10, 2, 6);
+    U.ellipse(c, cx, base - 19, 8, 3, '#2a1a0a'); U.ellipse(c, cx, base - 19.5, 6.5, 2.2, used ? '#6a4a1a' : `rgba(242,184,75,${.75 + .25 * Math.sin(t * 4)})`);
+    if (!used) for (let q = 0; q < 3; q++) { const ph = (t * .5 + q / 3) % 1; c.globalAlpha = (1 - ph) * .6; U.ellipse(c, cx + Math.sin(q * 3 + t) * 4, base - 22 - ph * 16, 1.5, 1.5, '#ffd88a'); } c.globalAlpha = 1;
+  },
+  stele(c, x, y, l, t) {
+    const cx = x + 16, base = y + 26;
+    U.ellipse(c, cx, base, 11, 3.5, 'rgba(0,0,0,.35)');
+    c.fillStyle = '#4c4a42'; c.beginPath(); c.moveTo(cx - 8, base); c.lineTo(cx - 7, base - 22); c.quadraticCurveTo(cx, base - 30, cx + 7, base - 22); c.lineTo(cx + 8, base); c.closePath(); c.fill();
+    c.fillStyle = '#6a675c'; c.fillRect(cx - 6, base - 21, 2, 19);
+    c.fillStyle = '#5f8f3a'; U.ellipse(c, cx - 5, base - 3, 5, 3, '#4f7a30'); U.ellipse(c, cx + 5, base - 24, 3, 2, '#5f8f3a');
+    c.fillStyle = l.read ? 'rgba(200,190,160,.45)' : `rgba(255,236,170,${.55 + .35 * Math.sin(t * 3)})`;
+    for (let q = 0; q < 4; q++) c.fillRect(cx - 4 + (q % 2) * 2, base - 18 + q * 4, 6 - (q % 2) * 2, 1);
+    if (!l.read) { const ph = (t * .7) % 1; c.globalAlpha = 1 - ph; U.ellipse(c, cx + 3, base - 30 - ph * 10, 1.5, 1.5, '#fff2c0'); c.globalAlpha = 1; }
+  },
+  lights(f, add, time) {
+    for (const m of f.mechs.list) {
+      if (m.type === 'altar' && !(m.used && m.used.length)) add((m.tx + .5) * 32, m.ty * 32 + 8, 46, [242, 184, 75], .55 + .1 * Math.sin(time * 4));
+      else if (m.type === 'plate' && m.on) add((m.tx + .5) * 32, (m.ty + .5) * 32, 30, [155, 227, 107], .45);
+      else if (m.type === 'breakable' && m.look === 'shroom' && !m.broken) add((m.tiles[0] % f.L.w + .5) * 32, ((m.tiles[0] / f.L.w) | 0) * 32 + 8, 50, [184, 140, 220], .5);
+      else if (m.type === 'lever') add((m.tx + .5) * 32, m.ty * 32 + 6, 22, m.on ? [155, 227, 107] : [220, 110, 90], .35);
+    }
+    for (const l of f.lore) if (!l.read) add((l.tx + .5) * 32, l.ty * 32 + 8, 30, [255, 236, 170], .4);
+  },
+};
+
 /* ---------- 24. Audio: efectos sintetizados en el navegador (Web Audio, sin archivos) ---------- */
 const Sfx = {
   ctx: null, master: null, failed: false, last: {}, requested: {}, played: {},
@@ -7387,6 +8268,20 @@ const Sfx = {
         case 'boss': this.tone({ type: 'sawtooth', f0: 70, f1: 45, dur: 1.2, vol: .12, attack: .2 }); this.noise({ f0: 200, f1: 80, dur: 1.2, vol: .12, filter: 'lowpass' }); break;
         case 'trap': this.tone({ type: 'square', f0: 400, f1: 180, dur: .18, vol: .08 }); break;
         case 'open': this.tone({ type: 'sine', f0: 420, f1: 560, dur: .08, vol: .07 }); break;
+        // Mecanismos de las mazmorras
+        case 'click': this.tone({ type: 'square', f0: 900, f1: 600, dur: .04, vol: .06 }); this.noise({ f0: 2500, dur: .03, vol: .06, filter: 'highpass' }); break;
+        case 'clickOff': this.tone({ type: 'square', f0: 520, f1: 380, dur: .05, vol: .05 }); break;
+        case 'lever': this.noise({ f0: 700, f1: 300, dur: .12, vol: .1 }); this.tone({ type: 'triangle', f0: 300, f1: 180, dur: .12, vol: .1, delay: .05 }); break;
+        case 'gateOpen': this.noise({ f0: 220, f1: 600, dur: .5, vol: .14, filter: 'lowpass', q: .8 }); this.tone({ type: 'sawtooth', f0: 90, f1: 140, dur: .45, vol: .05 }); break;
+        case 'gateClose': this.noise({ f0: 600, f1: 160, dur: .4, vol: .14, filter: 'lowpass', q: .8 }); this.tone({ type: 'triangle', f0: 110, f1: 60, dur: .3, vol: .12, delay: .1 }); break;
+        case 'crack': this.noise({ f0: 1800, f1: 500, dur: .08, vol: .16 }); this.tone({ type: 'triangle', f0: 240, f1: 120, dur: .08, vol: .08 }); break;
+        case 'break': this.noise({ f0: 1200, f1: 150, dur: .35, vol: .2 }); this.tone({ type: 'sine', f0: 140, f1: 50, dur: .3, vol: .15 }); break;
+        case 'secret': this.notes([392, 523, 659, 880], 'sine', .1, .1, .3); this.noise({ f0: 400, f1: 120, dur: .4, vol: .1, filter: 'lowpass' }); break;
+        case 'solve': this.notes([659, 784, 1047], 'triangle', .1, .07, .18); break;
+        case 'fail': this.tone({ type: 'square', f0: 220, f1: 150, dur: .2, vol: .06 }); break;
+        case 'spikes': this.noise({ f0: 3000, f1: 1200, dur: .07, vol: .07, filter: 'highpass' }); break;
+        case 'altar': this.tone({ type: 'sine', f0: 220, f1: 440, dur: .6, vol: .1, attack: .1 }); this.notes([440, 554, 659], 'triangle', .07, .12, .3); break;
+        case 'ambush': this.tone({ type: 'sawtooth', f0: 110, f1: 70, dur: .6, vol: .1 }); this.noise({ f0: 300, f1: 900, dur: .4, vol: .12, filter: 'lowpass' }); break;
       }
     } catch (e) { /* el audio nunca debe romper el juego */ }
     return true;
@@ -7577,7 +8472,7 @@ class Renderer {
       else if (g.village && g.mode === 'village') g.village.drawObjects(c, g);
       for (const a of g.actors) if (a instanceof Enemy && a.alive) a.drawTelegraph(c, g, alpha);
       for (const e of g.effects) if (e.layer === 'mid') e.draw(c, e.t / e.life);
-      const list = g.actors.filter(a => a.alive || a === g.player).concat(g.boulders && g.boulders.length ? g.boulders : [], g.village && g.mode === 'village' ? g.village.sprites(view) : [], g.floorRT && typeof DungeonScenery !== 'undefined' ? DungeonScenery.sprites(g, view) : []).sort((a, b) => a.y - b.y);
+      const list = g.actors.filter(a => a.alive || a === g.player).concat(g.boulders && g.boulders.length ? g.boulders : [], g.village && g.mode === 'village' ? g.village.sprites(view) : [], g.floorRT && typeof DungeonScenery !== 'undefined' ? DungeonScenery.sprites(g, view) : [], g.floorRT ? MechArt.sprites(g, view) : []).sort((a, b) => a.y - b.y);
       for (const a of list) a.draw(c, g, alpha);
       if (P) {
         const ftx = Math.floor(prx / TS), fty = Math.floor(pry / TS);
@@ -8809,7 +9704,9 @@ const Game = {
     const p = this.player; p.moves = p.prog.equipped.slice(0, 4);
     this.persist(); UI.buildRun(this); this.setPaused(false);
   },
-  onCombatArea() {},
+  /** Golpes y disparos de los héroes sobre los mecanismos del piso (en línea los decide el servidor). */
+  onCombatArea(team, x, y, r, by) { const f = this.floorRT; if (f && f.mechs && !(this.net && this.net.active)) f.mechs.hit(team, x, y, r, by || null); },
+  onShotMove(x, y, by) { const f = this.floorRT; return !!(f && f.mechs && !(this.net && this.net.active) && f.mechs.shotAt(x, y, by)); },
   onBasicAttack(aim) { if (this.floorRT) this.floorRT.onBasicAttack(this.player, aim); },
 
   beginPlay() {
@@ -10837,6 +11734,7 @@ class NetPlay {
     f.time += dt; if (f.msgT > 0) f.msgT -= dt;
     const r = f.roomAt(tx, ty); f.room = r;
     if (r) { if (!f.enteredRooms.has(r.id)) { f.enteredRooms.add(r.id); f.revealRoom(r); } } else f.revealAround(tx, ty, 2);
+    if (p.alive) f.explore(r, p, true);           // pistas de los mecanismos y textos del escenario (solo se leen)
   }
   useItem(id) { this.tx.send('use', { id }); return true; }
   /** Dejar 1 unidad en el suelo: el servidor la quita de la mochila y la pone al lado (cualquiera puede cogerla). */
@@ -10961,7 +11859,10 @@ class NetPlay {
       if (!obj && key.startsWith('o')) { obj = f.objects[+key.slice(1)]; if (obj) obj.netKey = key; }
       if (!obj) { obj = { netKey: key, type: o.type, tier: o.tier, tx: o.tx, ty: o.ty, x: (o.tx + .5) * 32, y: (o.ty + .5) * 32, opened: false, done: false }; f.objects.push(obj); f.dirty = true; }
       if (o.opened && !obj.opened) { obj.opened = true; f.dirty = true; }
+      if (obj.hiddenUntil && !obj.revealed) f.revealMini(null);   // el servidor solo lo envía cuando el minijefe ha caído
     }
+    // Mecanismos: el estado lo decide el servidor; aquí se aplican los mismos bloqueos y avisos
+    if (f.mechs && typeof st.mech === 'string') f.mechs.apply(st.mech);
     // Disparos y zonas de enemigos (los de jugadores ya se ven con la repetición local del ataque)
     const sSeen = new Set();
     for (const [id, s] of Object.entries(st.shots || {})) {

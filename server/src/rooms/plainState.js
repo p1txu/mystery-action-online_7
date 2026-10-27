@@ -16,5 +16,6 @@ export function viewToState(v, { phase = 'playing', code = '', dungeon = '', lob
     zones: map(v.zones, 'id', z => omit(z, 'id')),
     doors: map(v.doors || [], 'key', d => omit(d, 'key')),
     boss: v.boss || undefined,
+    mech: v.mech || '',
   };
 }

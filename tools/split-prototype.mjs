@@ -35,6 +35,7 @@ const EXPORTS = [
   'SPECIES', 'EVOLVED', 'FORMS', 'Progress', 'EVOLUTIONS', 'EVO_ITEM_MIN_LEVEL',
   'Combat', 'Effects', 'Projectile', 'Zone', 'BLOCKS_SHOT',
   'TYPES', 'TYPE_CHART', 'typeEff', 'calcStats', 'MAX_LEVEL', 'expNeed', 'expYield', 'MOVES',
+  'DungeonPlan', 'Prefabs', 'MechSolver', 'Mechs', 'LORE', 'SOLVER_TILES_PER_S',
   'BOONS', 'Boons', 'BOSS_RAGE', 'GEODA', 'Geoda', 'Boulder', 'Actor', 'Player', 'Enemy', 'STOP', 'ENEMIES', 'ENEMY_VARIANTS', 'makeKind', 'BOSSES', 'makeBossKind',
   'BIOMES', 'RARITIES', 'CATEGORIES', 'EQUIP_SLOTS', 'ITEMS', 'QUICK', 'RARITY_ORDER', 'STAT_NAMES',
   'BASE_SHOP', 'SHOP_TIERS', 'shopStock', 'sellPrice', 'RECIPES', 'newUid',

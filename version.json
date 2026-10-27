@@ -1,12 +1,14 @@
 {
-  "build": 38,
-  "version": "0.38",
+  "build": 39,
+  "version": "0.39",
   "date": "2026-10-27",
   "notes": [
-    "El mercader ya no es un topo: es Tobías, un mercader ambulante humano. En la guarida del Bosque Brumoso está escondido en un rincón, temblando de miedo durante el combate (los enemigos no le hacen caso); al caer el guardián se levanta, se acerca y te habla. Diálogos reescritos.",
-    "El cartero también es humano: se llama Lino. Diálogos adaptados.",
-    "Lino ya no se atasca en las esquinas: te sigue por la ruta de casillas, rodea columnas y rocas y sale solo si queda encajado. Cuando se le acerca un enemigo se aparta despacio (antes salía corriendo).",
-    "Gruta de Cuarzo más dura: sus enemigos, sus esbirros y la Reina Geoda tienen el triple de vida.",
-    "Todos más lentos otra vez: las clases un 20 % y los enemigos y aliados un 8 %, para que esquivar cueste y la esquiva vuelva a ser útil."
+    "Bosque Brumoso renovado (capítulo 1): las salas tienen propósito. Puzles, cámaras secretas, trampas, emboscadas, salas de élite, claros de descanso, altares y textos que cuentan lo que pasó en el bosque.",
+    "Mecanismos nuevos: placas de tiempo, palancas que levantan puentes de troncos, raíces que se rompen a golpes, paredes agrietadas con cámaras secretas, raíces punzantes y setas de esporas que también hieren a los enemigos.",
+    "Los premios de los puzles están en nichos junto a la sala: el camino a la escalera nunca depende de un mecanismo y todo se puede resolver jugando solo.",
+    "Placas de peso para el grupo: con dos jugadores se abren pisando las dos a la vez; en solitario hay otra vía (romper unas raíces y usar una palanca).",
+    "Minijefe en el penúltimo piso: el Zarzal Madre, con el triple de vida. Su cofre raro aparece al vencerlo.",
+    "En cooperativo los mecanismos los mueve el servidor y todos veis lo mismo.",
+    "Cada piso se comprueba al generarlo: un resolutor recorre palancas, roturas y placas y confirma que todo se alcanza y que nada se queda bloqueado para siempre."
   ]
 }

@@ -233,7 +233,7 @@ export class ExpeditionRoom extends Room {
   /** Copia la vista plana de la simulación al esquema (solo cambia lo que cambió). */
   sync() {
     const v = this.exp.view(), st = this.state;
-    st.floorN = v.floor.n; st.time = v.time; st.wind = v.wind;
+    st.floorN = v.floor.n; st.time = v.time; st.wind = v.wind; if (st.mech !== v.mech) st.mech = v.mech || '';
     for (const p of v.players) {
       const s = st.players.get(p.id); if (!s) continue;
       for (const k of ['x', 'y', 'vx', 'vy', 'fx', 'fy', 'hp', 'maxHp', 'exp', 'energy', 'belly', 'gems', 'downed', 'revive', 'connected', 'dash', 'iframes', 'ack', 'basic', 'dodge', 'level']) if (s[k] !== p[k]) s[k] = p[k];

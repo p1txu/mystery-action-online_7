@@ -122,7 +122,7 @@ test('botín suelto ≈75 % menos (como mucho uno por sala); los enemigos casi n
 test('cofres: 1-3 por piso, separados, alcanzables, fuera de la sala inicial; común < plata < raro; oro y pociones casi siempre', () => {
   const tiers = {};
   for (const d of E.DUNGEONS) for (let seed = 1; seed <= 25; seed++) {
-    const g = gen(d.id, seed * 7, 2), L = g.layout, ch = L.objects.filter(o => o.type === 'chest' && L.rooms[o.room] && L.rooms[o.room].type === 'normal');
+    const g = gen(d.id, seed * 7, 2), L = g.layout, ch = L.objects.filter(o => o.type === 'chest' && !o.reward && L.rooms[o.room] && L.rooms[o.room].type === 'normal');   // reward: premios de salas con propósito (0.39), aparte
     assert.ok(ch.length >= 1 && ch.length <= 3, `${d.id}/${seed}: ${ch.length} cofres`);
     for (let i = 0; i < ch.length; i++) for (let j = i + 1; j < ch.length; j++) assert.ok(Math.hypot(ch[i].tx - ch[j].tx, ch[i].ty - ch[j].ty) >= E.LOOT.chests.minGap);
     for (const c of ch) { tiers[c.tier] = (tiers[c.tier] || 0) + 1; assert.notEqual(L.rooms[c.room].type, 'start'); }

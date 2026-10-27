@@ -121,7 +121,8 @@ export class Expedition {
     for (const s of this.L.enemies) {
       if (s.outlaw) continue;
       const kindObj = s.boss ? E.makeBossKind(s.boss) : E.makeKind(s.variant);
-      const e = new E.Enemy(kindObj, (s.tx + .5) * TS, (s.ty + .5) * TS, { level: s.boss ? E.enemyLevel(this.dng, this.dng.floors) + 2 : lvl, elite: s.boss ? s.elite : this.rollElite(s.elite), final: s.final, hpMul: this.dng.hpMul || 1 });
+      const e = new E.Enemy(kindObj, (s.tx + .5) * TS, (s.ty + .5) * TS, { level: s.boss ? E.enemyLevel(this.dng, this.dng.floors) + 2 : lvl, elite: s.boss ? s.elite : this.rollElite(s.elite), final: s.final, hpMul: (this.dng.hpMul || 1) * (s.mini || 1) });
+      if (s.mini) { e.mini = true; e.nameTag = s.name; }
       this.addEnemy(e, s.boss ? 'b:' + s.boss : 'v:' + s.variant);
       if (s.boss) {
         this.boss = e;
@@ -140,6 +141,11 @@ export class Expedition {
     this.corrTile = gen.biome.corrTile; this.bossPh2 = false;
     this.doors = this.L.doors.map((d, i) => { const cx = d.tiles.reduce((t, k) => t + k % W, 0) / d.tiles.length, cy = d.tiles.reduce((t, k) => t + ((k / W) | 0), 0) / d.tiles.length; return { key: 'door' + i, tiles: d.tiles.slice(), x: (cx + .5) * TS, y: (cy + .5) * TS, open: false }; });
     this.objects = this.L.objects.map((o, idx) => Object.assign({ key: 'o' + idx, opened: false }, o, { x: (o.tx + .5) * TS, y: (o.ty + .5) * TS }));
+    // Mecanismos del piso (sección 18b): el servidor es el único que los mueve; los clientes aplican `mech`
+    this.mechs = this.L.mechs && this.L.mechs.length ? new E.Mechs(this.world, this.L, this.mechHost(gen)) : null;
+    this.g.onCombatArea = (team, x, y, r, by) => { if (this.mechs) this.mechs.hit(team, x, y, r, by || null); };
+    this.g.onShotMove = (x, y, by) => !!(this.mechs && this.mechs.shotAt(x, y, by));
+    for (const m of this.members.values()) m.player.altarMul = 1;
     // Jugadores en la entrada (en abanico para no solaparse); los caídos vuelven con un cuarto de PS
     const sx = gen.world.spawn.x, sy = gen.world.spawn.y, off = [[0, 0], [-22, 0], [22, 0], [0, 22]];
     let k = 0;
@@ -162,6 +168,34 @@ export class Expedition {
     if (this.dng.id === CI.dungeon && kind === 'normal' && st.floorNo === CI.floor && [...this.members.values()].some(m => !m.left && !m.save.cleared.includes(CI.dungeon))) { this.pauseT = CI.pause; this.emit('courierNoise', {}); }
     for (const m of this.members.values()) m.player.alientoUsed = false;
     if (kind === 'waypoint' || (kind === 'normal' && st.floorNo > 1)) this.offerBoons();
+  }
+
+  /** Lo que los mecanismos necesitan de la simulación (la misma interfaz que FloorRT.mechHost en el cliente). */
+  mechHost(gen) {
+    const E = this.E;
+    return {
+      floorTile: gen.biome.roomTile,
+      actors: () => this.g.actors.filter(a => !a.dormant),
+      players: () => this.humans.filter(p => p.alive && !p.dormant),
+      hurt: (a, o) => E.Combat.hit(this.g, a, o),
+      setTile: () => {},                               // Mechs ya cambia world.tiles; el cliente hace lo mismo al aplicar el estado
+      spawn: (m, n) => this.spawnAmbush(m, n),
+      onAltar: p => { p.hp = Math.max(1, Math.round(p.hp - p.maxHp * .2)); p.altarMul = 1.2; this.emit('altar', { by: p.netId }); },
+      fx: (kind, m) => { if (kind === 'ambush') this.emit('ambush', { id: m.id }); },
+    };
+  }
+  /** Oleada de una emboscada: dentro de la sala, lejos de los jugadores, escalada al grupo como las demás. */
+  spawnAmbush(m, n) {
+    const E = this.E, [rx, ry, rw, rh] = m.rect, lvl = E.enemyLevel(this.dng, this.floor.floorNo), out = [], want = Math.round(n * this.coop.count);
+    const ps = this.humans.filter(p => p.alive && !p.dormant);
+    for (let k = 0; k < 80 && out.length < want; k++) {
+      const tx = rx + Math.floor(this.random() * rw), ty = ry + Math.floor(this.random() * rh), x = (tx + .5) * TS, y = (ty + .5) * TS;
+      if (ps.some(p => Math.hypot(x - p.x, y - p.y) < 110)) continue;
+      const v = E.weighted(E.floorEnemies(this.dng, this.floor.floorNo), this.random), e = new E.Enemy(E.makeKind(v), x, y, { level: lvl, hpMul: this.dng.hpMul || 1, elite: this.rollElite(false) });
+      if (!e.free(this.world, x, y)) continue;
+      e.aggro = true; e.tag = 'ambush'; this.addEnemy(e, 'v:' + v); out.push(e);
+    }
+    return out;
   }
 
   /* ---------- Dones de expedición (1 de 3 por piso; cada jugador los suyos) ---------- */
@@ -292,6 +326,7 @@ export class Expedition {
     this.time += dt; f.time += dt;
     stepWorld(E, g, dt, this.humans, p => this.consume(p));
     if (this.ended) return;
+    if (this.mechs) this.mechs.update(dt, this.humans.filter(p => p.alive && !p.dormant), g.actors.filter(a => !a.dormant));
     // Enemigos creados por el propio motor (invocaciones del guardián): se numeran para que
     // se sincronicen con todos y se ajustan al grupo como los demás.
     for (const a of g.actors) if (!a.netId && a.alive && a instanceof E.Enemy) this.addEnemy(a, 'v:' + a.kindId, false);
@@ -305,7 +340,7 @@ export class Expedition {
       for (const it of this.items.values()) if (Math.hypot(it.x - p.x, it.y - p.y) <= PICK_R && !(it.dropBy === m.id && this.time < it.dropUntil)) this.pickUp(m, it);
       for (const o of this.objects) {
         const d = Math.hypot(o.x - p.x, o.y - p.y);
-        if (o.type === 'chest' && !o.opened && d < CHEST_R) this.openChest(m, o);
+        if (o.type === 'chest' && !o.opened && d < CHEST_R && !(o.hiddenUntil && !o.revealed)) this.openChest(m, o);
         if (o.type === 'campfire' && d < CAMPFIRE_R) { p.hp = Math.min(p.maxHp, p.hp + 2.5 * dt); p.energy = Math.min(p.maxEnergy, p.energy + 6 * dt); }
       }
       for (const dr of this.doors) if (!dr.open && Math.hypot(dr.x - p.x, dr.y - p.y) <= DOOR_R) this.tryDoor(m, dr);
@@ -452,6 +487,7 @@ export class Expedition {
       if (e.team === 'enemy') this.quest(m, 'defeat', { kind: e.kindId, boss: !!e.kind.isBoss });
     }
     this.emit('enemyDown', { id: e.netId, x: e.x, y: e.y, boss: !!e.kind.isBoss });
+    if (e.mini) { for (const o of this.objects) if (o.hiddenUntil === 'mini') o.revealed = true; this.emit('miniDown', { id: e.netId, name: e.nameTag || '' }); }
     if (e.kind.isBoss) {
       this.g.actors.forEach(a => { if (a.summoner === e && a.alive) a.die(this.g); });
       const r = this.L.rooms[0];
@@ -571,7 +607,7 @@ export class Expedition {
     const zones = this.g.zones.map(z => ({ id: z.netId, x: r1(z.x), y: r1(z.y), r: z.r || 0, team: z.team || '', color: z.color || '', life: z.life || 0, t: r1(z.t || 0) }));
     return { floor: this.floorInfo, time: r1(this.floor.time), wind: this.floor.wind, players, enemies, shots, zones,
       items: [...this.items.values()].map(it => ({ key: it.key, id: it.id, amount: it.amount, tx: it.tx, ty: it.ty })),
-      objects: this.objects.map(o => ({ key: o.key, type: o.type, tx: o.tx, ty: o.ty, opened: !!o.opened, tier: o.tier || '' })),
-      doors: this.doors.map(d => ({ key: d.key, open: d.open })), boss: this.bossView() };
+      objects: this.objects.filter(o => !(o.hiddenUntil && !o.revealed)).map(o => ({ key: o.key, type: o.type, tx: o.tx, ty: o.ty, opened: !!o.opened, tier: o.tier || '' })),
+      doors: this.doors.map(d => ({ key: d.key, open: d.open })), boss: this.bossView(), mech: this.mechs ? this.mechs.serialize() : '' };
   }
 }

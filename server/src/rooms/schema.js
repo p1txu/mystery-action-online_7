@@ -36,5 +36,6 @@ export const ExpeditionState = schema({
   code: t.string(), max: t.uint8(), dungeon: t.string().default('bosque'), floorN: t.uint16(), time: t.float32(), wind: t.uint8(),
   players: t.map(PlayerState), enemies: t.map(EnemyState), items: t.map(ItemState), objects: t.map(ObjectState),
   shots: t.map(ShotState), zones: t.map(ZoneState), doors: t.map(DoorState), boss: BossState,
+  mech: t.string(),                         // mecanismos del piso (Mechs.serialize): «id:bits[:extra]»
   hostRule: t.string(), reconnectSeconds: t.uint16(),
 }, 'ExpeditionState');
