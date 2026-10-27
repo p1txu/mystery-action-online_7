@@ -12,7 +12,7 @@ test('comprar y vender: precio, existencias de la tienda, monedas e inventario l
   assert.equal(r.save.bank, s.bank - E.ITEMS.pocion.price); assert.equal(new E.Inventory(r.save.inv, () => 99).count('pocion'), new E.Inventory(s.inv, () => 99).count('pocion') + 1);
   assert.throws(() => op(s, 'buy', { id: 'bayaAurea' }), RuleError, 'no está en la tienda de este rango');
   assert.throws(() => op(freshSave('guerrero', { bank: 0, cleared: ['bosque'] }), 'buy', { id: 'pocion' }), /monedas/);
-  assert.throws(() => op(freshSave('guerrero', { bank: 5000 }), 'buy', { id: 'pocion' }), /Bosque Brumoso/, 'sin el Topo Mercader no hay tienda');
+  assert.throws(() => op(freshSave('guerrero', { bank: 5000 }), 'buy', { id: 'pocion' }), /Bosque Brumoso/, 'sin el mercader Tobías no hay tienda');
   assert.throws(() => op(freshSave('guerrero', { bank: 5000 }), 'craft', { i: 0 }), /Bosque Brumoso/);
   const uid = s.inv.find(x => x.id === 'manzana').uid;
   const v = op(s, 'sell', { uid });
@@ -53,7 +53,7 @@ test('equipar, quitar, habilidades de la clase y sin evolución, con las reglas 
 
 test('misiones y compañeros: aceptar, cancelar, entregar (con experiencia y subida de nivel), descanso', () => {
   const s = freshSave('mago', { cleared: ['bosque', 'gruta'] }); s.board = E.Jobs.board(s, 77);
-  { const early = freshSave('mago'); early.board = E.Jobs.board(early, 77); assert.throws(() => op(early, 'acceptJob', { id: early.board[0].id }), /Gruta de Cuarzo/, 'sin Pico Cartero no hay tablón'); }
+  { const early = freshSave('mago'); early.board = E.Jobs.board(early, 77); assert.throws(() => op(early, 'acceptJob', { id: early.board[0].id }), /Gruta de Cuarzo/, 'sin el cartero Lino no hay tablón'); }
   const jid = s.board[0].id;
   const a = op(s, 'acceptJob', { id: jid });
   assert.ok(a.save.jobs.some(j => j.id === jid) && !a.save.board.some(j => j.id === jid));

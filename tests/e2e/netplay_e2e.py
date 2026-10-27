@@ -59,6 +59,9 @@ async def main(html):
             # Combate: el daño lo pone el servidor
             await ev('__e2e.cheat("enemyNear")'); await pg.wait_for_timeout(300)
             e0 = await ev('(()=>{ const e=[...MysteryAction.net.enemies.values()].sort((a,b)=>Math.hypot(a.x-MysteryAction.player.x,a.y-MysteryAction.player.y)-Math.hypot(b.x-MysteryAction.player.x,b.y-MysteryAction.player.y))[0]; window.__tgt=e.netId; return {id:e.netId, hp:e.hp, d:Math.hypot(e.x-MysteryAction.player.x,e.y-MysteryAction.player.y)} })()')
+            # el enemigo se acerca a su ritmo (0.38: todos más lentos); se ataca cuando está a tiro
+            try: await pg.wait_for_function('(()=>{ const G=MysteryAction,p=G.player,e=G.net.enemies.get(window.__tgt); return !e || Math.hypot(e.x-p.x,e.y-p.y) < 56; })()', timeout=5000)
+            except Exception: pass
             for i in range(6):
                 await ev('(()=>{ const G=MysteryAction,p=G.player,e=G.net.enemies.get(window.__tgt); if(!e) return; p.facing={x:Math.sign(e.x-p.x)||1,y:0}; p.basicCd=0; })()')
                 await pg.keyboard.press('Space'); await pg.wait_for_timeout(260)

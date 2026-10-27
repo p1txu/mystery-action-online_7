@@ -8,11 +8,11 @@ import { parseInput } from '../shared/protocol.js';
 import { E, freshSave, seeded, STEP } from './helpers.mjs';
 
 const TABLE = {   // valores de nivel 1 pedidos (vida, maná, ataque, poder mágico, defensa, resistencia, velocidad, vel. ataque, crítico, daño crítico)
-  // velocidad: un 15 % menos desde la 0.36 (se podrá subir con botas)
-  guerrero: [180, 60, 12, 0, 16, 10, 128, .85, .05, 1.5],
-  arquero: [105, 80, 14, 0, 6, 5, 148, 1, .1, 1.75],
-  mago: [85, 140, 5, 18, 4, 10, 124, .75, .05, 1.5],
-  asesino: [100, 70, 11, 0, 5, 5, 162, 1.5, .15, 1.75],
+  // velocidad: un 15 % menos en la 0.36 y un 20 % más en la 0.38 (se podrá subir con botas)
+  guerrero: [180, 60, 12, 0, 16, 10, 102, .85, .05, 1.5],
+  arquero: [105, 80, 14, 0, 6, 5, 118, 1, .1, 1.75],
+  mago: [85, 140, 5, 18, 4, 10, 99, .75, .05, 1.5],
+  asesino: [100, 70, 11, 0, 5, 5, 130, 1.5, .15, 1.75],
 };
 const KEYS = ['hp', 'mp', 'atk', 'spa', 'def', 'spd', 'spe', 'aspd', 'crit', 'critMul'];
 

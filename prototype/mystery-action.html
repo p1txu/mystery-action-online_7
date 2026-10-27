@@ -669,7 +669,7 @@ const CONFIG = {
   MOVE_CD_MUL: 1.5, MOVE_COST_MUL: 1.3,        // enfriamiento y coste de los movimientos especiales
   HP_REGEN_EVERY: 5,                           // 1 PS cada 5 s con la barriga llena (antes 1,5 s)
   HURT_IFRAMES: .55,
-  ENEMY_SPEED: .9,                             // ritmo de los enemigos y aliados (0.36: todos algo más lentos)
+  ENEMY_SPEED: .83,                            // ritmo de los enemigos y aliados (0.36: −10 %; 0.38: −8 % más)
 };
 
 /* ---------- 2. Util ---------- */
@@ -1578,28 +1578,28 @@ const CLASSES = [
   {
     id: 'guerrero', name: 'Guerrero', role: 'Tanque', type: 'Tanque', weapon: 'Espada y escudo', resource: 'Energía', color: '#d0a54a', regen: 3,
     base: { growth: { hp: 16, mp: 2, atk: 1.4, spa: 0, def: 1.8, spd: 1.1, spe: 0, aspd: .004, crit: .001, critMul: 0, range: 0 },
-      hp: 180, mp: 60, atk: 12, spa: 0, def: 16, spd: 10, spe: 128, aspd: .85, crit: .05, critMul: 1.5, range: 52 },
+      hp: 180, mp: 60, atk: 12, spa: 0, def: 16, spd: 10, spe: 102, aspd: .85, crit: .05, critMul: 1.5, range: 52 },
     basic: 'espadazo', learn: [['golpetazo', 1]], ultimate: null,
     desc: 'Primera línea: aguanta, controla y protege al grupo. Espada y escudo; golpes lentos y contundentes.',
   },
   {
     id: 'arquero', name: 'Arquero', role: 'DPS a distancia', type: 'Distancia', weapon: 'Arco', resource: 'Energía', color: '#7fb05a', regen: 3.5,
     base: { growth: { hp: 8, mp: 3, atk: 1.7, spa: 0, def: .5, spd: .5, spe: 1, aspd: .012, crit: .004, critMul: .01, range: 0 },
-      hp: 105, mp: 80, atk: 14, spa: 0, def: 6, spd: 5, spe: 148, aspd: 1, crit: .1, critMul: 1.75, range: 300 },
+      hp: 105, mp: 80, atk: 14, spa: 0, def: 6, spd: 5, spe: 118, aspd: 1, crit: .1, critMul: 1.75, range: 300 },
     basic: 'flecha', learn: [['flechazo', 1]], ultimate: null,
     desc: 'Daño físico constante a media distancia. Dispara en movimiento; vive de su posición.',
   },
   {
     id: 'mago', name: 'Mago', role: 'Daño mágico explosivo', type: 'Magia', weapon: 'Bastón', resource: 'Maná', color: '#6a8cff', regen: 5,
     base: { growth: { hp: 6, mp: 7, atk: .2, spa: 2.2, def: .4, spd: 1, spe: 0, aspd: .006, crit: .001, critMul: 0, range: 0 },
-      hp: 85, mp: 140, atk: 5, spa: 18, def: 4, spd: 10, spe: 124, aspd: .75, crit: .05, critMul: 1.5, range: 340 },
+      hp: 85, mp: 140, atk: 5, spa: 18, def: 4, spd: 10, spe: 99, aspd: .75, crit: .05, critMul: 1.5, range: 340 },
     basic: 'orbe', learn: [['lluvia', 1]], ultimate: null,
     desc: 'Poca vida y mucho poder: proyectiles arcanos y explosiones de fuego en área.',
   },
   {
     id: 'asesino', name: 'Asesino', role: 'DPS rápido · sangrado', type: 'Sigilo', weapon: 'Dos dagas', resource: 'Energía', color: '#c8404a', regen: 3.5,
     base: { growth: { hp: 9, mp: 2, atk: 1.5, spa: 0, def: .5, spd: .5, spe: 1.2, aspd: .015, crit: .005, critMul: .01, range: 0 },
-      hp: 100, mp: 70, atk: 11, spa: 0, def: 5, spd: 5, spe: 162, aspd: 1.5, crit: .15, critMul: 1.75, range: 46 },
+      hp: 100, mp: 70, atk: 11, spa: 0, def: 5, spd: 5, spe: 130, aspd: 1.5, crit: .15, critMul: 1.75, range: 46 },
     basic: 'tajos', learn: [['tajoX', 1]], ultimate: null,
     desc: 'Movilidad y golpes rápidos con dos dagas. Desangra a sus objetivos.',
   },
@@ -1608,7 +1608,7 @@ const FORMS = {};
 CLASSES.forEach(c => FORMS[c.id] = c);
 const SPECIES = CLASSES;      // compatibilidad: donde antes se listaban especies ahora se listan clases
 const EVOLVED = [];
-const MAX_STATS = { hp: 220, mp: 160, atk: 20, spa: 20, def: 20, spd: 14, spe: 172, aspd: 1.6, crit: .2, critMul: 2, range: 340 };
+const MAX_STATS = { hp: 220, mp: 160, atk: 20, spa: 20, def: 20, spd: 14, spe: 138, aspd: 1.6, crit: .2, critMul: 2, range: 340 };
 
 
 /** Dibuja una criatura con sombra y anillo indicador. st: {t,moving,fx,fy,vx,vy,bob}. */
@@ -3487,7 +3487,7 @@ function bossExec(e, g, ph2) {
       const alive = g.actors.filter(a => a.summoner === e && a.alive).length;
       for (let i = 0; i < Math.min(2, 4 - alive); i++) for (let t = 0; t < 14; t++) {
         const a = Math.random() * Math.PI * 2, x = e.x + Math.cos(a) * 70, y = e.y + Math.sin(a) * 70;
-        const m = new Enemy(makeKind(k.minion), x, y, { level: Math.max(1, e.level - 3) });
+        const m = new Enemy(makeKind(k.minion), x, y, { level: Math.max(1, e.level - 3), hpMul: e.hpMul || 1 });
         if (m.free(g.world, x, y)) { m.summoner = e; m.aggro = true; g.actors.push(m); Effects.burst(g, x, y - 12, '#d6a0ff', 12, 100); break; }
       }
       break;
@@ -3574,11 +3574,12 @@ const ELITE = {
 const eliteChance = (dng, floorNo) => floorNo < ELITE.minFloor && dng.level <= 3 ? 0 : Math.min(.2, (ELITE.chance + ELITE.perLevel * dng.level + .004 * (floorNo - 1)) * (ELITE.biome[dng.biome] || 1));
 class Enemy extends Actor {
   constructor(kind, x, y, o = {}) {
-    const elite = !!o.elite, level = o.level || 5, st = calcStats(kind.base, level);
+    const elite = !!o.elite, level = o.level || 5, st = calcStats(kind.base, level), hpMul = o.hpMul || 1;
+    if (hpMul !== 1) st.hp = Math.round(st.hp * hpMul);   // mazmorras con enemigos más duros (DUNGEONS[].hpMul)
     if (elite) { st.hp = Math.round(st.hp * ELITE.hp); st.def = Math.round(st.def * 1.1); st.spd = Math.round(st.spd * 1.1); }
     super(x, y, { hbW: kind.hbW || 18, hbH: kind.hbH || 12, radius: kind.radius * (elite ? 1.1 : 1), height: kind.height * (elite ? 1.12 : 1), hp: st.hp, def: st.def, team: 'enemy', kbRes: (kind.kbRes ?? 1) * (elite ? .6 : 1), stunMul: (kind.stunMul ?? 1) * (elite ? .7 : 1), mass: kind.mass || 1 });
     this.kindId = kind.id; this.kind = kind; this.elite = elite; this.final = !!o.final; this.tag = o.tag || null;
-    this.level = level; this.stats = st; this.type = kind.type || 'normal';
+    this.level = level; this.stats = st; this.type = kind.type || 'normal'; this.hpMul = hpMul;
     this.baseDmgMul = o.dmgMul || 1; this.dmgMul = this.baseDmgMul * (elite ? ELITE.dmg : 1);
     this.vscale = (kind.drawScale || 1) * (elite ? 1.15 : 1);
     this.home = { x, y }; this.state = 'idle'; this.timer = 0; this.windupTime = 1;
@@ -3927,7 +3928,7 @@ const ITEMS = {
   panueloCarmesi: { name: 'Pañuelo carmesí', cat: 'equipo', slot: 'accesorio', rarity: 'rara', icon: 'scarf', color: '#b8243a', price: 320, mods: { pct: { atk: .1, spa: .1 } }, desc: 'Teñido con pigmento de las ruinas.' },
   panueloTormenta: { name: 'Pañuelo tormenta', cat: 'equipo', slot: 'accesorio', rarity: 'epica', icon: 'scarf', color: '#ffe14d', price: 700, mods: { pct: { spa: .15, spe: .1 } }, desc: 'Chisporrotea con cada movimiento.' },
   brazalPiedra: { name: 'Brazalete de piedra', cat: 'equipo', slot: 'accesorio', rarity: 'comun', icon: 'band', color: '#9aa0a8', price: 60, mods: { flat: { def: 4 } }, desc: 'Pesado pero protector.' },
-  brazalHierro: { name: 'Brazalete de hierro', cat: 'equipo', slot: 'accesorio', rarity: 'pococomun', icon: 'band', color: '#c9c2b0', price: 150, mods: { pct: { def: .1, spd: .06 } }, desc: 'Forjado por los topos mercaderes.' },
+  brazalHierro: { name: 'Brazalete de hierro', cat: 'equipo', slot: 'accesorio', rarity: 'pococomun', icon: 'band', color: '#c9c2b0', price: 150, mods: { pct: { def: .1, spd: .06 } }, desc: 'Forjado por los herreros de las caravanas de mercaderes.' },
   brazalObsidiana: { name: 'Brazalete de obsidiana', cat: 'equipo', slot: 'accesorio', rarity: 'rara', icon: 'band', color: '#3a3346', price: 340, mods: { pct: { def: .18, spd: .1, spe: -.06 } }, desc: 'Muy resistente, aunque te frena un poco.' },
   brazalGeoda: { name: 'Brazalete de geoda', cat: 'equipo', slot: 'accesorio', rarity: 'epica', icon: 'band', color: '#5c8cff', price: 720, mods: { flat: { hp: 10 }, pct: { def: .15, spd: .15 } }, desc: 'Cristales que absorben los golpes.' },
   talismanVital: { name: 'Talismán vital', cat: 'equipo', slot: 'accesorio', rarity: 'comun', icon: 'talisman', color: '#5fd16b', price: 70, mods: { flat: { hp: 10 } }, desc: 'Late al ritmo de tu corazón.' },
@@ -4204,10 +4205,10 @@ const DUNGEONS = [
     desc: 'Senderos entre árboles y niebla. Ideal para empezar.',
     enemies: { rataRaiz: 38, limoMusgo: 30, setaBruma: 14, zarza: 10, cuervo: 8 }, enemyFloors: { zarza: 2, cuervo: 3 }, enemyBase: 3,
     traps: [0, 2], trapPool: { purificadora: 4, pinchos: 3, rafaga: 2, hambre: 2, somnifera: 1 },
-    monsterHouse: 0, shop: 0, hiddenStairs: 0, dark: 0, treasure: .12, wind: 300,   // sin tiendas: el Topo se presenta al final
+    monsterHouse: 0, shop: 0, hiddenStairs: 0, dark: 0, treasure: .12, wind: 300,   // sin tiendas: el mercader Tobías se presenta al final
   },
   {
-    id: 'gruta', name: 'Gruta de Cuarzo', biome: 'cave', floors: 6, waypoint: 3, boss: 'reinageoda', level: 5, unlock: 'bosque', color: '#7fe8ff',
+    id: 'gruta', name: 'Gruta de Cuarzo', biome: 'cave', hpMul: 3, floors: 6, waypoint: 3, boss: 'reinageoda', level: 5, unlock: 'bosque', color: '#7fe8ff',
     desc: 'Galerías de cristal y los primeros pisos sin luz. Un paso más que el bosque.',
     enemies: { rataCristal: 30, limoCristal: 26, lagartoCuarzo: 20, hongoLuz: 14, vencejo: 10 }, enemyFloors: { vencejo: 2, hongoLuz: 2 }, enemyBase: 2, enemyStep: 3,   // pocos enemigos: +1 cada 3 pisos
     traps: [1, 2], trapPool: { purificadora: 3, pinchos: 3, veneno: 2, somnifera: 2, teletransporte: 2, rafaga: 2, hambre: 2 },
@@ -4236,8 +4237,9 @@ const DUNGEONS = [
   },
 ];
 const dungeonById = id => DUNGEONS.find(d => d.id === id);
-/** Presentación del vecino de las misiones (Pico Cartero): mazmorra, piso y pausa de la escena de los ruidos. */
+/** Presentación del vecino de las misiones (el cartero Lino): mazmorra, piso y pausa de la escena de los ruidos. */
 const COURIER_INTRO = { dungeon: 'gruta', floor: 2, pause: 3.4 };
+const COURIER_NAME = 'Cartero Lino';
 /** ¿Puede entrar? Si ha completado la anterior (o esta misma, para partidas de versiones con otro orden). */
 const dungeonOpen = (save, d) => !d.unlock || save.cleared.includes(d.unlock) || save.cleared.includes(d.id);
 const RANKS = [
@@ -4904,7 +4906,7 @@ class FloorRT {
     const TS = CONFIG.TILE, L = this.L, lvl = enemyLevel(this.dng, this.floorNo);
     for (const s of L.enemies) {
       const kind = s.boss ? makeBossKind(s.boss) : makeKind(s.variant);
-      const e = new Enemy(kind, (s.tx + .5) * TS, (s.ty + .5) * TS, { level: s.boss ? enemyLevel(this.dng, this.dng.floors) + 2 : lvl, elite: s.elite, final: s.final });
+      const e = new Enemy(kind, (s.tx + .5) * TS, (s.ty + .5) * TS, { level: s.boss ? enemyLevel(this.dng, this.dng.floors) + 2 : lvl, elite: s.elite, final: s.final, hpMul: this.dng.hpMul || 1 });
       if (s.outlaw) { e.outlaw = s.outlaw; e.nameTag = s.name; e.kind = Object.assign({}, e.kind, { brain: outlawBrain, baseBrain: e.kind.brain, name: s.name }); }
       if (s.boss) this.boss = e;
       this.g.actors.push(e);
@@ -5088,7 +5090,7 @@ class FloorRT {
   spawnNear(variant, x, y, dist, o) {
     for (let k = 0; k < 30; k++) {
       const a = Math.random() * Math.PI * 2, ex = x + Math.cos(a) * dist, ey = y + Math.sin(a) * dist;
-      const e = new Enemy(makeKind(variant), ex, ey, o);
+      const e = new Enemy(makeKind(variant), ex, ey, Object.assign({ hpMul: this.dng.hpMul || 1 }, o));
       if (e.free(this.world, ex, ey) && this.world.los(x, y, ex, ey)) { e.aggro = true; this.g.actors.push(e); Effects.burst(this.g, ex, ey - 12, '#ef5b4b', 10, 100); return e; }
     }
     return null;
@@ -5102,7 +5104,7 @@ class FloorRT {
       const x = (tx + .5) * TS, y = (ty + .5) * TS;
       if (Math.hypot(x - p.x, y - p.y) < 10 * TS) continue;
       const lvl = enemyLevel(this.dng, this.floorNo);
-      const e = new Enemy(makeKind(weighted(floorEnemies(this.dng, this.floorNo), Math.random)), x, y, { level: lvl });
+      const e = new Enemy(makeKind(weighted(floorEnemies(this.dng, this.floorNo), Math.random)), x, y, { level: lvl, hpMul: this.dng.hpMul || 1 });
       if (!e.free(this.world, x, y)) continue;
       e.level = lvl; g.actors.push(e); return;
     }
@@ -5111,7 +5113,7 @@ class FloorRT {
     const g = this.g, p = g.player;
     if (this.kind === 'normal') Quests.progress(g, 'room', { dungeon: this.dng.id });
     if (p) Effects.ring(g, p.x, p.y, 10, 150, 'rgba(255,242,208,.5)', .55, 3, 'ground');
-    if (r.type === 'shop') this.say('Tienda del topo mercader: coge lo que quieras y paga antes de salir', '#f2b84b');
+    if (r.type === 'shop') this.say('Tienda del mercader Tobías: coge lo que quieras y paga antes de salir', '#f2b84b');
     else if (r.type === 'treasure') this.say('Cámara del tesoro', '#f2b84b');
     else if (r.type === 'monsterhouse' && !this.mhTriggered) {
       this.mhTriggered = true;
@@ -5120,7 +5122,7 @@ class FloorRT {
       for (let k = 0; k < 80 && made < n; k++) {
         const tx = r.x + Math.floor(Math.random() * r.w), ty = r.y + Math.floor(Math.random() * r.h), x = (tx + .5) * TS, y = (ty + .5) * TS;
         if (Math.hypot(x - p.x, y - p.y) < 90) continue;
-        const e = new Enemy(makeKind(weighted(floorEnemies(this.dng, this.floorNo), Math.random)), x, y, { level: lvl, elite: made === 0 && Math.random() < Math.min(.4, eliteChance(this.dng, this.floorNo) * 4) });
+        const e = new Enemy(makeKind(weighted(floorEnemies(this.dng, this.floorNo), Math.random)), x, y, { level: lvl, hpMul: this.dng.hpMul || 1, elite: made === 0 && Math.random() < Math.min(.4, eliteChance(this.dng, this.floorNo) * 4) });
         if (!e.free(this.world, x, y)) continue;
         e.aggro = true; e.level = lvl; e.tag = 'mh'; g.actors.push(e); Effects.burst(g, x, y - 12, '#ef5b4b', 10, 100); made++;
       }
@@ -5290,7 +5292,7 @@ class FloorRT {
 /* --- NPC: tendero y clientes a rescatar (no participan en el combate) --- */
 const NPC_KINDS = {
   tendero: {
-    name: 'Topo mercader', type: 'normal', base: { hp: 100, atk: 90, def: 80, spa: 50, spd: 80, spe: 60 }, speed: 0, radius: 12, height: 36, aggro: 0, barW: 30,
+    name: 'Mercader Tobías', type: 'normal', base: { hp: 100, atk: 90, def: 80, spa: 50, spd: 80, spe: 60 }, speed: 0, radius: 12, height: 36, aggro: 0, barW: 30,
     pal: {}, brain: () => STOP,
     draw(c, st) {
       const b = st.bob * .5;
@@ -5377,7 +5379,7 @@ function gridPath(world, x0, y0, x1, y1, maxNodes = 4000) {
 class Companion extends Enemy {
   constructor(data, x, y) {
     const k = makeKind(data.kind);
-    const kind = Object.assign({}, k, { speed: Math.max(k.speed, 132), aggro: 0 });   // los aliados siguen el ritmo del líder
+    const kind = Object.assign({}, k, { speed: Math.max(k.speed, 158), aggro: 0 });   // los aliados siguen el ritmo del líder (158 × ENEMY_SPEED ≈ la clase más rápida)
     super(kind, x, y, { level: data.level });
     this.team = 'player'; this.ally = true; this.data = data; this.nameTag = data.name;
     this.family = ENEMY_VARIANTS[data.kind].base;
@@ -5546,133 +5548,199 @@ const LANTERNS = [[26.8, 14.5], [17.2, 19.8], [12.2, 12], [31.2, 21.5]];   // po
 /** Luz de atardecer para la aldea (más clara que las mazmorras). */
 const VILLAGE_LIGHT = { ambient: [44, 26, 34, .2], rays: .035, atmo: 'leaves', vignette: 'rgba(10,6,4,.32)' };   // atardecer cálido: se ve todo, y las antorchas, ventanas y la hoguera brillan
 /** Estaciones: casilla del punto de interacción y del vecino que atiende. */
-/* --- Presentación del Topo Mercader -------------------------------------------------------------
-   La primera vez que se derrota al guardián del Bosque Brumoso: un montículo de tierra avanza bajo el
-   suelo desde una esquina de la guarida, choca con el cadáver del guardián, el Topo Mercader sale
-   rebotado, se marea, habla con el jugador y le sigue hasta el portal. Desde que se completa el
-   Bosque, su puesto (tienda y taller) aparece en la aldea. Solo visual: el juego queda detenido
-   durante la escena (en línea, solo para quien la ve). */
+/* --- Presentación del mercader Tobías -------------------------------------------------------------
+   La primera vez que se llega a la guarida del Bosque Brumoso, el mercader Tobías está acurrucado en un
+   rincón, muerto de miedo (los enemigos no le hacen caso y no recibe daño). Al derrotar al guardián se
+   levanta, se acerca al jugador, habla con él y le sigue hasta el portal. Desde que se completa el
+   Bosque, su puesto (tienda y taller) aparece en la aldea. Solo visual: el juego queda detenido durante
+   el diálogo (en línea, solo para quien lo ve). */
+const MERCHANT_NAME = 'Mercader Tobías';
 const MerchantIntro = {
-  /** ¿Ya conoce al Topo? (se presenta al completar el Bosque Brumoso por primera vez) */
+  /** ¿Ya conoce al mercader? (se presenta al completar el Bosque Brumoso por primera vez) */
   met: save => !!save && Array.isArray(save.cleared) && save.cleared.includes('bosque'),
   applies(g, dungeonId) { return dungeonId === 'bosque' && !!g.save && !this.met(g.save) && !g.merchantSeen; },
   LINES: [
-    '¡Auch! Menudo cabezazo… ¿Esto estaba aquí antes? Juraría que la última vez solo había raíces.',
-    '¡Anda! ¿Y qué piensas hacer con todos esos objetos? Ya que casi me abro la cabeza por tu culpa, me quedaré con una parte… ¡y a cambio te escolto hasta la aldea, jeje!',
-    'Por cierto, soy el Topo Mercader. Si me dejas montar mi puesto en tu aldea, te venderé de todo… a buen precio. Bueno, a un precio.',
+    '¿Y-ya está? ¿Se ha acabado? … ¡Por las barbas de mi abuelo, has tumbado a esa bestia!',
+    'Me colé en la guarida buscando madera de roble viejo para vender y el guardián se despertó. Llevo horas acurrucado en este rincón sin atreverme ni a respirar.',
+    'Te debo una buena. Me llamo Tobías y soy mercader ambulante. Ya que me has salvado el pellejo… ¿me escoltas hasta tu aldea? A cambio me quedaré allí y montaré mi puesto.',
+    'Te venderé de todo y te compraré lo que encuentres… a buen precio. Bueno, a un precio. ¡Jeje!',
   ],
+  SCARED: ['Que no me vea, que no me vea…', '¡Ay, madre!', '*tiembla*', '¡Socorro…!', 'Yo no estoy aquí…'],
+  /** Rincón de la guarida más alejado de la entrada (allí se esconde). */
+  corner(g) {
+    const TS = CONFIG.TILE, room = g.floorRT && g.floorRT.L.rooms[0], W = g.world, sp = W.spawn;
+    if (!room) return { x: sp.x + 3 * TS, y: sp.y };
+    const cs = [[room.x + 1, room.y + 1], [room.x + room.w - 2, room.y + 1], [room.x + 1, room.y + room.h - 2], [room.x + room.w - 2, room.y + room.h - 2]].filter(([x, y]) => !W.isSolid(x, y));
+    cs.sort((a, b) => Math.hypot(b[0] * TS - sp.x, b[1] * TS - sp.y) - Math.hypot(a[0] * TS - sp.x, a[1] * TS - sp.y));
+    const pick = cs[Math.floor(U.hash(room.x, room.y, 5) * Math.min(2, cs.length))] || [room.x + 1, room.y + 1];
+    return { x: (pick[0] + .5) * TS, y: (pick[1] + .7) * TS };
+  },
+  kind() { return Object.assign({}, NPC_KINDS.tendero, { id: 'tendero', name: MERCHANT_NAME, speed: 120 }); },
+  /** Al entrar en la guarida del Bosque (primera vez): el mercader acurrucado en un rincón. */
+  onFloor(g, dungeonId, kind) {
+    if (kind !== 'boss' || !this.applies(g, dungeonId) || (g.merchant && g.merchant.alive)) return;
+    const at = this.corner(g), n = new Enemy(this.kind(), at.x, at.y, {});
+    n.team = 'neutral'; n.npc = 'merchant'; n.nameTag = '¿?'; n.aggro = false; n.invincible = true; n.scared = true;
+    const self = this; n.update = function (dt, gg) { self.update(this, dt, gg); };
+    g.actors.push(n); g.merchant = n;
+    return n;
+  },
+  /** Escondido: tiembla mirando al guardián. Siguiendo: va detrás del jugador. */
+  update(n, dt, g) {
+    n.px = n.x; n.py = n.y; n.anim += dt;
+    const P = g.player; if (!P) return;
+    if (n.scared) {
+      n.moving = false; n.bob = Math.abs(Math.sin(n.anim * 32)) * 1.1;
+      const boss = g.floorRT && g.floorRT.boss; const look = boss && boss.alive ? boss : P;
+      n.facing = { x: look.x - n.x, y: look.y - n.y };
+      if (Math.random() < 1.6 * dt) g.fx.add({ x: n.x + (Math.random() - .5) * 12, y: n.y - 30, vx: (Math.random() - .5) * 20, vy: -20, life: .6, size: 2, color: '#bfe4ff', grav: 120 });   // sudor
+      n.sayT = (n.sayT ?? 2) - dt;
+      if (n.sayT <= 0 && !g.cine) { n.sayT = 3.5 + Math.random() * 3; g.floaters.push({ x: n.x, y: n.y - 46, vx: 0, text: this.SCARED[(Math.random() * this.SCARED.length) | 0], color: '#e8dcc0', size: 8, t: 0, life: 1.6 }); }
+      return;
+    }
+    if (n.walkTo) {   // tras el combate: se acerca al jugador
+      const dx = n.walkTo.x - n.x, dy = n.walkTo.y - n.y, d = Math.hypot(dx, dy);
+      n.moving = d > 6; if (n.moving) { const sp = Math.min(d * 5, 130) * dt, bx = n.x, by = n.y; n.moveBy(g.world, dx / d * sp, dy / d * sp); n.facing = { x: dx / d, y: dy / d }; if (Math.hypot(n.x - bx, n.y - by) < sp * .2) n.stuck = (n.stuck || 0) + dt; }
+      n.bob = n.moving ? Math.abs(Math.sin(n.anim * 10)) * 2 : Math.sin(n.anim * 2.2) * .6 + .6;
+      return;
+    }
+    if (!n.following) { n.moving = false; n.facing = { x: P.x - n.x, y: P.y - n.y }; n.bob = Math.sin(n.anim * 2.2) * .6 + .6; return; }
+    Escort.follow(n, dt, g, { max: 105, flee: false });
+  },
+  /** Guardián derrotado: el mercader se levanta, se acerca, habla y te sigue hasta el portal. */
   start(g, boss) {
     if (!boss || g.merchantSeen) return;
     g.merchantSeen = true;
-    const TS = CONFIG.TILE, room = g.floorRT && g.floorRT.L.rooms[0], p = g.player;
-    const corpse = { x: boss.x, y: boss.y, kind: boss.kind, vscale: boss.vscale || 1, yaw: boss._rig ? boss._rig.yaw : Math.atan2(boss.facing.y, boss.facing.x), wob: 0 };
-    // Esquina de la guarida más alejada del jugador
-    const corners = room ? [[room.x + 1, room.y + 1], [room.x + room.w - 2, room.y + 1], [room.x + 1, room.y + room.h - 2], [room.x + room.w - 2, room.y + room.h - 2]].map(([cx, cy]) => ({ x: (cx + .5) * TS, y: (cy + .5) * TS })) : [{ x: boss.x - 200, y: boss.y - 120 }];
-    const from = corners.sort((a, b) => Math.hypot(b.x - p.x, b.y - p.y) - Math.hypot(a.x - p.x, a.y - p.y))[0];
-    const dx = corpse.x - from.x, dy = corpse.y - from.y, dist = Math.hypot(dx, dy) || 1, ux = dx / dist, uy = dy / dist;
-    const hitAt = { x: corpse.x - ux * 34, y: corpse.y - uy * 26 }, land = { x: hitAt.x - ux * TS * 2.6, y: hitAt.y - uy * TS * 2.6 };
-    const S = { corpse, from, hitAt, land, mole: null, trail: [], phase: 'wait', stars: 0 };
-    const T0 = 1.0, T1 = 3.4, T2 = 4.1, T3 = 5.4;      // espera · excava · rebota · mareo · diálogo
-    // Cadáver + montículo + topo: una capa propia que vive mientras dure el piso
+    const p = g.player;
+    let n = g.merchant && g.merchant.alive ? g.merchant : null;
+    if (!n) n = this.onFloor(g, 'bosque', 'boss') || null;
+    if (!n) return;
+    const corpse = { x: boss.x, y: boss.y, kind: boss.kind, vscale: boss.vscale || 1, yaw: boss._rig ? boss._rig.yaw : Math.atan2(boss.facing.y, boss.facing.x) };
+    const S = { corpse };
     Effects.add(g, 1e9, c => MerchantIntro.draw(c, g, S), 'mid');
-    let dust = 0;
-    g.cine = { t: 0, dur: T3, hold: true, focus: corpse, kind: 'merchant', tick: (dt, gg) => {
+    g.cine = { t: 0, dur: 1e9, hold: true, focus: n, kind: 'merchant', tick: (dt, gg) => {
       const t = gg.cine.t;
-      if (t < T0) return;
-      if (t < T1) {                                     // el montículo avanza bajo tierra
-        const k = (t - T0) / (T1 - T0), e = k * k * (3 - 2 * k);
-        S.phase = 'dig'; S.mound = { x: from.x + (hitAt.x - from.x) * e, y: from.y + (hitAt.y - from.y) * e, k };
-        dust -= dt; if (dust <= 0) { dust = .05; S.trail.push({ x: S.mound.x, y: S.mound.y, t: gg.time }); gg.shake = Math.max(gg.shake, 1.2);
-          for (let i = 0; i < 3; i++) gg.fx.add({ x: S.mound.x + (Math.random() - .5) * 14, y: S.mound.y - 2, vx: (Math.random() - .5) * 70, vy: -40 - Math.random() * 60, life: .45, size: 2.5, color: Math.random() < .5 ? '#6a4a2a' : '#8a6a42', grav: 260 }); }
-        return;
+      MerchantIntro.update(n, dt, gg);   // con el juego detenido solo se mueve él
+      if (t > 1.2 && n.scared) {   // se asoma, comprueba que el guardián no se mueve y se levanta
+        n.scared = false; n.nameTag = MERCHANT_NAME;
+        gg.floaters.push({ x: n.x, y: n.y - 46, vx: 0, text: '¿…se acabó?', color: '#eef3e6', size: 10, t: 0, life: 1.8 });
       }
-      if (S.phase === 'dig') {                          // ¡bonk!: sale disparado contra el cadáver
-        S.phase = 'bonk'; S.mound = null; corpse.wob = 1; gg.shake = Math.max(gg.shake, 7); Sfx.play('hit');
-        Effects.burst(gg, hitAt.x, hitAt.y - 6, '#8a6a42', 26, 200, .6); Effects.flare && Effects.add(gg, .18, cc => Effects.flare(cc, hitAt.x + ux * 14, hitAt.y - 18, 22, .4, '#ffe9a0', 1));
-        gg.floaters.push({ x: hitAt.x + ux * 10, y: hitAt.y - 40, vx: 0, text: '¡BONK!', color: '#ffe9a0', size: 14, t: 0, life: 1.1 });
+      if (t > 2.4 && !n.walkTo && !S.talked) {
+        const dx = p.x - n.x, dy = p.y - n.y, d = Math.hypot(dx, dy) || 1;
+        n.walkTo = { x: p.x - dx / d * 40, y: p.y - dy / d * 30 }; n.stuck = 0; S.walkStart = t;
+        gg.cine.focus = { x: (n.x + p.x) / 2, y: (n.y + p.y) / 2 };
       }
-      if (t < T2) {                                     // rebote hacia atrás en arco
-        const k = (t - T1) / (T2 - T1);
-        S.mole = { x: hitAt.x + (land.x - hitAt.x) * k, y: hitAt.y + (land.y - hitAt.y) * k, z: Math.sin(Math.PI * k) * 30, spin: k * Math.PI * 2, dizzy: false };
-        return;
-      }
-      if (S.phase === 'bonk') { S.phase = 'dizzy'; Effects.burst(gg, land.x, land.y - 4, '#8a6a42', 12, 120, .4); gg.shake = Math.max(gg.shake, 3); }
-      S.mole = { x: land.x, y: land.y, z: 0, spin: 0, dizzy: true, face: { x: ux, y: uy } };
-      corpse.wob = Math.max(0, corpse.wob - dt * 2);
-      if (t >= T3 - .01 && S.phase === 'dizzy') {
-        S.phase = 'talk'; S.mole.dizzy = false; S.mole.face = { x: (p.x - land.x), y: (p.y - land.y) };
-        MerchantIntro.dialog(gg, 0, () => {
-          S.mole = null; S.phase = 'done';
-          MerchantIntro.spawnFollower(gg, land);
-          gg.cine.hold = false;
-        });
+      if (n.walkTo && !S.talked) {
+        const close = Math.hypot(n.walkTo.x - n.x, n.walkTo.y - n.y) < 10;
+        if (close || n.stuck > .6 || t - S.walkStart > 6) {
+          if (!close) { n.x = n.px = n.walkTo.x; n.y = n.py = n.walkTo.y; }   // atascado: se coloca al lado (es una escena)
+          n.walkTo = null; S.talked = true; n.facing = { x: p.x - n.x, y: p.y - n.y }; p.facing = { x: n.x - p.x, y: n.y - p.y };
+          MerchantIntro.dialog(gg, 0, () => { n.following = true; gg.cine.hold = false; gg.cine.dur = 0; UI.toast(`${MERCHANT_NAME} te sigue hasta el portal`, '#f2b84b'); });
+        }
       }
     } };
   },
   dialog(g, i, done) {
     const L = this.LINES;
-    UI.ask(`Topo Mercader: «${L[i]}»`, [{ label: i < L.length - 1 ? 'Seguir' : '¡Trato hecho!', main: true, fn: () => (i < L.length - 1 ? this.dialog(g, i + 1, done) : done()) }]);
-  },
-  /** El Topo acompaña al jugador hasta el portal (no lucha ni recibe daño). */
-  spawnFollower(g, at) {
-    const kind = Object.assign({}, NPC_KINDS.tendero, { id: 'tendero', speed: 170 });
-    const f = new Enemy(kind, at.x, at.y, {});
-    f.team = 'neutral'; f.npc = 'merchant'; f.nameTag = 'Topo Mercader'; f.aggro = false; f.invincible = true;
-    f.update = function (dt, gg) {
-      this.px = this.x; this.py = this.y; this.anim += dt;
-      const P = gg.player; if (!P) return;
-      const tx = P.x - P.facing.x * 36, ty = P.y - P.facing.y * 30 + 4, dx = tx - this.x, dy = ty - this.y, d = Math.hypot(dx, dy);
-      if (d > 640) { this.x = this.px = tx; this.y = this.py = ty; return; }   // se ha quedado muy atrás: aparece cavando a tu lado
-      this.moving = d > 20;
-      if (this.moving) { const sp = Math.min(d * 4, 175) * dt; this.moveBy(gg.world, dx / d * sp, dy / d * sp); this.facing = { x: dx / d, y: dy / d }; }
-      this.bob = this.moving ? Math.abs(Math.sin(this.anim * 10)) * 2.2 : Math.sin(this.anim * 2.2) * .6 + .6;
-      if (this.moving && Math.random() < 8 * dt) gg.fx.add({ x: this.x, y: this.y, vx: (Math.random() - .5) * 16, vy: -8, life: .35, size: 2.5, color: 'rgba(200,170,120,.7)' });
-    };
-    g.actors.push(f); g.merchant = f;
-    Effects.burst(g, at.x, at.y - 10, '#8a6a42', 10, 90, .4);
+    UI.ask(`${MERCHANT_NAME}: «${L[i]}»`, [{ label: i < L.length - 1 ? 'Seguir' : '¡Trato hecho!', main: true, fn: () => (i < L.length - 1 ? this.dialog(g, i + 1, done) : done()) }]);
   },
   draw(c, g, S) {
-    const TS = CONFIG.TILE, K = CONFIG.CREATURE_SCALE, now = g.time;
-    // Surco de tierra removida que se va apagando
-    for (const q of S.trail) {
-      const a = Math.max(0, 1 - (now - q.t) / 6); if (a <= 0) continue;
-      c.globalAlpha = .5 * a; c.fillStyle = '#3a2614'; c.beginPath(); c.ellipse(q.x, q.y, 7, 3.2, 0, 0, Math.PI * 2); c.fill();
-    }
-    c.globalAlpha = 1;
+    const K = CONFIG.CREATURE_SCALE, C = S.corpse, sc = K * C.vscale;
     // Cadáver del guardián: tumbado y apagado
-    const C = S.corpse, sc = K * C.vscale, wob = Math.sin(now * 30) * 2 * C.wob;
-    c.save(); c.translate(C.x + wob, C.y);
+    c.save(); c.translate(C.x, C.y);
     c.fillStyle = 'rgba(0,0,0,.35)'; c.beginPath(); c.ellipse(0, 0, 34 * C.vscale, 10 * C.vscale, 0, 0, Math.PI * 2); c.fill();
     if ('filter' in c) c.filter = 'brightness(.5) saturate(.35)';
     c.rotate(1.35); c.scale(sc, sc * .92);
     try { C.kind.draw(c, { pal: C.kind.pal, t: 0, moving: false, fx: Math.cos(C.yaw), fy: Math.sin(C.yaw), yaw: C.yaw, bob: 0, state: 'idle', windup: -1, scale: sc, walk: 0, gw: 0 }); } catch (e) { /* forma sin dibujo propio */ }
     c.restore(); if ('filter' in c) c.filter = 'none';
-    // Montículo que avanza bajo el suelo
-    if (S.mound) {
-      const m = S.mound, w = 12 + Math.sin(now * 40) * 1.5;
-      c.fillStyle = '#3a2614'; c.beginPath(); c.ellipse(m.x, m.y + 1, w + 3, 6, 0, 0, Math.PI * 2); c.fill();
-      c.fillStyle = '#7a5530'; c.beginPath(); c.ellipse(m.x, m.y - 3, w, 7, 0, Math.PI, 0); c.fill();
-      c.fillStyle = '#9a7244'; for (let i = 0; i < 4; i++) { const a = now * 9 + i * 1.7; c.fillRect(m.x + Math.cos(a) * w * .6 - 1, m.y - 6 + Math.sin(a * 1.3) * 2, 2.5, 2.5); }
-    }
-    // El Topo (rebotando, mareado o hablando)
-    if (S.mole) {
-      const m = S.mole;
-      c.fillStyle = 'rgba(0,0,0,.35)'; c.beginPath(); c.ellipse(m.x, m.y, 12 * (1 - m.z / 80), 4, 0, 0, Math.PI * 2); c.fill();
-      c.save(); c.translate(m.x, m.y - m.z); if (m.spin) c.rotate(Math.sin(m.spin) * .5); c.scale(K, K);
-      if (m.face && m.face.x < 0) c.scale(-1, 1);
-      NPC_KINDS.tendero.draw(c, { t: now, bob: m.dizzy ? Math.sin(now * 8) : 0, fy: m.face ? m.face.y : 0 });
-      c.restore();
-      if (m.dizzy) for (let i = 0; i < 3; i++) {     // estrellitas del mareo
-        const a = now * 5 + i * 2.1, sx = m.x + Math.cos(a) * 13, sy = m.y - 46 * K / 1.35 + Math.sin(a) * 4;
-        c.fillStyle = '#ffe9a0'; c.beginPath(); for (let j = 0; j < 5; j++) { const b = j * 1.2566 - Math.PI / 2; c.lineTo(sx + Math.cos(b) * 3.2, sy + Math.sin(b) * 3.2); c.lineTo(sx + Math.cos(b + .628) * 1.3, sy + Math.sin(b + .628) * 1.3); } c.closePath(); c.fill();
-      }
-    }
   },
 };
 
-/* --- Presentación de Pico Cartero (misiones) --------------------------------------------------------
+/** Escolta (mercader y cartero): sigue al jugador por la ruta de casillas (no se atasca en esquinas) y,
+    si se indica, se aparta un poco de los enemigos, despacio. */
+const Escort = {
+  /** Siguiente punto hacia (tx, ty) por casillas libres (BFS corto, en caché unos instantes). */
+  next(n, g, tx, ty) {
+    const W = g.world, TS = CONFIG.TILE, sx = Math.floor(n.x / TS), sy = Math.floor(n.y / TS), gx = Math.floor(tx / TS), gy = Math.floor(ty / TS);
+    if (sx === gx && sy === gy) return { x: tx, y: ty };
+    if (!(n.forceRoute > 0) && this.clear(n, W, tx, ty)) return { x: tx, y: ty };   // vía libre: en línea recta
+    const key = gx + ',' + gy;
+    if (!n.route || n.route.key !== key || n.route.t <= 0 || !n.route.pts.length) n.route = { key, t: .5, pts: this.bfs(W, sx, sy, gx, gy) };
+    n.route.t -= 1 / 60;
+    const pts = n.route.pts;
+    while (pts.length && Math.hypot((pts[0][0] + .5) * TS - n.x, (pts[0][1] + .5) * TS - n.y) < 9) pts.shift();
+    // atajo: salta al punto más lejano visible de la ruta
+    for (let i = Math.min(pts.length - 1, 6); i > 0; i--) { const q = pts[i]; if (this.clear(n, W, (q[0] + .5) * TS, (q[1] + .5) * TS)) { pts.splice(0, i); break; } }
+    return pts.length ? { x: (pts[0][0] + .5) * TS, y: (pts[0][1] + .5) * TS } : { x: tx, y: ty };
+  },
+  /** ¿Cabe el cuerpo (su caja de colisión, con 2 px de margen) en línea recta de (x0, y0) a (tx, ty)? */
+  clear(n, W, tx, ty, x0 = n.x, y0 = n.y) {
+    const d = Math.hypot(tx - x0, ty - y0), steps = Math.max(1, Math.ceil(d / 6)), hw = (n.hbW || 18) / 2 + 2, hh = (n.hbH || 12) / 2 + 2;
+    for (let i = 1; i <= steps; i++) { const x = x0 + (tx - x0) * i / steps, y = y0 + (ty - y0) * i / steps; if (W.rectHitsSolid(x - hw, y - hh, hw * 2, hh * 2)) return false; }
+    return true;
+  },
+  bfs(W, sx, sy, gx, gy) {
+    const w = W.w, prev = new Map(), q = [[sx, sy]], k0 = sy * w + sx; prev.set(k0, -1); let found = -1;
+    const free = (x, y) => W.inBounds(x, y) && !W.isSolid(x, y);
+    // si el destino está ocupado, vale la casilla libre más cercana
+    let best = null, bd = 1e9;
+    while (q.length && prev.size < 2500) {
+      const [x, y] = q.shift(), k = y * w + x; const dd = Math.abs(x - gx) + Math.abs(y - gy); if (dd < bd) { bd = dd; best = k; }
+      if (x === gx && y === gy) { found = k; break; }
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+        const nx = x + dx, ny = y + dy, nk = ny * w + nx; if (prev.has(nk) || !free(nx, ny)) continue;
+        if (dx && dy && (!free(x + dx, y) || !free(x, y + dy))) continue;   // sin cortar esquinas
+        prev.set(nk, k); q.push([nx, ny]);
+      }
+    }
+    let k = found >= 0 ? found : best; const out = [];
+    while (k != null && k !== -1 && k !== k0) { out.push([k % w, Math.floor(k / w)]); k = prev.get(k); }
+    return out.reverse();
+  },
+  /** Sigue al jugador (o huye despacio) con la ruta de casillas. o: { max, flee, fleeSpeed } */
+  follow(n, dt, g, o) {
+    const P = g.player, TS = CONFIG.TILE; if (!P) return;
+    if (!n.free(g.world, n.x, n.y)) {   // dentro de un obstáculo (roca caída, columna): sale a la casilla libre más cercana
+      const W = g.world, cx = Math.floor(n.x / TS), cy = Math.floor(n.y / TS); let best = null, bd = 1e9;
+      for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) { const x = (cx + dx + .5) * TS, y = (cy + dy + .5) * TS, d = Math.hypot(x - n.x, y - n.y); if (d < bd && n.free(W, x, y)) { bd = d; best = { x, y }; } }
+      if (best) { n.x = n.px = best.x; n.y = n.py = best.y; n.route = null; }
+    }
+    let goal, max = o.max;
+    if (o.flee) {
+      let threat = null, td = 120;
+      for (const a of g.actors) if (a.team === 'enemy' && a.alive) { const d = Math.hypot(a.x - n.x, a.y - n.y); if (d < td) { td = d; threat = a; } }
+      if (threat && (!n.flee || n.flee.t <= 0)) {
+        // se aparta un par de casillas, hacia el jugador si puede (no se va lejos solo)
+        const ax = n.x - threat.x, ay = n.y - threat.y, l = Math.hypot(ax, ay) || 1, px = P.x - n.x, py = P.y - n.y, pl = Math.hypot(px, py) || 1;
+        const vx = ax / l + px / pl * .6, vy = ay / l + py / pl * .6, vl = Math.hypot(vx, vy) || 1;
+        n.flee = { x: n.x + vx / vl * 2 * TS, y: n.y + vy / vl * 2 * TS, t: .9 };
+        if (o.yelp && (!n.yelpT || n.yelpT <= 0)) { n.yelpT = 2.5; g.floaters.push({ x: n.x, y: n.y - 44, vx: 0, text: o.yelp[(Math.random() * o.yelp.length) | 0], color: '#a6e3ff', size: 9, t: 0, life: 1 }); }
+      }
+      if (n.yelpT > 0) n.yelpT -= dt;
+    }
+    if (n.flee && n.flee.t > 0) { n.flee.t -= dt; goal = { x: n.flee.x, y: n.flee.y }; max = o.fleeSpeed; }
+    else {
+      const bx = P.x - P.facing.x * 40, by = P.y - P.facing.y * 32 + 6;
+      goal = this.clear(n, g.world, bx, by, P.x, P.y) ? { x: bx, y: by } : { x: P.x, y: P.y + 4 };   // detrás del jugador si cabe; si no, junto a él
+    }
+    const dP = Math.hypot(P.x - n.x, P.y - n.y);
+    if (dP > 640 && !(n.flee && n.flee.t > 0)) { const jx = P.x - P.facing.x * 30, jy = P.y - P.facing.y * 24, ok = n.free(g.world, jx, jy); n.x = n.px = ok ? jx : P.x; n.y = n.py = ok ? jy : P.y + 4; n.route = null; return; }
+    const near = Math.hypot(goal.x - n.x, goal.y - n.y);
+    n.moving = near > (n.flee && n.flee.t > 0 ? 6 : 18) && !(dP < 46 && !(n.flee && n.flee.t > 0));
+    if (n.moving) {
+      const wp = this.next(n, g, goal.x, goal.y), dx = wp.x - n.x, dy = wp.y - n.y, d = Math.hypot(dx, dy) || 1;
+      const sp = Math.min(near * 4, max) * dt, bx = n.x, by = n.y;
+      n.moveBy(g.world, dx / d * sp, dy / d * sp); n.facing = { x: dx / d, y: dy / d };
+      if (Math.hypot(n.x - bx, n.y - by) < sp * .2) { n.stuckT = (n.stuckT || 0) + dt; if (n.flee) n.flee.t = 0; if (n.stuckT > .25) { n.route = null; n.stuckT = 0; n.forceRoute = 1.2; } } else n.stuckT = 0;
+      if (n.forceRoute > 0) n.forceRoute -= dt;
+    }
+    n.bob = n.moving ? Math.abs(Math.sin(n.anim * 11)) * 2 : Math.sin(n.anim * 2.4) * .6 + .6;
+  },
+};
+
+/* --- Presentación del cartero Lino (misiones) --------------------------------------------------------
    Gruta de Cuarzo, piso 2: al llegar se oyen ruidos extraños (escena con el juego detenido y una flecha
-   que marca la dirección). En la sala de al lado está Pico Cartero, muerto de miedo; al acercarte te pide
+   que marca la dirección). En la sala de al lado está Lino, el cartero, muerto de miedo; al acercarte te pide
    que lo escoltes hasta la aldea. Te sigue el resto de la expedición: es invencible (los enemigos no lo
    atacan) y huye unas casillas cuando se le acercan. Al vencer a la Reina Geoda os da las gracias y os
    ofrece misiones: desde entonces su tablón aparece en la aldea. Solo visual (en línea, la pausa de los
@@ -5680,12 +5748,12 @@ const MerchantIntro = {
 const CourierIntro = {
   met: save => !!save && Array.isArray(save.cleared) && save.cleared.includes(COURIER_INTRO.dungeon),
   LOST: [
-    '¡N-no me comas! ¡Soy todo plumas y huesos! … Ah. Uf. Eres un explorador. Perdona, me llamo Pico Cartero: repartía el correo por la gruta, se derrumbó un pasillo y me perdí.',
-    'Estas criaturas me dan pánico… ¿P-podrías escoltarme hasta la aldea, por favor? Me quedaré detrás de ti, prometido. Bueno… un poco detrás.',
+    '¡N-no me comas! ¡Soy todo piel y huesos, no valgo ni para un caldo! … Ah. Uf. Eres un explorador. Perdona, me llamo Lino y soy el cartero: llevaba unas cartas al otro lado de la gruta, se derrumbó un pasillo y me perdí.',
+    'Estas criaturas me dan pánico y no sé ni sujetar un palo… ¿P-podrías escoltarme hasta la aldea, por favor? Me quedaré detrás de ti, prometido. Bueno… un poco detrás.',
   ],
   THANKS: [
-    '¡Gracias, gracias, gracias! Has tumbado a la Reina Geoda como si nada… y yo sin un rasguño.',
-    'Oye, viendo lo fuerte que eres… ¿te parece si te encomiendo misiones de vez en cuando? Los vecinos siempre necesitan ayuda: rescates, recados, criaturas peligrosas…',
+    '¡Gracias, gracias, gracias! Has tumbado a la Reina Geoda como si nada… y yo sin un rasguño. Ni una carta perdida, además.',
+    'Oye, viendo lo fuerte que eres… Como cartero me entero de todo lo que necesita la gente de la comarca: rescates, recados, criaturas peligrosas… ¿Te encargo misiones de vez en cuando?',
     '¡Colgaré un tablón de misiones en la aldea! Pásate cuando quieras y elige las que te apetezcan.',
   ],
   /** Al empezar un piso: escena de los ruidos o, si ya lo escoltas, aparece contigo en la entrada. */
@@ -5710,8 +5778,8 @@ const CourierIntro = {
     }
     return { x: sp.x + 4 * TS, y: sp.y, room: null };
   },
-  kind() { return Object.assign({}, NPC_KINDS.tendero, { id: 'cartero', name: 'Pico Cartero', speed: 190, draw: (c, st) => drawNPC(c, st, 'cartero') }); },
-  /** Ruidos extraños: pausa breve, ondas y una flecha hacia donde solloza Pico. */
+  kind() { return Object.assign({}, NPC_KINDS.tendero, { id: 'cartero', name: COURIER_NAME, speed: 190, draw: (c, st) => drawNPC(c, st, 'cartero') }); },
+  /** Ruidos extraños: pausa breve, ondas y una flecha hacia donde solloza Lino. */
   start(g, solo) {
     const at = this.spot(g), p = g.player;
     g.run.courier = 'lost';
@@ -5730,7 +5798,7 @@ const CourierIntro = {
       ring -= dt; if (ring <= 0 && t > .3) { ring = .45; S.waves++; Sfx.play('ui'); gg.shake = Math.max(gg.shake, 1.5); }
     } };
   },
-  /** Comportamiento de Pico: tiembla escondido; luego te sigue y huye de los enemigos. */
+  /** Comportamiento de Lino: tiembla escondido; luego te sigue y se aparta (despacio) de los enemigos. */
   update(n, dt, g) {
     n.px = n.x; n.py = n.y; n.anim += dt;
     const P = g.player; if (!P) return;
@@ -5742,42 +5810,22 @@ const CourierIntro = {
       return;
     }
     if (!n.following) return;
-    const TS = CONFIG.TILE;
-    // ¿Algún enemigo cerca? Huye varias casillas en dirección contraria
-    let threat = null, td = 130;
-    for (const a of g.actors) if (a.team === 'enemy' && a.alive) { const d = Math.hypot(a.x - n.x, a.y - n.y); if (d < td) { td = d; threat = a; } }
-    if (threat && (!n.flee || n.flee.t <= 0)) {
-      const dx = n.x - threat.x, dy = n.y - threat.y, l = Math.hypot(dx, dy) || 1;
-      n.flee = { x: n.x + dx / l * 4 * TS, y: n.y + dy / l * 4 * TS, t: 1.1 };
-      if (!n.yelpT || n.yelpT <= 0) { n.yelpT = 2.5; g.floaters.push({ x: n.x, y: n.y - 40, vx: 0, text: ['¡Ay, ay, ay!', '¡Que viene!', '¡Socorro!'][(Math.random() * 3) | 0], color: '#a6e3ff', size: 9, t: 0, life: 1 }); }
-    }
-    if (n.yelpT > 0) n.yelpT -= dt;
-    let tx, ty, max = 175;
-    if (n.flee && n.flee.t > 0) { n.flee.t -= dt; tx = n.flee.x; ty = n.flee.y; max = 230; }
-    else { tx = P.x - P.facing.x * 40; ty = P.y - P.facing.y * 32 + 6; }
-    const dx = tx - n.x, dy = ty - n.y, d = Math.hypot(dx, dy);
-    if (d > 640 && !(n.flee && n.flee.t > 0)) { n.x = n.px = tx; n.y = n.py = ty; return; }
-    n.moving = d > 18;
-    if (n.moving) {
-      const sp = Math.min(d * 4, max) * dt, bx = n.x, by = n.y;
-      n.moveBy(g.world, dx / d * sp, dy / d * sp); n.facing = { x: dx / d, y: dy / d };
-      if (n.flee && Math.hypot(n.x - bx, n.y - by) < sp * .2) n.flee.t = 0;      // contra la pared: deja de huir
-    }
-    n.bob = n.moving ? Math.abs(Math.sin(n.anim * 12)) * 2 : Math.sin(n.anim * 2.4) * .6 + .6;
+    // Sigue la ruta de casillas (rodea esquinas y columnas) y se aparta de los enemigos despacio, sin alejarse de ti
+    Escort.follow(n, dt, g, { max: 150, flee: true, fleeSpeed: 55, yelp: ['¡Ay, ay, ay!', '¡Que viene!', '¡Socorro!'] });
   },
   plead(g, n) {
-    n.nameTag = 'Pico Cartero';
+    n.nameTag = COURIER_NAME;
     this.say(g, this.LOST, 0, '¡Te escolto!', () => {
       n.scared = false; n.following = true; g.run.courier = 'escort';
-      UI.toast('Pico Cartero te sigue. Es invencible, pero huirá si se le acercan enemigos', '#a6e3ff');
+      UI.toast(`${COURIER_NAME} te sigue. Es invencible y se aparta un poco si se le acercan enemigos`, '#a6e3ff');
     });
   },
   say(g, lines, i, last, done) {
-    UI.ask(`Pico Cartero: «${lines[i]}»`, [{ label: i < lines.length - 1 ? 'Seguir' : last, main: true, fn: () => (i < lines.length - 1 ? this.say(g, lines, i + 1, last, done) : done()) }]);
+    UI.ask(`${COURIER_NAME}: «${lines[i]}»`, [{ label: i < lines.length - 1 ? 'Seguir' : last, main: true, fn: () => (i < lines.length - 1 ? this.say(g, lines, i + 1, last, done) : done()) }]);
   },
   spawnFollower(g, x, y) {
     const n = new Enemy(this.kind(), x, y, {});
-    n.team = 'neutral'; n.npc = 'courier'; n.nameTag = 'Pico Cartero'; n.aggro = false; n.following = true; n.invincible = true;
+    n.team = 'neutral'; n.npc = 'courier'; n.nameTag = COURIER_NAME; n.aggro = false; n.following = true; n.invincible = true;
     if (!n.free(g.world, x, y)) { n.x = g.player.x; n.y = g.player.y + 4; }
     const self = this; n.update = function (dt, gg) { self.update(this, dt, gg); };
     g.actors.push(n); g.courier = n;
@@ -5787,18 +5835,18 @@ const CourierIntro = {
   afterBoss(g, dungeonId) {
     if (dungeonId !== COURIER_INTRO.dungeon || !g.run || g.run.courierThanks || this.met(g.save)) return;
     g.run.courierThanks = true;
-    const p = g.player, lines = g.run.courier === 'escort' ? this.THANKS : ['¡Espera! ¡No te vayas! Te he seguido de lejos todo el camino… escondido, claro.'].concat(this.THANKS.slice(1));
+    const p = g.player, lines = g.run.courier === 'escort' ? this.THANKS : ['¡Espera! ¡No te vayas! Soy Lino, el cartero. Te he seguido de lejos todo el camino… escondido detrás de las rocas, claro.'].concat(this.THANKS.slice(1));
     setTimeout(() => {
       if (!g.run || !g.floorRT) return;
       let n = g.courier && g.courier.alive ? g.courier : null;
       if (!n) n = this.spawnFollower(g, p.x - 60, p.y + 10);
       n.scared = false; n.following = true; n.flee = null;
       g.cine = { t: 0, dur: 1.2, hold: true, focus: p, kind: 'courier', tick: (dt, gg) => {
-        if (gg.cine.t >= 1 && !gg.cine.asked) { gg.cine.asked = true; Effects.burst(gg, n.x, n.y - 20, '#a6e3ff', 14, 90, .5); this.say(gg, lines, 0, '¡Cuenta conmigo!', () => { gg.cine.hold = false; g.run.courier = 'thanked'; UI.toast('Pico Cartero colgará su tablón de misiones en la aldea', '#a6e3ff'); }); }
+        if (gg.cine.t >= 1 && !gg.cine.asked) { gg.cine.asked = true; Effects.burst(gg, n.x, n.y - 20, '#a6e3ff', 14, 90, .5); this.say(gg, lines, 0, '¡Cuenta conmigo!', () => { gg.cine.hold = false; g.run.courier = 'thanked'; UI.toast(COURIER_NAME + ' colgará su tablón de misiones en la aldea', '#a6e3ff'); }); }
       } };
     }, 1600);
   },
-  /** Flecha alrededor del jugador mientras Pico siga escondido (ondas desde su sala). */
+  /** Flecha alrededor del jugador mientras Lino siga escondido (ondas desde su sala). */
   drawHint(c, g, S) {
     const n = S.npc, p = g.player; if (!n || !n.scared || !p || g.courier !== n) return;
     const dx = n.x - p.x, dy = n.y - p.y, d = Math.hypot(dx, dy) || 1, ux = dx / d, uy = dy / d, t = g.time;
@@ -5840,7 +5888,7 @@ const VILLAGE_NPCS = {
     c.fillStyle = '#f2b84b'; c.beginPath(); c.moveTo(-2, -13 - b); c.lineTo(2, -13 - b); c.lineTo(0, -10 - b); c.fill();
     c.fillStyle = '#3f6fc4'; c.fillRect(-11, -8 - b, 22, 3);
   } },
-  cartero: { name: 'Pico Cartero', draw(c, st) {
+  cartero: { name: COURIER_NAME, draw(c, st) {
     const b = Math.abs(Math.sin(st.t * 3)) * 1.5;
     U.ellipse(c, 0, -10 - b, 9, 9, '#2f5e8a'); U.ellipse(c, 0, -10.5 - b, 8.4, 8.4, '#6fb6e8');
     c.fillStyle = '#f2b84b'; c.beginPath(); c.moveTo(0, -9 - b); c.lineTo(7, -7 - b); c.lineTo(0, -5 - b); c.fill();
@@ -7202,8 +7250,8 @@ class VillageRT {
   spawn() {
     const g = this.g, TS = CONFIG.TILE;
     for (const [id, st] of Object.entries(STATIONS)) {
-      if (id === 'shop' && !MerchantIntro.met(g.save)) continue;   // el Topo llega a la aldea tras conocerlo en el Bosque Brumoso
-      if (id === 'board' && !CourierIntro.met(g.save)) continue;  // Pico Cartero cuelga su tablón tras escoltarlo por la Gruta
+      if (id === 'shop' && !MerchantIntro.met(g.save)) continue;   // el mercader llega a la aldea tras conocerlo en el Bosque Brumoso
+      if (id === 'board' && !CourierIntro.met(g.save)) continue;  // el cartero Lino cuelga su tablón tras escoltarlo por la Gruta
       const kindDef = st.npc === 'tendero' ? NPC_KINDS.tendero : Object.assign({ type: 'normal', base: { hp: 50, atk: 10, def: 50, spa: 10, spd: 50, spe: 10 }, speed: 0, radius: 11, height: 34, aggro: 0, barW: 0, pal: {}, brain: () => STOP }, VILLAGE_NPCS[st.npc]);
       const off = { guild: [0, -.6], shop: [0, -.6], rest: [.3, -.1], board: [1.2, 0], gate: [-1.2, .3], camp: [0, 1], mayor: [-.7, .2] }[id];
       const e = new Enemy(Object.assign({ id: st.npc }, kindDef), (st.at[0] + .5 + off[0]) * TS, (st.at[1] + .5 + off[1]) * TS, {});
@@ -8167,7 +8215,7 @@ const UI = {
     this.renderGuild(g); this.renderCamp(g); this.renderRest(g);
     this.el('shop-gems').textContent = `${s.bank} monedas`;
     const stock = shopStock(s), nextTier = SHOP_TIERS.find(t => !stock.includes(t.items[0]));
-    this.el('base-shop').innerHTML = stock.map(id => { const it = ITEMS[id]; return `<li style="--c:${RARITIES[it.rarity].color}"><img class="ii" src="${this.icon(id)}" alt=""><span class="t"><b>${it.name}</b> ${this.rarityChip(it.rarity)}<small>${it.desc}${it.mods ? ' ' + modsText(it.mods).join(', ') + '.' : ''}</small></span><span class="acts"><button class="btn-sm main" data-buy="${id}" ${s.bank < it.price || inv.room(id) < 1 ? 'disabled' : ''}>${it.price} monedas</button></span></li>`; }).join('') + (nextTier ? `<li><span></span><span class="t"><small>Con rango ${RANKS[nextTier.rank].name} el topo traerá: ${nextTier.items.map(i => ITEMS[i].name).join(', ')}.</small></span><span></span></li>` : '');
+    this.el('base-shop').innerHTML = stock.map(id => { const it = ITEMS[id]; return `<li style="--c:${RARITIES[it.rarity].color}"><img class="ii" src="${this.icon(id)}" alt=""><span class="t"><b>${it.name}</b> ${this.rarityChip(it.rarity)}<small>${it.desc}${it.mods ? ' ' + modsText(it.mods).join(', ') + '.' : ''}</small></span><span class="acts"><button class="btn-sm main" data-buy="${id}" ${s.bank < it.price || inv.room(id) < 1 ? 'disabled' : ''}>${it.price} monedas</button></span></li>`; }).join('') + (nextTier ? `<li><span></span><span class="t"><small>Con rango ${RANKS[nextTier.rank].name} Tobías traerá: ${nextTier.items.map(i => ITEMS[i].name).join(', ')}.</small></span><span></span></li>` : '');
     this.el('base-shop').querySelectorAll('[data-buy]').forEach(b => b.addEventListener('click', () => g.buyItem(b.dataset.buy)));
   },
   showResult(r) {
@@ -8430,7 +8478,7 @@ const Game = {
       if (this.net) { const st = inv.find(k); if (st) this.net.dropItem(st.id); return; }   // en línea lo decide el servidor (lo quita de la mochila al confirmarlo)
       const id = inv.takeUid(k); if (id) this.dropItem(id);
     }
-    else if (act === 'sell') { if (!MerchantIntro.met(this.save)) return UI.toast('No hay a quién vender: el puesto del Topo Mercader está vacío', '#ff9a4a'); const id = inv.takeUid(k); if (id) { this.save.bank += sellPrice(id); this.save.sold = (this.save.sold || 0) + 1; Save.write(this.save); } }
+    else if (act === 'sell') { if (!MerchantIntro.met(this.save)) return UI.toast('No hay a quién vender: el puesto del mercader Tobías está vacío', '#ff9a4a'); const id = inv.takeUid(k); if (id) { this.save.bank += sellPrice(id); this.save.sold = (this.save.sold || 0) + 1; Save.write(this.save); } }
     else if (act === 'discard') { inv.takeUid(k, inv.find(k) ? inv.find(k).qty : 1); Save.write(this.save); }
     else if (act === 'appraise') return this.appraise(k);
     refresh();
@@ -8573,6 +8621,7 @@ const Game = {
     UI.floorCard(label, sub);
     this.fade = 1; if (kind === 'boss') Sfx.play('boss');
     CourierIntro.onFloor(this, dng.id, st.floorNo, kind, false);
+    MerchantIntro.onFloor(this, dng.id, kind);   // guarida del Bosque (primera vez): el mercader escondido en un rincón
   },
   /** Dones (solo): se encolan y se muestra el primero pendiente. */
   offerBoon() {
@@ -8632,8 +8681,8 @@ const Game = {
       if (result === 'clear') { const bonus = 80 + 60 * DUNGEONS.indexOf(r.dng); this.gainExp(bonus); lines.push(`Recompensa por vencer al guardián: ${bonus} EXP.`); }
       if (result === 'clear' && !s.cleared.includes(r.dng.id)) {
         s.cleared.push(r.dng.id); s.points += 50; lines.push(`¡Primera vez que completas ${r.dng.name}! +50 puntos de rango.`);
-        if (r.dng.id === 'bosque') lines.push('El Topo Mercader ha montado su puesto en la aldea: ya puedes comprar, vender y fabricar.');
-        if (r.dng.id === COURIER_INTRO.dungeon) lines.push('Pico Cartero ha colgado su tablón de misiones en la aldea: acepta encargos y entrégalos en el gremio.');
+        if (r.dng.id === 'bosque') lines.push('El mercader Tobías ha montado su puesto en la aldea: ya puedes comprar, vender y fabricar.');
+        if (r.dng.id === COURIER_INTRO.dungeon) lines.push(COURIER_NAME + ' ha colgado su tablón de misiones en la aldea: acepta encargos y entrégalos en el gremio.');
         const nxt = DUNGEONS.find(d => d.unlock === r.dng.id); if (nxt) lines.push(`Se ha desbloqueado ${nxt.name}.`);
       }
     } else {
@@ -8892,7 +8941,7 @@ const Game = {
       this.camera.follow(W.pxW / 2 + Math.sin(t) * W.pxW * .3, W.pxH / 2 + Math.sin(t * 1.7) * W.pxH * .25, dt, W, 1.5);
     }
   },
-  /** Escena con el juego detenido (furia del guardián, presentación del Topo Mercader). */
+  /** Escena con el juego detenido (furia del guardián, presentación del mercader Tobías). */
   stepCine(dt) {
     const c = this.cine; this.acc = 0; c.t += dt; this.time += dt;
     this.fx.update(dt); Light.update(dt); if (this.shake > 0) this.shake = Math.max(0, this.shake - dt * 25);
@@ -9483,7 +9532,7 @@ function drawGolem(c, st) {
 function drawNPC(c, st, k) {
   if (VillagerArt.IDS[k]) return VillagerArt.draw(c, st, k);     // vecinos humanos (HeroForge)
   const b = Math.sin(st.t * 2) * .4, back = st.fy < -.55;
-  if (k === 'tendero') {   // topo mercader con mochila de cuero
+  if (k === 'tendero') {   // mercader (dibujo antiguo, sin uso: ahora es humano)
     Art.shape(c, Art.poly([[6, -22 - b], [16, -22 - b], [16, -8], [6, -8]]), '#5a3e24'); c.fillStyle = '#7a5a34'; c.fillRect(7, -21 - b, 8, 2); c.fillStyle = '#9a7a38'; c.fillRect(10, -16, 2, 2);
     const body = Art.oval(0, -12 - b, 11, 10); Art.shape(c, body, '#4a3a30'); Art.vol(c, body, '#64503f', '#2a201a', 0, -12 - b, 11, 10);
     c.fillStyle = '#6a2a24'; c.fillRect(-10, -17 - b, 20, 3);
@@ -10500,7 +10549,7 @@ const VillagerArt = (() => {
       const bk = add(aL.ha, [0, 1.6, 1]);
       S.box(bk, [1.6, 4, 3.2], M.wineW, { r: .4, y: [0, 1, 0], zh: norm([1, 0, .3]), deco: q => (Math.abs(q.x) < .4 ? { m: M.paper } : null) });   // libro de registro
     },
-    /* Pico Cartero: mensajero joven con gorra de pluma, cartera de cuero llena de cartas y un rollo en la mano */
+    /* Cartero Lino: mensajero joven con gorra de pluma, cartera de cuero llena de cartas y un rollo en la mano */
     npc_cartero(C) {
       const { S, P, up, upD, aR } = C;
       body(C, { top: M.woolB, coat: M.woolB, legs: M.wool, sleeve: M.woolB, cuffEnd: M.linen, boots: M.leather, wraps: false, brows: M.hairR,
@@ -10511,7 +10560,7 @@ const VillagerArt = (() => {
       for (let i = 0; i < 3; i++) S.box(add(bag, upD([.2, 3.4, -1.6 + i * 1.5])), [1.2, .9, .4], M.paper, { r: .2 });           // cartas asomando
       const sc = add(aR.ha, [0, 0, 1.4]); S.rc(add(sc, [-2.4, 0, 0]), add(sc, [2.4, 0, 0]), 1, 1, M.paper, { deco: q => (Math.abs(q.s - .5) < .1 ? { m: M.redC } : null) });
     },
-    /* Topo mercader: comerciante grueso con sombrero de fieltro, mandil y un fardo enorme de mercancías a la espalda */
+    /* Mercader Tobías: comerciante grueso con sombrero de fieltro, mandil y un fardo enorme de mercancías a la espalda */
     npc_tendero(C) {
       const { S, P, up, upD } = C;
       body(C, { top: M.ochre, coat: M.ochre, legs: M.wool, sleeve: M.ochre, cuffEnd: M.linen, belly: true, brows: M.hairB });
@@ -10846,6 +10895,7 @@ class NetPlay {
     g.fade = 1; if (info.kind === 'boss') Sfx.play('boss');
     this.active = true;
     CourierIntro.onFloor(g, info.dungeon, info.floorNo, info.kind, true);
+    MerchantIntro.onFloor(g, info.dungeon, info.kind);
     if (this.lastState) this.applyState(this.lastState);
   }
   /** Estado completo recibido (forma JSON del esquema: mapas por id). */

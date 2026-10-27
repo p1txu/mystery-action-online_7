@@ -82,3 +82,12 @@ Expediciones completadas: **155 de 160** (antes 141), con 1 caída (antes 18).
 - **El daño recibido por las clases cuerpo a cuerpo está algo exagerado** frente a un jugador que se mueve más.
 - **Cada clase solo tiene su básico y una habilidad,** las que hay ahora en el juego. Cuando lleguen las demás conviene volver a simular.
 - **No se simula el cooperativo.** El reparto por número de jugadores (`COOP_SCALING`) no cambia.
+
+## Cambios de la 0.38 (sin volver a simular)
+
+- **Velocidad:**
+  - las clases, un 20 % más lentas que en la 0.36 (Guerrero 102, Arquero 118, Mago 99, Asesino 130; tope 138);
+  - los enemigos y los aliados, un 8 % más (`CONFIG.ENEMY_SPEED` 0,83);
+  - los proyectiles y los ataques enemigos van igual que antes, así que solo andando cuesta más esquivar y la esquiva vuelve a hacer falta.
+- **Gruta de Cuarzo:** `hpMul: 3` en `DUNGEONS`. Triplica la vida de sus enemigos, la de los esbirros que invoca el jefe y la de la Reina Geoda. Se aplica igual en el servidor (`Expedition`).
+- **Pendiente:** volver a ejecutar `tools/balance-sim.mjs`. Con el triple de vida, la Gruta será bastante más larga, sobre todo la Reina Geoda, que puede necesitar más de una ronda de choques con las rocas.

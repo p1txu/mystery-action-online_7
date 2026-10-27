@@ -9,8 +9,8 @@
  */
 export class RuleError extends Error { constructor(message) { super(message); this.name = 'RuleError'; } }
 const need = (cond, msg) => { if (!cond) throw new RuleError(msg); };
-/** La tienda y el taller del Topo Mercader llegan a la aldea al completar el Bosque Brumoso. */
-const shopOpen = s => need(Array.isArray(s.cleared) && s.cleared.includes('bosque'), 'El puesto del Topo Mercader aún está vacío: completa el Bosque Brumoso');
+/** La tienda y el taller del mercader Tobías llegan a la aldea al completar el Bosque Brumoso. */
+const shopOpen = s => need(Array.isArray(s.cleared) && s.cleared.includes('bosque'), 'El puesto del mercader Tobías aún está vacío: completa el Bosque Brumoso');
 const str = (v, max = 64) => typeof v === 'string' && v.length > 0 && v.length <= max;
 
 /** Experiencia con subidas de nivel y movimientos nuevos (como Game.gainExp + levelUp). */

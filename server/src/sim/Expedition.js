@@ -121,7 +121,7 @@ export class Expedition {
     for (const s of this.L.enemies) {
       if (s.outlaw) continue;
       const kindObj = s.boss ? E.makeBossKind(s.boss) : E.makeKind(s.variant);
-      const e = new E.Enemy(kindObj, (s.tx + .5) * TS, (s.ty + .5) * TS, { level: s.boss ? E.enemyLevel(this.dng, this.dng.floors) + 2 : lvl, elite: s.boss ? s.elite : this.rollElite(s.elite), final: s.final });
+      const e = new E.Enemy(kindObj, (s.tx + .5) * TS, (s.ty + .5) * TS, { level: s.boss ? E.enemyLevel(this.dng, this.dng.floors) + 2 : lvl, elite: s.boss ? s.elite : this.rollElite(s.elite), final: s.final, hpMul: this.dng.hpMul || 1 });
       this.addEnemy(e, s.boss ? 'b:' + s.boss : 'v:' + s.variant);
       if (s.boss) {
         this.boss = e;
@@ -156,7 +156,7 @@ export class Expedition {
     const label = kind === 'normal' ? `${this.dng.name} · P${st.floorNo}` : kind === 'waypoint' ? `${this.dng.name} · Punto de control` : `${this.dng.name} · Guarida`;
     this.floorInfo = { seed: this.seed, dungeon: this.dng.id, floorNo: st.floorNo, genNo, kind, step: i, total: this.seq.length, label, w: gen.world.w, h: gen.world.h, n: ++this.floorCount, size, coop: this.coopInfo() };
     this.emit('floor', { info: this.floorInfo });
-    // Pico Cartero (vecino de las misiones): ruidos extraños en el piso 2 de la Gruta si alguien aún no lo conoce.
+    // El cartero Lino (vecino de las misiones): ruidos extraños en el piso 2 de la Gruta si alguien aún no lo conoce.
     // La escena (y su pausa) es para todo el grupo; el vecino es solo visual en cada cliente.
     const CI = E.COURIER_INTRO;
     if (this.dng.id === CI.dungeon && kind === 'normal' && st.floorNo === CI.floor && [...this.members.values()].some(m => !m.left && !m.save.cleared.includes(CI.dungeon))) { this.pauseT = CI.pause; this.emit('courierNoise', {}); }
@@ -198,7 +198,7 @@ export class Expedition {
       const s = base[made % base.length];
       const x = (s.tx + .5 + (this.random() * 2 - 1) * 3) * TS, y = (s.ty + .5 + (this.random() * 2 - 1) * 3) * TS;
       if (Math.hypot(x - sx, y - sy) < 8 * TS) continue;
-      const e = new E.Enemy(E.makeKind(s.variant), x, y, { level: lvl, elite: this.rollElite(false) });
+      const e = new E.Enemy(E.makeKind(s.variant), x, y, { level: lvl, elite: this.rollElite(false), hpMul: this.dng.hpMul || 1 });
       if (!e.free(this.world, x, y)) continue;
       this.addEnemy(e, 'v:' + s.variant); made++;
     }
@@ -386,7 +386,7 @@ export class Expedition {
       const r = rooms[Math.floor(this.random() * rooms.length)], tx = r.x + 1 + Math.floor(this.random() * (r.w - 2)), ty = r.y + 1 + Math.floor(this.random() * (r.h - 2));
       const x = (tx + .5) * TS, y = (ty + .5) * TS;
       if (awake.some(m => Math.hypot(x - m.player.x, y - m.player.y) < 10 * TS)) continue;
-      const v = E.weighted(E.floorEnemies(this.dng, this.floor.floorNo), this.random), e = new E.Enemy(E.makeKind(v), x, y, { level: E.enemyLevel(this.dng, this.floor.floorNo), elite: this.rollElite(false) });
+      const v = E.weighted(E.floorEnemies(this.dng, this.floor.floorNo), this.random), e = new E.Enemy(E.makeKind(v), x, y, { level: E.enemyLevel(this.dng, this.floor.floorNo), elite: this.rollElite(false), hpMul: this.dng.hpMul || 1 });
       if (!e.free(this.world, x, y)) continue;
       this.addEnemy(e, 'v:' + v); return e;
     }
@@ -397,7 +397,7 @@ export class Expedition {
     for (let k = 0, made = 0; k < 40 * n && made < n; k++) {
       const tx = r.x + Math.floor(this.random() * r.w), ty = r.y + Math.floor(this.random() * r.h), x = (tx + .5) * TS, y = (ty + .5) * TS;
       if (Math.hypot(x - p.x, y - p.y) < 90) continue;
-      const v = E.weighted(E.floorEnemies(this.dng, this.floor.floorNo), this.random), e = new E.Enemy(E.makeKind(v), x, y, { level: lvl, elite: made === 0 && this.random() < Math.min(.4, E.eliteChance(this.dng, this.floor.floorNo) * 4 + this.coop.elite) });
+      const v = E.weighted(E.floorEnemies(this.dng, this.floor.floorNo), this.random), e = new E.Enemy(E.makeKind(v), x, y, { level: lvl, hpMul: this.dng.hpMul || 1, elite: made === 0 && this.random() < Math.min(.4, E.eliteChance(this.dng, this.floor.floorNo) * 4 + this.coop.elite) });
       if (!e.free(this.world, x, y)) continue;
       e.aggro = true; e.tag = 'mh'; this.addEnemy(e, 'v:' + v); made++;
     }

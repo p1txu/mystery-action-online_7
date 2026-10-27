@@ -1,4 +1,4 @@
-// GENERADO por tools/split-prototype.mjs a partir de prototype/mystery-action.html (sha256 9f91365d83f4b19c).
+// GENERADO por tools/split-prototype.mjs a partir de prototype/mystery-action.html (sha256 f5a7e102cff45934).
 // No lo edites a mano: cambia el prototipo y vuelve a ejecutar «npm run split».
 /* eslint-disable */
 /**
@@ -30,7 +30,7 @@ const CONFIG = {
   MOVE_CD_MUL: 1.5, MOVE_COST_MUL: 1.3,        // enfriamiento y coste de los movimientos especiales
   HP_REGEN_EVERY: 5,                           // 1 PS cada 5 s con la barriga llena (antes 1,5 s)
   HURT_IFRAMES: .55,
-  ENEMY_SPEED: .9,                             // ritmo de los enemigos y aliados (0.36: todos algo más lentos)
+  ENEMY_SPEED: .83,                            // ritmo de los enemigos y aliados (0.36: −10 %; 0.38: −8 % más)
 };
 
 /* ---------- 2. Util ---------- */
@@ -939,28 +939,28 @@ const CLASSES = [
   {
     id: 'guerrero', name: 'Guerrero', role: 'Tanque', type: 'Tanque', weapon: 'Espada y escudo', resource: 'Energía', color: '#d0a54a', regen: 3,
     base: { growth: { hp: 16, mp: 2, atk: 1.4, spa: 0, def: 1.8, spd: 1.1, spe: 0, aspd: .004, crit: .001, critMul: 0, range: 0 },
-      hp: 180, mp: 60, atk: 12, spa: 0, def: 16, spd: 10, spe: 128, aspd: .85, crit: .05, critMul: 1.5, range: 52 },
+      hp: 180, mp: 60, atk: 12, spa: 0, def: 16, spd: 10, spe: 102, aspd: .85, crit: .05, critMul: 1.5, range: 52 },
     basic: 'espadazo', learn: [['golpetazo', 1]], ultimate: null,
     desc: 'Primera línea: aguanta, controla y protege al grupo. Espada y escudo; golpes lentos y contundentes.',
   },
   {
     id: 'arquero', name: 'Arquero', role: 'DPS a distancia', type: 'Distancia', weapon: 'Arco', resource: 'Energía', color: '#7fb05a', regen: 3.5,
     base: { growth: { hp: 8, mp: 3, atk: 1.7, spa: 0, def: .5, spd: .5, spe: 1, aspd: .012, crit: .004, critMul: .01, range: 0 },
-      hp: 105, mp: 80, atk: 14, spa: 0, def: 6, spd: 5, spe: 148, aspd: 1, crit: .1, critMul: 1.75, range: 300 },
+      hp: 105, mp: 80, atk: 14, spa: 0, def: 6, spd: 5, spe: 118, aspd: 1, crit: .1, critMul: 1.75, range: 300 },
     basic: 'flecha', learn: [['flechazo', 1]], ultimate: null,
     desc: 'Daño físico constante a media distancia. Dispara en movimiento; vive de su posición.',
   },
   {
     id: 'mago', name: 'Mago', role: 'Daño mágico explosivo', type: 'Magia', weapon: 'Bastón', resource: 'Maná', color: '#6a8cff', regen: 5,
     base: { growth: { hp: 6, mp: 7, atk: .2, spa: 2.2, def: .4, spd: 1, spe: 0, aspd: .006, crit: .001, critMul: 0, range: 0 },
-      hp: 85, mp: 140, atk: 5, spa: 18, def: 4, spd: 10, spe: 124, aspd: .75, crit: .05, critMul: 1.5, range: 340 },
+      hp: 85, mp: 140, atk: 5, spa: 18, def: 4, spd: 10, spe: 99, aspd: .75, crit: .05, critMul: 1.5, range: 340 },
     basic: 'orbe', learn: [['lluvia', 1]], ultimate: null,
     desc: 'Poca vida y mucho poder: proyectiles arcanos y explosiones de fuego en área.',
   },
   {
     id: 'asesino', name: 'Asesino', role: 'DPS rápido · sangrado', type: 'Sigilo', weapon: 'Dos dagas', resource: 'Energía', color: '#c8404a', regen: 3.5,
     base: { growth: { hp: 9, mp: 2, atk: 1.5, spa: 0, def: .5, spd: .5, spe: 1.2, aspd: .015, crit: .005, critMul: .01, range: 0 },
-      hp: 100, mp: 70, atk: 11, spa: 0, def: 5, spd: 5, spe: 162, aspd: 1.5, crit: .15, critMul: 1.75, range: 46 },
+      hp: 100, mp: 70, atk: 11, spa: 0, def: 5, spd: 5, spe: 130, aspd: 1.5, crit: .15, critMul: 1.75, range: 46 },
     basic: 'tajos', learn: [['tajoX', 1]], ultimate: null,
     desc: 'Movilidad y golpes rápidos con dos dagas. Desangra a sus objetivos.',
   },
@@ -969,7 +969,7 @@ const FORMS = {};
 CLASSES.forEach(c => FORMS[c.id] = c);
 const SPECIES = CLASSES;      // compatibilidad: donde antes se listaban especies ahora se listan clases
 const EVOLVED = [];
-const MAX_STATS = { hp: 220, mp: 160, atk: 20, spa: 20, def: 20, spd: 14, spe: 172, aspd: 1.6, crit: .2, critMul: 2, range: 340 };
+const MAX_STATS = { hp: 220, mp: 160, atk: 20, spa: 20, def: 20, spd: 14, spe: 138, aspd: 1.6, crit: .2, critMul: 2, range: 340 };
 
 
 /** Dibuja una criatura con sombra y anillo indicador. st: {t,moving,fx,fy,vx,vy,bob}. */
@@ -2848,7 +2848,7 @@ function bossExec(e, g, ph2) {
       const alive = g.actors.filter(a => a.summoner === e && a.alive).length;
       for (let i = 0; i < Math.min(2, 4 - alive); i++) for (let t = 0; t < 14; t++) {
         const a = Math.random() * Math.PI * 2, x = e.x + Math.cos(a) * 70, y = e.y + Math.sin(a) * 70;
-        const m = new Enemy(makeKind(k.minion), x, y, { level: Math.max(1, e.level - 3) });
+        const m = new Enemy(makeKind(k.minion), x, y, { level: Math.max(1, e.level - 3), hpMul: e.hpMul || 1 });
         if (m.free(g.world, x, y)) { m.summoner = e; m.aggro = true; g.actors.push(m); Effects.burst(g, x, y - 12, '#d6a0ff', 12, 100); break; }
       }
       break;
@@ -2935,11 +2935,12 @@ const ELITE = {
 const eliteChance = (dng, floorNo) => floorNo < ELITE.minFloor && dng.level <= 3 ? 0 : Math.min(.2, (ELITE.chance + ELITE.perLevel * dng.level + .004 * (floorNo - 1)) * (ELITE.biome[dng.biome] || 1));
 class Enemy extends Actor {
   constructor(kind, x, y, o = {}) {
-    const elite = !!o.elite, level = o.level || 5, st = calcStats(kind.base, level);
+    const elite = !!o.elite, level = o.level || 5, st = calcStats(kind.base, level), hpMul = o.hpMul || 1;
+    if (hpMul !== 1) st.hp = Math.round(st.hp * hpMul);   // mazmorras con enemigos más duros (DUNGEONS[].hpMul)
     if (elite) { st.hp = Math.round(st.hp * ELITE.hp); st.def = Math.round(st.def * 1.1); st.spd = Math.round(st.spd * 1.1); }
     super(x, y, { hbW: kind.hbW || 18, hbH: kind.hbH || 12, radius: kind.radius * (elite ? 1.1 : 1), height: kind.height * (elite ? 1.12 : 1), hp: st.hp, def: st.def, team: 'enemy', kbRes: (kind.kbRes ?? 1) * (elite ? .6 : 1), stunMul: (kind.stunMul ?? 1) * (elite ? .7 : 1), mass: kind.mass || 1 });
     this.kindId = kind.id; this.kind = kind; this.elite = elite; this.final = !!o.final; this.tag = o.tag || null;
-    this.level = level; this.stats = st; this.type = kind.type || 'normal';
+    this.level = level; this.stats = st; this.type = kind.type || 'normal'; this.hpMul = hpMul;
     this.baseDmgMul = o.dmgMul || 1; this.dmgMul = this.baseDmgMul * (elite ? ELITE.dmg : 1);
     this.vscale = (kind.drawScale || 1) * (elite ? 1.15 : 1);
     this.home = { x, y }; this.state = 'idle'; this.timer = 0; this.windupTime = 1;
@@ -3288,7 +3289,7 @@ const ITEMS = {
   panueloCarmesi: { name: 'Pañuelo carmesí', cat: 'equipo', slot: 'accesorio', rarity: 'rara', icon: 'scarf', color: '#b8243a', price: 320, mods: { pct: { atk: .1, spa: .1 } }, desc: 'Teñido con pigmento de las ruinas.' },
   panueloTormenta: { name: 'Pañuelo tormenta', cat: 'equipo', slot: 'accesorio', rarity: 'epica', icon: 'scarf', color: '#ffe14d', price: 700, mods: { pct: { spa: .15, spe: .1 } }, desc: 'Chisporrotea con cada movimiento.' },
   brazalPiedra: { name: 'Brazalete de piedra', cat: 'equipo', slot: 'accesorio', rarity: 'comun', icon: 'band', color: '#9aa0a8', price: 60, mods: { flat: { def: 4 } }, desc: 'Pesado pero protector.' },
-  brazalHierro: { name: 'Brazalete de hierro', cat: 'equipo', slot: 'accesorio', rarity: 'pococomun', icon: 'band', color: '#c9c2b0', price: 150, mods: { pct: { def: .1, spd: .06 } }, desc: 'Forjado por los topos mercaderes.' },
+  brazalHierro: { name: 'Brazalete de hierro', cat: 'equipo', slot: 'accesorio', rarity: 'pococomun', icon: 'band', color: '#c9c2b0', price: 150, mods: { pct: { def: .1, spd: .06 } }, desc: 'Forjado por los herreros de las caravanas de mercaderes.' },
   brazalObsidiana: { name: 'Brazalete de obsidiana', cat: 'equipo', slot: 'accesorio', rarity: 'rara', icon: 'band', color: '#3a3346', price: 340, mods: { pct: { def: .18, spd: .1, spe: -.06 } }, desc: 'Muy resistente, aunque te frena un poco.' },
   brazalGeoda: { name: 'Brazalete de geoda', cat: 'equipo', slot: 'accesorio', rarity: 'epica', icon: 'band', color: '#5c8cff', price: 720, mods: { flat: { hp: 10 }, pct: { def: .15, spd: .15 } }, desc: 'Cristales que absorben los golpes.' },
   talismanVital: { name: 'Talismán vital', cat: 'equipo', slot: 'accesorio', rarity: 'comun', icon: 'talisman', color: '#5fd16b', price: 70, mods: { flat: { hp: 10 } }, desc: 'Late al ritmo de tu corazón.' },
@@ -3565,10 +3566,10 @@ const DUNGEONS = [
     desc: 'Senderos entre árboles y niebla. Ideal para empezar.',
     enemies: { rataRaiz: 38, limoMusgo: 30, setaBruma: 14, zarza: 10, cuervo: 8 }, enemyFloors: { zarza: 2, cuervo: 3 }, enemyBase: 3,
     traps: [0, 2], trapPool: { purificadora: 4, pinchos: 3, rafaga: 2, hambre: 2, somnifera: 1 },
-    monsterHouse: 0, shop: 0, hiddenStairs: 0, dark: 0, treasure: .12, wind: 300,   // sin tiendas: el Topo se presenta al final
+    monsterHouse: 0, shop: 0, hiddenStairs: 0, dark: 0, treasure: .12, wind: 300,   // sin tiendas: el mercader Tobías se presenta al final
   },
   {
-    id: 'gruta', name: 'Gruta de Cuarzo', biome: 'cave', floors: 6, waypoint: 3, boss: 'reinageoda', level: 5, unlock: 'bosque', color: '#7fe8ff',
+    id: 'gruta', name: 'Gruta de Cuarzo', biome: 'cave', hpMul: 3, floors: 6, waypoint: 3, boss: 'reinageoda', level: 5, unlock: 'bosque', color: '#7fe8ff',
     desc: 'Galerías de cristal y los primeros pisos sin luz. Un paso más que el bosque.',
     enemies: { rataCristal: 30, limoCristal: 26, lagartoCuarzo: 20, hongoLuz: 14, vencejo: 10 }, enemyFloors: { vencejo: 2, hongoLuz: 2 }, enemyBase: 2, enemyStep: 3,   // pocos enemigos: +1 cada 3 pisos
     traps: [1, 2], trapPool: { purificadora: 3, pinchos: 3, veneno: 2, somnifera: 2, teletransporte: 2, rafaga: 2, hambre: 2 },
@@ -3597,8 +3598,9 @@ const DUNGEONS = [
   },
 ];
 const dungeonById = id => DUNGEONS.find(d => d.id === id);
-/** Presentación del vecino de las misiones (Pico Cartero): mazmorra, piso y pausa de la escena de los ruidos. */
+/** Presentación del vecino de las misiones (el cartero Lino): mazmorra, piso y pausa de la escena de los ruidos. */
 const COURIER_INTRO = { dungeon: 'gruta', floor: 2, pause: 3.4 };
+const COURIER_NAME = 'Cartero Lino';
 /** ¿Puede entrar? Si ha completado la anterior (o esta misma, para partidas de versiones con otro orden). */
 const dungeonOpen = (save, d) => !d.unlock || save.cleared.includes(d.unlock) || save.cleared.includes(d.id);
 const RANKS = [
@@ -4295,7 +4297,7 @@ function gridPath(world, x0, y0, x1, y1, maxNodes = 4000) {
 class Companion extends Enemy {
   constructor(data, x, y) {
     const k = makeKind(data.kind);
-    const kind = Object.assign({}, k, { speed: Math.max(k.speed, 132), aggro: 0 });   // los aliados siguen el ritmo del líder
+    const kind = Object.assign({}, k, { speed: Math.max(k.speed, 158), aggro: 0 });   // los aliados siguen el ritmo del líder (158 × ENEMY_SPEED ≈ la clase más rápida)
     super(kind, x, y, { level: data.level });
     this.team = 'player'; this.ally = true; this.data = data; this.nameTag = data.name;
     this.family = ENEMY_VARIANTS[data.kind].base;
@@ -4460,4 +4462,4 @@ const Quests = {
 
   return { CONFIG, U, T, SOLID, TILE_NAMES, World, Particles, CLASSES, CLASS_STATS, ELITE, eliteChance, floorEnemies, FAMILIES, Deco, Terrain, ALLY_ABILITY, canEquip, OLD_EQUIP_SLOTS, FRACTION_STATS, fmtStat, DMG, classMoves, groundTarget, SPECIES, EVOLVED, FORMS, Progress, EVOLUTIONS, EVO_ITEM_MIN_LEVEL, Combat, Effects, Projectile, Zone, BLOCKS_SHOT, TYPES, TYPE_CHART, typeEff, calcStats, MAX_LEVEL, expNeed, expYield, MOVES, BOONS, Boons, BOSS_RAGE, GEODA, Geoda, Boulder, Actor, Player, Enemy, STOP, ENEMIES, ENEMY_VARIANTS, makeKind, BOSSES, makeBossKind, BIOMES, RARITIES, CATEGORIES, EQUIP_SLOTS, ITEMS, QUICK, RARITY_ORDER, STAT_NAMES, BASE_SHOP, SHOP_TIERS, shopStock, sellPrice, RECIPES, newUid, LOOT, Loot, Inventory, finalStats, freshEquip, equipRegen, TRAPS, DUNGEONS, dungeonById, dungeonOpen, COURIER_INTRO, enemyLevel, RANKS, rankOf, weighted, Jobs, ECONOMY, SAVE_VERSION, checksum, Save, FloorGen, hashStr, RECRUIT, ORDERS, gridPath, Companion, LEGACY_JOBS, isLegacyJob, Quests };
 }
-export const SOURCE_HASH = '9f91365d83f4b19c';
+export const SOURCE_HASH = 'f5a7e102cff45934';
