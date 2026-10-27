@@ -1,10 +1,12 @@
 {
-  "build": 35,
-  "version": "0.35",
+  "build": 36,
+  "version": "0.36",
   "date": "2026-10-27",
   "notes": [
-    "Héroes rediseñados por completo en pixel art: caballero con yelmo cerrado, armadura de placas con ribetes dorados, escudo y capa roja; arquero con capucha puntiaguda, cuero y carcaj; mago con túnica y sombrero granates, barba larga y bastón retorcido; asesino encapuchado con máscara y dos dagas.",
-    "Ocho direcciones de verdad (frente, tres cuartos, perfil y espalda) y animaciones nuevas: reposo con respiración, andar, tajo, disparo con el arco tensado, hechizos con brillo, tajos con las dos dagas, golpe de escudo, daño, esquiva y caída al suelo.",
-    "Los fotogramas se preparan en segundo plano: no hay tirones al girar por primera vez."
+    "Vecinos humanos según su oficio: el alcalde con abrigo de piel, cadena y bastón; la maestra del gremio con su gabán, banda y registro; el cartero con cartera y gorra de pluma; el mercader con su fardo; la curandera de la hoguera; el guardia con capacete y lanza, y el mozo del campamento con sombrero de paja y cayado.",
+    "La tienda tiene toldos a rayas, estanterías y mesas de mercado con fruta, pan, queso, pociones, telas y una balanza. El gremio, estandartes, un trofeo, tablón de encargos, armero, muñeco de prácticas, farol y veleta. La hoguera y su cuidadora están ahora en la plaza, junto a la casa del alcalde; donde estaba, un pozo.",
+    "Arreglado el temblor al empezar a andar (la animación se aceleraba al ganar velocidad).",
+    "Todos los personajes van un 15 % más lentos (los enemigos un 10 %). Más adelante, unas botas podrán subir la velocidad.",
+    "Balance (tras simular 160 expediciones con el motor del juego): la quemadura y el veneno quitan mucho menos y la armadura los reduce; Asesino −13 % en el básico; Arquero +15 %; Guerrero +12 % y más ataque al subir de nivel."
   ]
 }

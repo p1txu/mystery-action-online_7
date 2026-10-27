@@ -1,4 +1,4 @@
-// GENERADO por tools/split-prototype.mjs a partir de prototype/mystery-action.html (sha256 8418669d5d52ff1b).
+// GENERADO por tools/split-prototype.mjs a partir de prototype/mystery-action.html (sha256 07f91d9ef784be4c).
 // No lo edites a mano: cambia el prototipo y vuelve a ejecutar «npm run split».
 /* eslint-disable */
 /**
@@ -30,6 +30,7 @@ const CONFIG = {
   MOVE_CD_MUL: 1.5, MOVE_COST_MUL: 1.3,        // enfriamiento y coste de los movimientos especiales
   HP_REGEN_EVERY: 5,                           // 1 PS cada 5 s con la barriga llena (antes 1,5 s)
   HURT_IFRAMES: .55,
+  ENEMY_SPEED: .9,                             // ritmo de los enemigos y aliados (0.36: todos algo más lentos)
 };
 
 /* ---------- 2. Util ---------- */
@@ -917,29 +918,29 @@ const FRACTION_STATS = new Set(['aspd', 'crit', 'critMul']);
 const CLASSES = [
   {
     id: 'guerrero', name: 'Guerrero', role: 'Tanque', type: 'Tanque', weapon: 'Espada y escudo', resource: 'Energía', color: '#d0a54a', regen: 3,
-    base: { growth: { hp: 16, mp: 2, atk: 1.2, spa: 0, def: 1.8, spd: 1.1, spe: 0, aspd: .004, crit: .001, critMul: 0, range: 0 },
-      hp: 180, mp: 60, atk: 12, spa: 0, def: 16, spd: 10, spe: 150, aspd: .85, crit: .05, critMul: 1.5, range: 52 },
+    base: { growth: { hp: 16, mp: 2, atk: 1.4, spa: 0, def: 1.8, spd: 1.1, spe: 0, aspd: .004, crit: .001, critMul: 0, range: 0 },
+      hp: 180, mp: 60, atk: 12, spa: 0, def: 16, spd: 10, spe: 128, aspd: .85, crit: .05, critMul: 1.5, range: 52 },
     basic: 'espadazo', learn: [['golpetazo', 1]], ultimate: null,
     desc: 'Primera línea: aguanta, controla y protege al grupo. Espada y escudo; golpes lentos y contundentes.',
   },
   {
     id: 'arquero', name: 'Arquero', role: 'DPS a distancia', type: 'Distancia', weapon: 'Arco', resource: 'Energía', color: '#7fb05a', regen: 3.5,
     base: { growth: { hp: 8, mp: 3, atk: 1.7, spa: 0, def: .5, spd: .5, spe: 1, aspd: .012, crit: .004, critMul: .01, range: 0 },
-      hp: 105, mp: 80, atk: 14, spa: 0, def: 6, spd: 5, spe: 175, aspd: 1, crit: .1, critMul: 1.75, range: 300 },
+      hp: 105, mp: 80, atk: 14, spa: 0, def: 6, spd: 5, spe: 148, aspd: 1, crit: .1, critMul: 1.75, range: 300 },
     basic: 'flecha', learn: [['flechazo', 1]], ultimate: null,
     desc: 'Daño físico constante a media distancia. Dispara en movimiento; vive de su posición.',
   },
   {
     id: 'mago', name: 'Mago', role: 'Daño mágico explosivo', type: 'Magia', weapon: 'Bastón', resource: 'Maná', color: '#6a8cff', regen: 5,
     base: { growth: { hp: 6, mp: 7, atk: .2, spa: 2.2, def: .4, spd: 1, spe: 0, aspd: .006, crit: .001, critMul: 0, range: 0 },
-      hp: 85, mp: 140, atk: 5, spa: 18, def: 4, spd: 10, spe: 145, aspd: .75, crit: .05, critMul: 1.5, range: 340 },
+      hp: 85, mp: 140, atk: 5, spa: 18, def: 4, spd: 10, spe: 124, aspd: .75, crit: .05, critMul: 1.5, range: 340 },
     basic: 'orbe', learn: [['lluvia', 1]], ultimate: null,
     desc: 'Poca vida y mucho poder: proyectiles arcanos y explosiones de fuego en área.',
   },
   {
     id: 'asesino', name: 'Asesino', role: 'DPS rápido · sangrado', type: 'Sigilo', weapon: 'Dos dagas', resource: 'Energía', color: '#c8404a', regen: 3.5,
     base: { growth: { hp: 9, mp: 2, atk: 1.5, spa: 0, def: .5, spd: .5, spe: 1.2, aspd: .015, crit: .005, critMul: .01, range: 0 },
-      hp: 100, mp: 70, atk: 11, spa: 0, def: 5, spd: 5, spe: 190, aspd: 1.5, crit: .15, critMul: 1.75, range: 46 },
+      hp: 100, mp: 70, atk: 11, spa: 0, def: 5, spd: 5, spe: 162, aspd: 1.5, crit: .15, critMul: 1.75, range: 46 },
     basic: 'tajos', learn: [['tajoX', 1]], ultimate: null,
     desc: 'Movilidad y golpes rápidos con dos dagas. Desangra a sus objetivos.',
   },
@@ -948,7 +949,7 @@ const FORMS = {};
 CLASSES.forEach(c => FORMS[c.id] = c);
 const SPECIES = CLASSES;      // compatibilidad: donde antes se listaban especies ahora se listan clases
 const EVOLVED = [];
-const MAX_STATS = { hp: 220, mp: 160, atk: 20, spa: 20, def: 20, spd: 14, spe: 200, aspd: 1.6, crit: .2, critMul: 2, range: 340 };
+const MAX_STATS = { hp: 220, mp: 160, atk: 20, spa: 20, def: 20, spd: 14, spe: 172, aspd: 1.6, crit: .2, critMul: 2, range: 340 };
 
 
 /** Dibuja una criatura con sombra y anillo indicador. st: {t,moving,fx,fy,vx,vy,bob}. */
@@ -1464,8 +1465,8 @@ function groundTarget(g, u, aim, range) {
 const MOVES = {
   /* ---- Guerrero ---- */
   espadazo: {
-    name: 'Espadazo', cls: 'guerrero', basic: true, role: 'Básico · cuerpo a cuerpo', cat: 'fis', mult: 1.25, cost: 0, cd: 0, range: 52, arc: 110, icon: 'sword', color: '#e8e0d0',
-    desc: 'Tajo de espada en arco frontal (52 de alcance, 110°). Daño físico: 125 % del Ataque (golpe lento y contundente). Empuja un poco.',
+    name: 'Espadazo', cls: 'guerrero', basic: true, role: 'Básico · cuerpo a cuerpo', cat: 'fis', mult: 1.4, cost: 0, cd: 0, range: 52, arc: 110, icon: 'sword', color: '#e8e0d0',
+    desc: 'Tajo de espada en arco frontal (52 de alcance, 110°). Daño físico: 140 % del Ataque (golpe lento y contundente). Empuja un poco.',
     cast(g, u, aim, m) {
       const ang = Math.atan2(aim.dy, aim.dx); swing(u, 'sword', ang, .32);
       Combat.arc(g, u.team, u.x, u.y, ang, m.range, deg(m.arc / 2), H(m, u, { kb: 140 }));
@@ -1487,8 +1488,8 @@ const MOVES = {
   },
   /* ---- Arquero ---- */
   flecha: {
-    name: 'Flecha', cls: 'arquero', basic: true, role: 'Básico · a distancia', cat: 'fis', mult: 1, cost: 0, cd: 0, range: 300, speed: 560, icon: 'arrow', color: '#e6d6b0',
-    desc: 'Flecha hacia el cursor (alcance 300, velocidad 560). Daño físico: 100 % del Ataque. Puedes moverte mientras disparas.',
+    name: 'Flecha', cls: 'arquero', basic: true, role: 'Básico · a distancia', cat: 'fis', mult: 1.15, cost: 0, cd: 0, range: 300, speed: 560, icon: 'arrow', color: '#e6d6b0',
+    desc: 'Flecha hacia el cursor (alcance 300, velocidad 560). Daño físico: 115 % del Ataque. Puedes moverte mientras disparas.',
     cast(g, u, aim, m) {
       swing(u, 'bow', Math.atan2(aim.dy, aim.dx), .22);
       g.projectiles.push(new Projectile({ x: u.x + aim.dx * 12, y: u.y + aim.dy * 12, vx: aim.dx * m.speed, vy: aim.dy * m.speed, r: 4, life: m.range / m.speed, kb: 60, team: u.team, kind: 'arrow', color: m.color, h: 16, hit: H(m, u, {}) }));
@@ -1556,8 +1557,8 @@ const MOVES = {
   },
   /* ---- Asesino ---- */
   tajos: {
-    name: 'Doble tajo', cls: 'asesino', basic: true, role: 'Básico · dos golpes rápidos', cat: 'fis', mult: .6, hits: 2, cost: 0, cd: 0, range: 46, arc: 100, second: .15, icon: 'dagger', color: '#f0d0d0',
-    desc: 'Dos tajos seguidos con las dagas (46 de alcance, 100°). Cada uno: 60 % del Ataque físico; los dos pueden acertar al mismo enemigo.',
+    name: 'Doble tajo', cls: 'asesino', basic: true, role: 'Básico · dos golpes rápidos', cat: 'fis', mult: .52, hits: 2, cost: 0, cd: 0, range: 46, arc: 100, second: .15, icon: 'dagger', color: '#f0d0d0',
+    desc: 'Dos tajos seguidos con las dagas (46 de alcance, 100°). Cada uno: 52 % del Ataque físico; los dos pueden acertar al mismo enemigo.',
     cast(g, u, aim, m) {
       const ang = Math.atan2(aim.dy, aim.dx); swing(u, 'daggers', ang, m.second * 2 + .08);
       const one = (side) => { Combat.arc(g, u.team, u.x, u.y, ang, m.range, deg(m.arc / 2), H(m, u, { kb: 50, basic: true })); Effects.slash(g, u.x, u.y, ang + side * .25, m.range * .75, deg(m.arc * .8), '#ffd8d8'); };
@@ -1619,7 +1620,7 @@ class Actor {
     if (s.slow > 0) { s.slow -= dt; if (s.slow <= 0) s.slowAmt = 0; }
     if (s.burn > 0 && this.alive) {
       s.burn -= dt; s.burnTick -= dt;
-      if (s.burnTick <= 0) { s.burnTick = .5; Combat.hit(g, this, { dmg: 1, pct: .03, dot: true, team: 'burn' }); }
+      if (s.burnTick <= 0) { s.burnTick = .5; Combat.hit(g, this, { dmg: 1, pct: BURN_PCT * (this instanceof Player ? DMG.HERO_DEF / (DMG.HERO_DEF + Math.max(0, this.stats.def || 0)) : 1), dot: true, team: 'burn' }); }   // 0.36: 1,2 % por tick, menos con armadura (antes 3 % fijo: mataba al tanque)
       if (Math.random() < 10 * dt) g.fx.add({ x: this.x + (Math.random() - .5) * 14, y: this.y - this.height * .5, vy: -30, life: .4, size: 2, color: '#ff8a3d', glow: true });
     }
     // Sangrado: exactamente un tick por segundo (el contador va por tiempo, no por fotogramas ni pasos)
@@ -1954,6 +1955,7 @@ class Player extends Actor {
     }
     const actual = Math.hypot(this.x - this.px, this.y - this.py) / dt;
     this.moving = actual > 8;
+    this.walkPh = ((this.walkPh || 0) + (this.moving && !this.dash ? actual * dt / 13 : 0)) % 4096;   // zancada: avanza con lo recorrido
     this.bob = this.moving ? Math.abs(Math.sin(this.anim * 9)) * 2.6 : Math.sin(this.anim * 2.2) * .7 + .7;
     this.sp.emit && this.sp.emit(this, g.fx, dt);
     if (this.moving && !this.dash) {
@@ -1970,7 +1972,7 @@ class Player extends Actor {
     this.flip = f.x < -.2 ? -1 : f.x > .2 ? 1 : (this.flip || 1);
     const sw = this.swing, ch = this.charging;
     return { t: this.anim, moving: this.moving, fx: f.x, fy: f.y, vx: this.vx, vy: this.vy, bob: this.bob, flip: this.flip, isPlayer: true,
-      dead: !this.alive, deadT: this.deadT || 0, dash: !!this.dash, dashK: this.dash ? this.dash.t / (this.dash.dur || .2) : 0, hurt: this.flash > 0 || this.hurtT > 0, speed: Math.hypot(this.vx, this.vy),
+      dead: !this.alive, deadT: this.deadT || 0, walkPh: this.walkPh || 0, dash: !!this.dash, dashK: this.dash ? this.dash.t / (this.dash.dur || .2) : 0, hurt: this.flash > 0 || this.hurtT > 0, speed: Math.hypot(this.vx, this.vy),
       swing: sw ? { kind: sw.kind, k: U.clamp(sw.t / sw.dur, 0, 1), ang: sw.ang } : null, charge: ch ? U.clamp(ch.t / ((MOVES[ch.id] && MOVES[ch.id].charge.time) || 1), 0, 1) : 0,
       yaw: r ? r.yaw : undefined, walk: r ? r.walk : undefined, gw: r ? r.gw : undefined, turnV: r ? r.turnV : 0, scale: CONFIG.CREATURE_SCALE };
   }
@@ -2029,6 +2031,9 @@ function idleBehaviour(e, dt) {
   return s;
 }
 const STOP = { x: 0, y: 0, mul: 0 };
+/** Quemadura y veneno: % de los PS máximos por tick (cada 0,5 s). Simulación de balance 0.36: con 3 % hacía el 85-90 % del daño
+ *  que recibían las clases cuerpo a cuerpo en la Ciénaga y el Cráter y tumbaba al Guerrero (el que más PS tiene). */
+const BURN_PCT = .012;
 
 /** Charco de lava enemigo (lo usan Basaltón y Magmatrón). */
 function addEnemyPool(g, src, x, y, r, life) {
@@ -2972,7 +2977,7 @@ class Enemy extends Actor {
       else if (this.aggro && pAlive && this.state === 'idle') this.facing = { x: (P.x - this.x) / (d || 1), y: (P.y - this.y) / (d || 1) };
       if (this.detour && this.state !== 'charging' && this.state !== 'dashing') { this.detour.t -= dt; if (this.detour.t <= 0) this.detour = null; else if (want.mul > 0) want = { x: this.detour.x, y: this.detour.y, mul: want.mul }; }
     }
-    const sp = this.kind.speed * want.mul * (1 - this.status.slowAmt);
+    const sp = this.kind.speed * CONFIG.ENEMY_SPEED * want.mul * (1 - this.status.slowAmt);
     const k = 1 - Math.exp(-10 * dt);
     this.vx += (want.x * sp - this.vx) * k; this.vy += (want.y * sp - this.vy) * k;
     const bx = this.x, by = this.y;
@@ -4264,7 +4269,7 @@ function gridPath(world, x0, y0, x1, y1, maxNodes = 4000) {
 class Companion extends Enemy {
   constructor(data, x, y) {
     const k = makeKind(data.kind);
-    const kind = Object.assign({}, k, { speed: Math.max(k.speed, 118), aggro: 0 });   // los aliados siguen el ritmo del líder
+    const kind = Object.assign({}, k, { speed: Math.max(k.speed, 132), aggro: 0 });   // los aliados siguen el ritmo del líder
     super(kind, x, y, { level: data.level });
     this.team = 'player'; this.ally = true; this.data = data; this.nameTag = data.name;
     this.family = ENEMY_VARIANTS[data.kind].base;
@@ -4429,4 +4434,4 @@ const Quests = {
 
   return { CONFIG, U, T, SOLID, TILE_NAMES, World, Particles, CLASSES, CLASS_STATS, ELITE, eliteChance, floorEnemies, FAMILIES, Deco, Terrain, ALLY_ABILITY, canEquip, OLD_EQUIP_SLOTS, FRACTION_STATS, fmtStat, DMG, classMoves, groundTarget, SPECIES, EVOLVED, FORMS, Progress, EVOLUTIONS, EVO_ITEM_MIN_LEVEL, Combat, Effects, Projectile, Zone, BLOCKS_SHOT, TYPES, TYPE_CHART, typeEff, calcStats, MAX_LEVEL, expNeed, expYield, MOVES, BOONS, Boons, BOSS_RAGE, GEODA, Geoda, Boulder, Actor, Player, Enemy, STOP, ENEMIES, ENEMY_VARIANTS, makeKind, BOSSES, makeBossKind, BIOMES, RARITIES, CATEGORIES, EQUIP_SLOTS, ITEMS, QUICK, RARITY_ORDER, STAT_NAMES, BASE_SHOP, SHOP_TIERS, shopStock, sellPrice, RECIPES, newUid, LOOT, Loot, Inventory, finalStats, freshEquip, equipRegen, TRAPS, DUNGEONS, dungeonById, dungeonOpen, COURIER_INTRO, enemyLevel, RANKS, rankOf, weighted, Jobs, ECONOMY, SAVE_VERSION, checksum, Save, FloorGen, hashStr, RECRUIT, ORDERS, gridPath, Companion, LEGACY_JOBS, isLegacyJob, Quests };
 }
-export const SOURCE_HASH = '8418669d5d52ff1b';
+export const SOURCE_HASH = '07f91d9ef784be4c';

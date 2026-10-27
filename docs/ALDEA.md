@@ -57,3 +57,25 @@ Detalles:
 - **`tests/arrival.test.mjs`** comprueba el estado de llegada (`arrived`) en perfiles nuevos y antiguos, y la operación del servidor.
 - **La batería sin conexión** comprueba que se llega andando a las 7 estaciones y que el rendimiento sigue por debajo de 16 ms por fotograma.
 - **Para pruebas automáticas:** `window.MA_NO_INTRO = true` o `localStorage['ma-no-intro'] = '1'` evitan la escena.
+
+## 0.36: vecinos humanos y aldea con más vida
+
+- **Vecinos:** ahora son personas, dibujadas con el mismo sistema que los héroes (8 direcciones, reposo y andar), cada una vestida según su oficio:
+  - **Alcalde Bartolo:** anciano encorvado con abrigo largo de lana y cuello de piel, cadena y medallón del cargo, y bastón.
+  - **Maestra Ulula (gremio):** exploradora veterana con gabán de cuero, banda azul con la insignia del gremio, moño cano, monóculo, portamapas y el libro de registro bajo el brazo.
+  - **Pico Cartero (tablón):** mensajero pelirrojo con gorra de pluma, cartera de cuero con cartas asomando y un rollo en la mano.
+  - **Topo mercader (tienda):** comerciante grueso con sombrero de fieltro, barba, mandil y un fardo enorme con manta, cazo, jarra y farolillo.
+  - **Doña Musgo (hoguera):** anciana curandera con pañuelo, chal, falda larga, mandil y un manojo de hierbas.
+  - **Centinela Roco (puerta):** guardia con capacete de hierro, gambesón acolchado, esclavina roja, lanza y escudo redondo a la espalda.
+  - **Tito Brote (campamento):** mozo con sombrero de paja, zurrón y cayado de pastor.
+  - **El cliente de las tiendas de las mazmorras:** un viajero encapuchado con bastón.
+- **Tienda:** dos toldos a rayas con sus postes, cuatro estanterías con tarros, sacos y botellas en la fachada, dos mesas de mercado y un cartel con una bolsa de monedas. Las mesas son sólidas (casillas 29-31 y 35-37 de la fila 10).
+  - Primera mesa: fruta, pan y queso.
+  - Segunda mesa: pociones, telas y una balanza.
+- **Gremio:** dos estandartes azules con una rosa de los vientos dorada y un cráneo con cuernos sobre la puerta. También:
+  - un tablón de encargos con papeles clavados;
+  - una placa con espadas cruzadas;
+  - un farol;
+  - una veleta;
+  - un armero con lanzas y espadas, y un muñeco de paja con diana (sólidos).
+- **Hoguera:** ahora está en la plaza, junto a la casa del alcalde (casilla 19,14), con sus bancos y su luz. Doña Musgo está a su lado; la estación «Hoguera de la plaza» hace lo mismo que la antigua zona de descanso. Donde estaba, junto al estanque, hay un pozo de piedra.

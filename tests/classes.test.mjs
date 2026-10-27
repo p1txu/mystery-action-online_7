@@ -8,10 +8,11 @@ import { parseInput } from '../shared/protocol.js';
 import { E, freshSave, seeded, STEP } from './helpers.mjs';
 
 const TABLE = {   // valores de nivel 1 pedidos (vida, maná, ataque, poder mágico, defensa, resistencia, velocidad, vel. ataque, crítico, daño crítico)
-  guerrero: [180, 60, 12, 0, 16, 10, 150, .85, .05, 1.5],
-  arquero: [105, 80, 14, 0, 6, 5, 175, 1, .1, 1.75],
-  mago: [85, 140, 5, 18, 4, 10, 145, .75, .05, 1.5],
-  asesino: [100, 70, 11, 0, 5, 5, 190, 1.5, .15, 1.75],
+  // velocidad: un 15 % menos desde la 0.36 (se podrá subir con botas)
+  guerrero: [180, 60, 12, 0, 16, 10, 128, .85, .05, 1.5],
+  arquero: [105, 80, 14, 0, 6, 5, 148, 1, .1, 1.75],
+  mago: [85, 140, 5, 18, 4, 10, 124, .75, .05, 1.5],
+  asesino: [100, 70, 11, 0, 5, 5, 162, 1.5, .15, 1.75],
 };
 const KEYS = ['hp', 'mp', 'atk', 'spa', 'def', 'spd', 'spe', 'aspd', 'crit', 'critMul'];
 
@@ -89,11 +90,11 @@ test('fórmula de daño: físico con Ataque/Defensa, mágico con Poder mágico/R
   assert.equal(h0 - e.hp, Math.max(1, Math.round(p.stats.atk / (1 + 30 / E.DMG.HERO_DEF) * p.stats.critMul)));
 });
 
-test('Guerrero: espadazo (125 %, alcance 52, arco frontal) y ritmo = 1 / velocidad de ataque', () => {
+test('Guerrero: espadazo (140 % desde la 0.36, alcance 52, arco frontal) y ritmo = 1 / velocidad de ataque', () => {
   const { x, p } = solo('guerrero'); const done = countHits(x);
   const near = dummy(x, p.x + 52, p.y), far = dummy(x, p.x + 52 + near.radius + 6, p.y + 60), back = dummy(x, p.x - 40, p.y);
   act(x, { k: 'b', dx: 1, dy: 0, d: 52 }); run(x, .05);
-  assert.equal(near.hits.length, 1); assert.equal(near.hits[0].dmg, calc(p, near, 1.25), 'espadazo: 125 % del ataque');
+  assert.equal(near.hits.length, 1); assert.equal(near.hits[0].dmg, calc(p, near, 1.4), 'espadazo: 140 % del ataque');
   assert.equal(far.hits.length, 0, 'fuera de alcance'); assert.equal(back.hits.length, 0, 'detrás: fuera del arco');
   // Enfriamiento del básico: 1/0,85 ≈ 1,18 s
   act(x, { k: 'b', dx: 1, dy: 0 }); run(x, 1); assert.equal(near.hits.length, 1, 'antes de 1,18 s no repite');
@@ -133,7 +134,7 @@ test('Arquero: flecha hacia el cursor con alcance 300; el Flechazo cargado va de
   const { x, p } = solo('arquero'); const done = countHits(x);
   const inR = dummy(x, p.x, p.y - 280), out = dummy(x, p.x + 300 + 40, p.y);
   act(x, { k: 'b', dx: 0, dy: -1, d: 280 }); run(x, .8);
-  assert.equal(inR.hits.length, 1, 'acierta hacia donde apunta (arriba)'); assert.equal(inR.hits[0].dmg, calc(p, inR, 1));
+  assert.equal(inR.hits.length, 1, 'acierta hacia donde apunta (arriba)'); assert.equal(inR.hits[0].dmg, calc(p, inR, 1.15), 'flecha: 115 % desde la 0.36');
   run(x, 1); act(x, { k: 'b', dx: 1, dy: 0, d: 340 }); run(x, 1);
   assert.equal(out.hits.length, 0, 'a 340 la flecha ya no llega (alcance 300)');
   // Carga: se paga al tensar; se suelta con «r»; la potencia la mide el servidor
@@ -201,14 +202,14 @@ test('Asesino: dos tajos que golpean por separado; Tajo en X (150 %, −30 % 2 s
   const e = dummy(x, p.x + 40, p.y);
   act(x, { k: 'b', dx: 1, dy: 0, d: 40 }); run(x, .3);
   assert.equal(e.hits.length, 2, 'los dos tajos aciertan');
-  for (const h of e.hits) assert.equal(h.dmg, calc(p, e, .6));
+  for (const h of e.hits) assert.equal(h.dmg, calc(p, e, .52));   // 52 % cada tajo desde la 0.36
   assert.ok(e.hits[1].at - e.hits[0].at >= .14, 'el segundo llega 0,15 s después');
   // Si el enemigo se aparta tras el primero, el segundo falla
   const f = dummy(x, p.x, p.y + 40); run(x, 1);
   act(x, { k: 'b', dx: 0, dy: 1, d: 40 }); run(x, .05); f.x = p.x + 300; run(x, .3);
   assert.equal(f.hits.length, 1, 'el segundo tajo puede fallar por separado');
   // Tajo en X + sangrado
-  const t = dummy(x, p.x - 40, p.y), basic = calc(p, t, .6) * 2, tick = Math.ceil(basic * .1), en0 = p.energy, spe0 = t.speed;
+  const t = dummy(x, p.x - 40, p.y), basic = calc(p, t, .52) * 2, tick = Math.ceil(basic * .1), en0 = p.energy, spe0 = t.speed;
   act(x, { k: 'm', i: 0, dx: -1, dy: 0, d: 40 }); run(x, .02);
   assert.ok(near(p.energy, en0 - 20, .2), '20 de energía');
   assert.equal(t.hits.length, 1); assert.equal(t.hits[0].dmg, calc(p, t, 1.5));
