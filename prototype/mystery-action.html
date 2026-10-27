@@ -6053,7 +6053,7 @@ const VillageIntro = {
     if (S.phase === 'roll' || S.phase === 'stop') {
       const cls = g.save ? g.save.species : 'guerrero', up = S.phase === 'stop' && S.t2 > .9;
       const fr = HeroSprites.frame(cls, 'side', up ? 'hurt' : 'death', up ? 0 : HeroSprites.ANIMS.death - 1);
-      c.save(); c.translate(bx + 25, by + (up ? -5 : 2)); c.drawImage(fr, -fr.ox, -fr.oy); c.restore();
+      c.save(); c.translate(bx + 25, by + (up ? -5 : 9)); c.drawImage(fr, -fr.ox, -fr.oy); c.restore();
       if (!up) { c.fillStyle = '#6a5a8a'; c.fillRect(bx + 6, by - 3, 30, 5); c.fillStyle = '#7a6a9a'; c.fillRect(bx + 6, by - 3, 30, 1); }   // manta raída
     }
     // Lateral delantero y rueda de este lado
@@ -8657,328 +8657,711 @@ const PixelArt = {
   },
 };
 
-/* --- Héroes en pixel art: Guerrero, Arquero, Mago y Asesino ---
-   Esqueleto común (pies en 0, cadera −18, hombros −31, cabeza −39) con tres vistas: frente, espalda y
-   perfil (la izquierda es el perfil reflejado). Animaciones: reposo (4), andar (6), atacar (6), habilidad (6),
-   tensar (4, Arquero), canalizar (4, Mago), daño (2), esquiva (4) y caída (6). */
-const HERO_MATS = {
-  guerrero: {
-    1: ['#1a1410', '#8a5a40', '#c89a7a', '#e2b898', '#f4d4b8'],   // piel
-    2: ['#14171c', '#4a525c', '#7c8794', '#b4bec9', '#eef3f8'],   // acero
-    3: ['#1c120c', '#43291a', '#6a4529', '#8e623c', '#b08050'],   // cuero
-    4: ['#1e0a0a', '#561816', '#8a2a24', '#b0423a', '#d06a5a'],   // tabardo y penacho
-    5: ['#2a1c06', '#7a5a1c', '#b8902e', '#e0c060', '#fff0a0'],   // oro
-    6: ['#160e06', '#45290f', '#6a4220', '#8e5c30', '#ae7840'],   // madera del escudo
-    7: ['#0e0a08', '#2a2420', '#3e3630', '#57493e', '#6e5c4c'],   // botas
-    8: ['#120808', '#3a1210', '#5e1c18', '#7e2a22', '#9a3a30'],   // capa
-  },
-  arquero: {
-    1: ['#1a1410', '#86583e', '#c49070', '#dcae8c', '#f0c8a8'],
-    2: ['#14171c', '#4e565f', '#828c96', '#b8c0c8', '#eef2f6'],
-    3: ['#1a120a', '#4a321c', '#6e4c2c', '#916840', '#b28652'],   // cuero
-    4: ['#0a1208', '#1e3018', '#355229', '#4f7239', '#6e9450'],   // capa y capucha verdes
-    5: ['#24180a', '#6a4a1e', '#9c7030', '#c89a48', '#ecc670'],   // detalles
-    6: ['#170e06', '#4a2c12', '#73471f', '#9a6630', '#bc8444'],   // arco
-    7: ['#0e0a08', '#2a221a', '#3e3226', '#544433', '#6a5640'],
-    8: ['#0a0c08', '#e8e0c8', '#e8e0c8', '#fff8e0', '#ffffff'],   // cuerda y plumas
-  },
-  mago: {
-    1: ['#1a1410', '#8a6a50', '#d0a888', '#e6c4a6', '#f6dcc4'],
-    2: ['#101420', '#4a5068', '#8890a8', '#c8cce0', '#ffffff'],   // barba y pelo canos
-    3: ['#0a0c1c', '#18204a', '#263672', '#38509a', '#5a74c4'],   // túnica
-    4: ['#0a0816', '#151236', '#221e52', '#30296e', '#463c90'],   // capa interior
-    5: ['#2a1c06', '#7a5a1c', '#b8902e', '#e0c060', '#fff0a0'],   // bordados
-    6: ['#140c06', '#3e2614', '#5e3c20', '#7e5430', '#9c6c40'],   // bastón
-    7: ['#0c0a10', '#241e2e', '#362c44', '#4a3e5a', '#605070'],
-    9: ['#0a2a40', '#2a6aa0', '#5aa8e8', '#9ad8ff', '#ffffff'],   // gema arcana
-  },
-  asesino: {
-    1: ['#160e0a', '#7a5440', '#b8866a', '#d0a080', '#e8bc9c'],
-    2: ['#121418', '#4a5058', '#86909a', '#c0c8d0', '#f4f8fc'],   // dagas
-    3: ['#08070a', '#221e28', '#332d3b', '#4a4254', '#645a72'],   // cuero oscuro
-    4: ['#160306', '#4a0e16', '#7c1a24', '#a82a36', '#d04a52'],   // fajín carmesí
-    5: ['#1a1414', '#3a3434', '#5a5050', '#7a6e6e', '#9a8e8e'],   // hebillas
-    6: ['#0a0808', '#241c1c', '#3a2c2c', '#4e3c3c', '#664e4e'],   // empuñaduras
-    7: ['#08070a', '#1c1922', '#2a2532', '#3c3446', '#50465c'],
-    8: ['#0a090c', '#252029', '#383040', '#4e4458', '#685c74'],   // capucha
-  },
-};
-const HeroSprites = {
-  W: 72, H: 74, OX: 36, OY: 64,
-  cache: {},
-  ANIMS: { idle: 4, walk: 6, attack: 6, skill: 6, charge: 4, channel: 4, hurt: 2, dodge: 4, death: 6 },
-  frame(cls, dir, anim, f) {
-    const key = cls + dir + anim + f; let cv = this.cache[key];
-    if (!cv) { cv = this.cache[key] = this.paint(cls, dir, anim, f); }
+/* =============================== HeroForge: héroes en pixel art ===============================
+   Cada héroe es un maniquí de volúmenes sencillos (elipsoides, conos redondeados, cajas, capas,
+   escudo) colocado con cinemática inversa en cada fotograma. Se dibuja píxel a píxel desde la cámara
+   del juego (cenital, inclinada 30°): por cada píxel se busca la superficie más cercana, se elige uno
+   de los 6 tonos de su material (contorno, sombra profunda, sombra, medio, luz, brillo) según la luz y
+   el tipo de material (metal con reflejos, tela, cuero, piel, gema que brilla), se añaden líneas
+   interiores donde una pieza tapa a otra, sombras de contacto, detalles pintados (remaches, costuras,
+   lamas, pliegues, bordados) y un contorno oscuro. No hay suavizado: cada píxel tiene un color de la
+   paleta. Cinco vistas (frente, ¾ frente, perfil, ¾ espalda, espalda) y su reflejo = 8 direcciones.
+   Pies en (OX, OY) del lienzo; la colisión del juego no depende del dibujo. */
+const HeroForge = (() => {
+  const T = .5236, CT = Math.cos(T), ST = Math.sin(T);              // inclinación de la cámara (30°)
+  const DV = [0, -ST, -CT], UPV = [0, CT, -ST];                       // dirección de la vista y «arriba» de la pantalla
+  const LIGHT = norm([-.5, .7, .62]), HALF = norm(add(LIGHT, [0, ST, CT]));
+  function add(a, b) { return [a[0] + b[0], a[1] + b[1], a[2] + b[2]]; }
+  function sub(a, b) { return [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; }
+  function mul(a, k) { return [a[0] * k, a[1] * k, a[2] * k]; }
+  function dot(a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
+  function cross(a, b) { return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]; }
+  function len(a) { return Math.hypot(a[0], a[1], a[2]); }
+  function norm(a) { const l = len(a) || 1; return [a[0] / l, a[1] / l, a[2] / l]; }
+  function lerp3(a, b, k) { return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k]; }
+  const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+  /** Marco ortonormal a partir de un eje principal y una pista. */
+  function frameOf(y, hint = [0, 0, 1]) { const uy = norm(y); let ux = cross(uy, hint); if (len(ux) < 1e-3) ux = cross(uy, [1, 0, 0]); ux = norm(ux); const uz = norm(cross(ux, uy)); return [ux, uy, uz]; }
+  const toLocal = (p, c, F) => { const d = sub(p, c); return [dot(d, F[0]), dot(d, F[1]), dot(d, F[2])]; };
+
+  /* ---------- Distancias con signo de cada tipo de pieza ---------- */
+  function sdRoundCone(p, a, b, r1, r2) {
+    const ba = sub(b, a), l2 = dot(ba, ba), rr = r1 - r2, a2 = l2 - rr * rr, il2 = 1 / l2, pa = sub(p, a), y = dot(pa, ba), z = y - l2;
+    const q = sub(mul(pa, l2), mul(ba, y)), x2 = dot(q, q), y2 = y * y * l2, z2 = z * z * l2, k = Math.sign(rr) * rr * rr * x2;
+    if (Math.sign(z) * a2 * z2 > k) return Math.sqrt(x2 + z2) * il2 - r2;
+    if (Math.sign(y) * a2 * y2 < k) return Math.sqrt(x2 + y2) * il2 - r1;
+    return (Math.sqrt(x2 * a2 * il2) + y * rr) * il2 - r1;
+  }
+  function sdEll(q, r) {
+    const a = q[0] / r[0], b = q[1] / r[1], c = q[2] / r[2], k0 = Math.hypot(a, b, c);
+    const k1 = Math.hypot(a / r[0], b / r[1], c / r[2]); return k1 < 1e-6 ? -Math.min(r[0], r[1], r[2]) : k0 * (k0 - 1) / k1;
+  }
+  function sdCappedCone(p, a, b, ra, rb) {
+    const rba = rb - ra, ba = sub(b, a), baba = dot(ba, ba), pa = sub(p, a), papa = dot(pa, pa), paba = dot(pa, ba) / baba;
+    const x = Math.sqrt(Math.max(0, papa - paba * paba * baba)), cax = Math.max(0, x - (paba < .5 ? ra : rb)), cay = Math.abs(paba - .5) - .5;
+    const k = rba * rba + baba, f = clamp((rba * (x - ra) + paba * baba) / k, 0, 1), cbx = x - ra - f * rba, cby = paba - f;
+    const s = cbx < 0 && cay < 0 ? -1 : 1;
+    return s * Math.sqrt(Math.min(cax * cax + cay * cay * baba, cbx * cbx + cby * cby * baba));
+  }
+  function sdBox(q, h, r) {
+    const x = Math.abs(q[0]) - h[0] + r, y = Math.abs(q[1]) - h[1] + r, z = Math.abs(q[2]) - h[2] + r;
+    return Math.hypot(Math.max(x, 0), Math.max(y, 0), Math.max(z, 0)) + Math.min(Math.max(x, y, z), 0) - r;
+  }
+
+  /* ---------- Escena: lista de piezas ---------- */
+  class Scene {
+    constructor(xf) { this.p = []; this.st = []; this.xf = xf; }   // xf: local → mundo (giro de la vista, caída)
+    /** Cono redondeado (miembros, varas, capuchas…) entre a y b (coordenadas locales). */
+    rc(a, b, r1, r2, m, o = {}) {
+      const A = this.xf(a), B = this.xf(b), ax = sub(B, A), L = len(ax) || .01;
+      if (Math.abs(r1 - r2) >= L) { if (r1 > r2) r2 = r1 - L + .02; else r1 = r2 - L + .02; }
+      const F = frameOf(ax, o.hint ? this.dir(o.hint) : [0, 0, 1]);
+      return this.push({ kind: 'rc', A, B, r1, r2, L, F, m, c: mul(add(A, B), .5), R: L / 2 + Math.max(r1, r2) + .5, deco: o.deco, z: o.z || 0, id: o.id });
+    }
+    /** Cono truncado de bases planas (túnicas, sombreros). */
+    cc(a, b, r1, r2, m, o = {}) {
+      const A = this.xf(a), B = this.xf(b), ax = sub(B, A), L = len(ax) || .01, F = frameOf(ax, [0, 0, 1]);
+      return this.push({ kind: 'cc', A, B, r1, r2, L, F, m, c: mul(add(A, B), .5), R: L / 2 + Math.max(r1, r2) + .5, deco: o.deco, z: o.z || 0, id: o.id });
+    }
+    /** Elipsoide de centro c, radios r y marco (ejes y, z locales). */
+    ell(c, r, m, o = {}) {
+      const C = this.xf(c), F = this.frame(o.y || [0, 1, 0], o.zh || [0, 0, 1]);
+      return this.push({ kind: 'ell', C, r, F, m, c: C, R: Math.max(r[0], r[1], r[2]) + .5, deco: o.deco, cut: o.cut && o.cut.map(k => ({ C: this.xf(k.c), r: k.r, F: this.frame(k.y || [0, 1, 0], k.zh || [0, 0, 1]) })), z: o.z || 0, id: o.id });
+    }
+    box(c, h, m, o = {}) {
+      const C = this.xf(c), F = this.frame(o.y || [0, 1, 0], o.zh || [0, 0, 1]);
+      return this.push({ kind: 'box', C, h, rr: o.r ?? .6, F, m, c: C, R: Math.hypot(h[0], h[1], h[2]) + .5, deco: o.deco, bend: o.bend || 0, z: o.z || 0, id: o.id });
+    }
+    /** Lámina con forma (capa, faldón, cola de bufanda): arriba en c, cuelga hacia «y» (local), ancho w0→w1. */
+    sheet(c, down, out, L, w0, w1, th, m, o = {}) {
+      const C = this.xf(c), dw = this.dir(down), ou = this.dir(out), ux = norm(cross(dw, ou)), uz = norm(cross(ux, dw));
+      return this.push({ kind: 'sheet', C, F: [ux, dw, uz], L, w0, w1, th, wrap: o.wrap ?? .05, wave: o.wave || 0, ph: o.ph || 0, curl: o.curl || 0, m, c: add(C, mul(dw, L / 2)), R: L / 2 + Math.max(w0, w1) + 2, deco: o.deco, z: o.z || 0, id: o.id });
+    }
+    /** Escudo de lágrima: centro c, normal n (hacia fuera), arriba u. */
+    shield(c, n, u, w, h, th, m, o = {}) {
+      const C = this.xf(c), uz = this.dir(n), ux = norm(cross(this.dir(u), uz)), uy = norm(cross(uz, ux));
+      return this.push({ kind: 'shield', C, F: [ux, uy, uz], w, h, th, m, c: C, R: Math.max(w, h * 1.3) + th + 1, deco: o.deco, z: o.z || 0, id: o.id });
+    }
+    /** Píxel suelto (ojos, remaches, chispas) si se ve: n = normal local para saber si mira a la cámara. */
+    dot(p, m, t, o = {}) { this.st.push({ P: this.xf(p), N: o.n ? this.dir(o.n) : null, m, t, size: o.size || 1, glow: o.glow }); }
+    dir(v) { const o = this.xf([0, 0, 0]); return norm(sub(this.xf(v), o)); }
+    frame(y, zh) { return frameOf(this.dir(y), this.dir(zh)); }
+    push(pr) { pr.i = this.p.length; this.p.push(pr); return pr; }
+  }
+  function sdf(pr, P) {
+    switch (pr.kind) {
+      case 'rc': return sdRoundCone(P, pr.A, pr.B, pr.r1, pr.r2);
+      case 'cc': return sdCappedCone(P, pr.A, pr.B, pr.r1, pr.r2) - .3;
+      case 'ell': {
+        let d = sdEll(toLocal(P, pr.C, pr.F), pr.r);
+        if (pr.cut) for (const k of pr.cut) d = Math.max(d, -sdEll(toLocal(P, k.C, k.F), k.r));
+        return d;
+      }
+      case 'box': { const q = toLocal(P, pr.C, pr.F); if (pr.bend) q[2] -= q[0] * q[0] * pr.bend; return sdBox(q, pr.h, pr.rr); }
+      case 'sheet': {
+        const q = toLocal(P, pr.C, pr.F), t = clamp(q[1] / pr.L, 0, 1), hw = pr.w0 + (pr.w1 - pr.w0) * t;
+        const zc = -q[0] * q[0] * pr.wrap + Math.sin(q[0] * .9 + pr.ph) * pr.wave * t + pr.curl * t * t * pr.L;
+        return Math.max(Math.abs(q[0]) - hw, Math.max(-q[1], q[1] - pr.L), Math.abs(q[2] - zc) - pr.th) * .8;
+      }
+      case 'shield': {
+        const q = toLocal(P, pr.C, pr.F), x = q[0], y = q[1], z = q[2] - x * x * .035;
+        const xm = y > 0 ? pr.w : pr.w * Math.sqrt(Math.max(0, 1 - (y / (1.3 * pr.h)) ** 2));
+        const d2 = Math.max(Math.abs(x) - xm, y - pr.h, -y - 1.3 * pr.h), dz = Math.abs(z) - pr.th;
+        return (Math.hypot(Math.max(d2, 0), Math.max(dz, 0)) + Math.min(Math.max(d2, dz), 0)) * .85;
+      }
+    }
+    return 1e9;
+  }
+  /** Coordenadas locales de la pieza (para pintar detalles). */
+  function localOf(pr, P) {
+    if (pr.kind === 'rc' || pr.kind === 'cc') { const d = sub(P, pr.A), s = dot(d, pr.F[1]) / pr.L; return { s, x: dot(d, pr.F[0]), z: dot(d, pr.F[2]), q: [dot(d, pr.F[0]), dot(d, pr.F[1]), dot(d, pr.F[2])] }; }
+    const q = toLocal(P, pr.C, pr.F); return { q, x: q[0], y: q[1], z: q[2] };
+  }
+
+  /* ---------- Materiales ---------- */
+  // Cada material: 6 tonos [contorno, sombra profunda, sombra, medio, luz, brillo] y un tipo de sombreado.
+  function shadeTone(type, n, P) {
+    const v = dot(n, LIGHT), h = v * .5 + .5, sp = Math.max(0, dot(n, HALF));
+    if (type === 'metal' || type === 'gold') {
+      let t = h < .34 ? 1 : h < .55 ? 2 : h < .76 ? 3 : 4;
+      if (n[1] < -.3 && t > 2) t = 2;                                  // refleja el suelo oscuro
+      if (n[1] > .2 && n[1] < .45 && t === 4 && type === 'metal') t = 3; // banda de horizonte: aspecto pulido
+      if (sp ** 26 > .5) t = 5;
+      return t;
+    }
+    if (type === 'gem') return sp ** 10 > .5 ? 5 : h > .55 ? 4 : 3;
+    if (type === 'glow') return h > .45 ? 5 : 4;
+    if (type === 'skin') return h < .4 ? 2 : h < .68 ? 3 : h < .86 ? 4 : 5;
+    if (type === 'hair') return h < .3 ? 1 : h < .5 ? 2 : h < .72 ? 3 : h < .9 ? 4 : 5;
+    if (type === 'leather') { let t = h < .32 ? 1 : h < .52 ? 2 : h < .76 ? 3 : 4; if (sp ** 30 > .6) t = 5; return t; }
+    return h < .3 ? 1 : h < .5 ? 2 : h < .74 ? 3 : 4;                 // tela
+  }
+  const rgbCache = {};
+  const rgb = hex => rgbCache[hex] || (rgbCache[hex] = [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)]);
+
+  /* ---------- Dibujo ---------- */
+  function render(scene, mats, W, H, OX, OY, opt = {}) {
+    const N = W * H, zb = new Float32Array(N).fill(1e9), pid = new Int16Array(N).fill(-1), hit = new Float32Array(N * 3);
+    for (const pr of scene.p) {
+      const cu = pr.c[0], cv = dot(pr.c, UPV), R = pr.R;
+      const x0 = Math.max(0, Math.floor(cu + OX - R)), x1 = Math.min(W - 1, Math.ceil(cu + OX + R));
+      const y0 = Math.max(0, Math.floor(OY - cv - R)), y1 = Math.min(H - 1, Math.ceil(OY - cv + R));
+      const tc0 = dot(pr.c, DV);
+      for (let py = y0; py <= y1; py++) for (let px = x0; px <= x1; px++) {
+        const u = px + .5 - OX, v = OY - (py + .5);
+        const O = [u, v * CT, -v * ST];                               // punto de la pantalla en el plano de la cámara
+        const oc = sub(pr.c, O), tc = dot(oc, DV), d2 = dot(oc, oc) - tc * tc;
+        if (d2 > R * R) continue;
+        const hh = Math.sqrt(R * R - d2), i = py * W + px;
+        let t = tc - hh; const tEnd = Math.min(tc + hh, zb[i] + (pr.z || 0));
+        for (let k = 0; k < 48 && t < tEnd; k++) {
+          const P = [O[0] + DV[0] * t, O[1] + DV[1] * t, O[2] + DV[2] * t], d = sdf(pr, P);
+          if (d < .2) { const tz = t - (pr.z || 0); if (tz < zb[i]) { zb[i] = tz; pid[i] = pr.i; hit[i * 3] = P[0]; hit[i * 3 + 1] = P[1]; hit[i * 3 + 2] = P[2]; } break; }
+          t += Math.max(d, .08);
+        }
+      }
+    }
+    // Tonos
+    const mat = new Int16Array(N).fill(-1), tone = new Int8Array(N);
+    for (let i = 0; i < N; i++) {
+      if (pid[i] < 0) continue;
+      const pr = scene.p[pid[i]], P = [hit[i * 3], hit[i * 3 + 1], hit[i * 3 + 2]], e = .35;
+      const n = norm([sdf(pr, add(P, [e, 0, 0])) - sdf(pr, add(P, [-e, 0, 0])), sdf(pr, add(P, [0, e, 0])) - sdf(pr, add(P, [0, -e, 0])), sdf(pr, add(P, [0, 0, e])) - sdf(pr, add(P, [0, 0, -e]))]);
+      let m = pr.m, sh = 0, fixed = -1;
+      if (pr.deco) { const r = pr.deco(localOf(pr, P), n, P, pr); if (r) { if (r.m) m = r.m; if (r.s) sh = r.s; if (r.t != null) fixed = r.t; } }
+      const M = mats[m]; let t = fixed >= 0 ? fixed : shadeTone(M.type, n, P) + sh;
+      mat[i] = m; tone[i] = clamp(t, 0, 5);
+    }
+    // Sombras de contacto (luz arriba a la izquierda) y líneas interiores donde una pieza tapa a otra
+    const tone2 = Int8Array.from(tone);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const i = y * W + x; if (mat[i] < 0) continue;
+      const z = zb[i], me = pid[i], type = mats[mat[i]].type; let t = tone[i];
+      const near = (xx, yy, th) => { if (xx < 0 || yy < 0 || xx >= W || yy >= H) return false; const j = yy * W + xx; return pid[j] >= 0 && pid[j] !== me && zb[j] < z - th; };
+      if (type !== 'glow' && type !== 'gem') {
+        if (near(x - 1, y - 1, 3) || near(x - 1, y - 2, 4) || near(x, y - 2, 4)) t = Math.min(t, Math.max(1, t - 1));
+        const jump = Math.max(...[[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => { const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= W || yy >= H) return 0; const j = yy * W + xx; return pid[j] >= 0 && pid[j] !== me ? z - zb[j] : 0; }));
+        if (jump > 2.6) t = jump > 7 ? 0 : 1;
+      }
+      tone2[i] = t;
+    }
+    // Limpieza: un píxel suelto de otro tono rodeado de un mismo tono del mismo material lo adopta
+    for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+      const i = y * W + x; if (mat[i] < 0 || mats[mat[i]].type === 'glow') continue;
+      const js = [i - 1, i + 1, i - W, i + W]; let same = null, ok = true;
+      for (const j of js) { if (mat[j] !== mat[i]) { ok = false; break; } if (same === null) same = tone2[j]; else if (tone2[j] !== same) { ok = false; break; } }
+      if (ok && same !== tone2[i] && Math.abs(same - tone2[i]) === 1) tone2[i] = same;
+    }
+    // Píxeles sueltos (ojos, remaches…) si no los tapa nada
+    for (const s of scene.st) {
+      const u = s.P[0], v = dot(s.P, UPV), px = Math.floor(u + OX), py = Math.floor(OY - v);
+      if (s.N && dot(s.N, DV) > -.15) continue;
+      for (let dy = 0; dy < s.size; dy++) for (let dx = 0; dx < s.size; dx++) {
+        const xx = px + dx, yy = py + dy; if (xx < 0 || yy < 0 || xx >= W || yy >= H) continue;
+        const i = yy * W + xx, depth = dot(s.P, DV);
+        if (s.glow ? true : (mat[i] >= 0 && depth <= zb[i] + 1.6)) { mat[i] = s.m; tone2[i] = s.t; if (zb[i] > 1e8) zb[i] = depth; }
+      }
+    }
+    // Contorno exterior y lienzo
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+    const c = cv.getContext('2d'), img = c.createImageData(W, H), D = img.data;
+    const put = (i, hex) => { const [r, g, b] = rgb(hex); D[i * 4] = r; D[i * 4 + 1] = g; D[i * 4 + 2] = b; D[i * 4 + 3] = 255; };
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const i = y * W + x;
+      if (mat[i] >= 0) { put(i, mats[mat[i]].c[tone2[i]]); continue; }
+      let m = -1, best = 1e9;
+      for (const [dx, dy] of [[0, 1], [0, -1], [-1, 0], [1, 0]]) { const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= W || yy >= H) continue; const j = yy * W + xx; if (mat[j] >= 0 && zb[j] < best) { best = zb[j]; m = mat[j]; } }
+      if (m >= 0) put(i, mats[m].out || mats[m].c[0]);
+    }
+    c.putImageData(img, 0, 0); cv.ox = OX; cv.oy = OY;
     return cv;
-  },
-  /** Pose de cada fotograma: ángulos de piernas y brazos, desplazamientos y arma. */
-  pose(cls, dir, anim, f) {
-    const P = { bob: 0, lean: 0, legA: 0, legB: 0, liftA: 0, liftB: 0, armF: .25, armB: -.15, elbF: .35, elbB: .25, wpn: null, crouch: 0, fall: 0, fallAng: 0, pull: 0, glow: 0, head: 0 };
-    const n = this.ANIMS[anim], k = f / n;
-    if (anim === 'idle') { P.bob = f === 1 || f === 2 ? 1 : 0; P.armF = .18; P.armB = -.1; }
-    if (anim === 'walk') { const a = k * Math.PI * 2, s = Math.sin(a); P.legA = s * .55; P.legB = -s * .55; P.liftA = Math.max(0, -Math.cos(a)) * 2; P.liftB = Math.max(0, Math.cos(a)) * 2; P.armF = -s * .5 + .1; P.armB = s * .5 - .1; P.bob = Math.abs(Math.cos(a)) > .7 ? 0 : 1; }
-    if (anim === 'hurt') { P.lean = -.18; P.armF = -.6; P.armB = -.5; P.bob = 1; P.head = -1; }
-    if (anim === 'dodge') { const c = [3, 6, 5, 2][f]; P.crouch = c; P.lean = .35; P.armF = .9; P.armB = .7; P.legA = .7; P.legB = -.4; }
-    if (anim === 'death') { const c = [0, 3, 6, 10, 13, 14][f]; P.crouch = Math.min(8, c); P.fall = Math.max(0, f - 2) / 3; P.fallAng = Math.min(1, P.fall) * 1.45; P.armF = .4 + P.fall; P.armB = .2 + P.fall; P.legA = .3; P.legB = -.2; P.head = 1; }
-    // Armas por clase
-    const S = (a, b) => a + (b - a) * (1 - Math.pow(1 - k, 2));
-    if (cls === 'guerrero') {
-      P.wpn = { kind: 'sword', ang: .5, shieldUp: 0 };
-      if (anim === 'walk' || anim === 'idle') P.wpn.ang = .45 + P.armF * .3;
-      if (anim === 'attack') { const seq = [-2.4, -2.6, -1.2, .8, 1.5, 1.2]; P.armF = seq[f]; P.elbF = f < 2 ? 1.2 : .2; P.wpn.ang = seq[f] + (f < 2 ? .6 : .1); P.lean = [-.08, -.12, .1, .2, .18, .05][f]; P.legA = .35; P.legB = -.3; }
-      if (anim === 'skill') { P.wpn.shieldUp = [.3, .6, 1, 1, .7, .3][f]; P.armB = [.2, .5, 1.3, 1.5, 1.2, .5][f]; P.elbB = .1; P.lean = [-.1, -.15, .25, .28, .15, 0][f]; P.legA = .45; P.legB = -.35; P.armF = -.3; }
+  }
+
+  /* ---------- Esqueleto e IK ---------- */
+  /** Codo o rodilla: dos huesos de longitud l1, l2 entre a y b, doblado hacia «pole». */
+  function ik(a, b, l1, l2, pole) {
+    let d = sub(b, a), L = len(d); const maxL = l1 + l2 - .05; if (L > maxL) { b = add(a, mul(norm(d), maxL)); d = sub(b, a); L = maxL; }
+    const u = norm(d), x = (l1 * l1 - l2 * l2 + L * L) / (2 * L), h = Math.sqrt(Math.max(0, l1 * l1 - x * x));
+    let w = sub(pole, mul(u, dot(pole, u))); if (len(w) < 1e-4) w = [0, 0, 1]; w = norm(w);
+    return { j: add(a, add(mul(u, x), mul(w, h))), end: b };
+  }
+  const rotY = (p, a) => { const c = Math.cos(a), s = Math.sin(a); return [p[0] * c + p[2] * s, p[1], -p[0] * s + p[2] * c]; };
+  const rotX = (p, a) => { const c = Math.cos(a), s = Math.sin(a); return [p[0], p[1] * c - p[2] * s, p[1] * s + p[2] * c]; };
+  const rotZ = (p, a) => { const c = Math.cos(a), s = Math.sin(a); return [p[0] * c - p[1] * s, p[0] * s + p[1] * c, p[2]]; };
+
+  return { sdEll, toLocal, Scene, render, ik, rotX, rotY, rotZ, add, sub, mul, dot, cross, norm, len, lerp3, clamp };
+})();
+
+/* --- Los cuatro héroes: paletas, maniquí, piezas y animaciones (con HeroForge) ---
+   Coordenadas locales del héroe: pies en el suelo (y = 0), mira hacia +z; la mano del arma es la del lado
+   −x (la que queda cerca de la cámara de perfil) y la otra la del lado +x. Alturas: tobillo 2,6, cadera 24,
+   hombros 40, centro de la cabeza 48 (≈ 1,5 casillas con casco). */
+const HERO_PAL = {
+  // [contorno, sombra profunda, sombra, medio, luz, brillo]
+  steel:   ['#0d1016', '#262d39', '#424c5b', '#6a7686', '#a0acbb', '#eef4fa'],
+  steelD:  ['#0c0e12', '#1e222a', '#30363f', '#4a525d', '#6a7480', '#a2acb8'],
+  gold:    ['#1d1105', '#5a3410', '#8f5d18', '#c4922b', '#e8c458', '#fff3b0'],
+  brass:   ['#1a1006', '#4a3012', '#73501e', '#9c7430', '#c49c48', '#ead07a'],
+  leather: ['#150b06', '#382013', '#57341d', '#7a4c2b', '#9e683c', '#c48c58'],
+  leathD:  ['#0f0805', '#25160d', '#3a2415', '#52341f', '#6c472b', '#8c623e'],
+  redC:    ['#160406', '#3e0c12', '#661620', '#91232b', '#b8403a', '#dc6a54'],
+  blueC:   ['#050b1a', '#0f2048', '#18336e', '#244b98', '#3866be', '#6a92e0'],
+  skin:    ['#2a130c', '#6e3c29', '#9e6346', '#c88a64', '#e4ad86', '#f6d2b0'],
+  wood:    ['#130a04', '#382110', '#573518', '#7a4f24', '#9c6c34', '#c09050'],
+  green:   ['#07110b', '#152d1d', '#22452b', '#335f39', '#4a7e46', '#6ea65c'],
+  olive:   ['#0f0e08', '#29261a', '#3d3926', '#555036', '#6f6948', '#8c855e'],
+  linen:   ['#1e1a14', '#5a5040', '#8a7e66', '#b4a888', '#d6ccae', '#f2ead4'],
+  robe:    ['#120307', '#3a0a16', '#5c1222', '#801c2e', '#a42c3a', '#c84a50'],
+  robeD:   ['#0c0205', '#26060e', '#3c0a16', '#540f20', '#6c1828', '#8a2836'],
+  lime:    ['#121406', '#3e4a12', '#66781e', '#8ea42c', '#b4c848', '#dce880'],
+  teal:    ['#050d10', '#102830', '#183c46', '#22525e', '#2e6a78', '#4a8c98'],
+  crimson: ['#140308', '#3c0a18', '#5e1224', '#841c30', '#a83040', '#cc5058'],
+  beard:   ['#16161e', '#4e5262', '#7c8294', '#aab0c0', '#d4d8e2', '#ffffff'],
+  gem:     ['#04203a', '#0a4a78', '#1484b8', '#36c0ea', '#8ae8ff', '#ffffff'],
+  arcane:  ['#04203a', '#1aa8e0', '#46d0ff', '#8ae8ff', '#c8f6ff', '#ffffff'],
+  night:   ['#060509', '#15121c', '#211c2b', '#2f283c', '#40374f', '#58506a'],
+  nightL:  ['#07060a', '#1b1722', '#2a2433', '#3a3246', '#4d445c', '#686078'],
+  shade:   ['#060608', '#141418', '#202026', '#2c2c34', '#3c3c46', '#54545e'],
+  wine:    ['#120306', '#33091a', '#4e1024', '#6a1a30', '#88283e', '#a84052'],
+  feather: ['#1e1a16', '#6a6258', '#a49a88', '#d0c8b6', '#ece6d8', '#ffffff'],
+  eye:     ['#0a0606', '#120a0a', '#120a0a', '#120a0a', '#120a0a', '#120a0a'],
+  glint:   ['#2a1a06', '#e8b048', '#f2c860', '#ffe08a', '#fff0c0', '#ffffff'],
+};
+const HERO_MAT_TYPES = { steel: 'metal', steelD: 'metal', gold: 'gold', brass: 'gold', leather: 'leather', leathD: 'leather', skin: 'skin', beard: 'hair', gem: 'gem', arcane: 'glow', eye: 'flat', glint: 'glow', feather: 'cloth', wood: 'leather' };
+const HERO_MATS2 = (() => { const o = {}; let i = 1; for (const k of Object.keys(HERO_PAL)) { o[k] = i; o[i] = { c: HERO_PAL[k], type: HERO_MAT_TYPES[k] || 'cloth', name: k }; i++; } return o; })();
+
+const HeroModels = (() => {
+  const F = HeroForge, { add, sub, mul, norm, dot, cross, lerp3, rotX, rotY, clamp } = F, M = HERO_MATS2;
+  const PI = Math.PI;
+  const mailDeco = l => ((Math.floor(l.q[0] * 1.6 + 50) + Math.floor(l.q[1] * 1.6 + 50)) % 2 ? { s: -1 } : null);
+  const ss = (k, a, b) => a + (b - a) * k;
+
+  /* ---------- Pose de cada fotograma ---------- */
+  function pose(cls, anim, f, n) {
+    const k = f / n, P = { crouch: 0, lean: 0, twist: 0, bob: 0, hp: 0, hy: 0, fR: [-3.6, 2.6, 0], fL: [3.6, 2.6, 0], hR: [-9.4, 26, 2], hL: [9.4, 26, 2],
+      wR: norm([-.1, -.8, .55]), wL: norm([.1, -.8, .55]), cape: .12, wave: 0, glow: 0, fall: 0, pull: 0, shN: norm([.5, 0, .86]), shU: [0, 1, .1], stride: 0, arms: 1, spread: 0 };
+    const ac = cls;
+    // Postura base por clase
+    if (ac === 'guerrero') { P.hR = [-9.6, 25.4, 3]; P.wR = norm([-.12, -.72, .68]); P.hL = [9.8, 27.5, 3.8]; }
+    if (ac === 'arquero') { P.hR = [-9, 24.5, 1.5]; P.hL = [10.2, 24, 3]; P.bowU = norm([.12, 1, .3]); P.bowF = norm([1, -.1, .25]); }
+    if (ac === 'mago') { P.hR = [-10.2, 28.5, 4]; P.wR = norm([-.04, 1, .1]); P.hL = [8.6, 25.5, 2.5]; }
+    if (ac === 'asesino') { P.crouch = 2; P.lean = .2; P.hR = [-7.4, 29, 6.5]; P.hL = [7.4, 29, 6.5]; P.wR = norm([-.75, -.6, -.3]); P.wL = norm([.75, -.6, -.3]); }
+
+    if (anim === 'idle') {
+      const a = k * PI * 2, br = Math.sin(a);
+      P.bob = br > .5 ? .6 : br < -.5 ? -.3 : 0; P.wave = a; P.cape = .1 + .04 * br;
+      P.hR = add(P.hR, [0, P.bob * .5, 0]); P.hL = add(P.hL, [0, P.bob * .5, 0]);
     }
-    if (cls === 'arquero') {
-      P.wpn = { kind: 'bow', ang: 0, pull: 0, aim: false };
-      if (anim === 'attack') { P.wpn.aim = true; P.wpn.pull = [.3, .8, 1, .1, 0, 0][f]; P.armF = 1.55; P.elbF = 0; P.armB = 1.4; P.elbB = 1.6 * P.wpn.pull; P.lean = -.04; }
-      if (anim === 'charge') { P.wpn.aim = true; P.wpn.pull = .4 + f * .2; P.armF = 1.55; P.elbF = 0; P.armB = 1.35; P.elbB = 1.6 * P.wpn.pull; P.lean = -.08; P.legA = .3; P.legB = -.3; P.glow = f / 3; }
-      if (anim === 'skill') { P.wpn.aim = true; P.wpn.pull = [1, .2, 0, 0, 0, 0][f]; P.armF = 1.55; P.elbF = 0; P.armB = [1.35, 1.2, .9, .6, .4, .3][f]; P.elbB = [1.6, .3, .2, .3, .3, .3][f]; P.lean = [-.1, .12, .08, .04, 0, 0][f]; P.legA = .3; P.legB = -.3; }
+    if (anim === 'walk') {
+      const a = k * PI * 2, s = Math.sin(a), c = Math.cos(a), st = ac === 'asesino' ? 4.2 : ac === 'mago' ? 3.6 : 4.6;
+      P.fR = [-3.4, 2.6 + Math.max(0, c) * 2.4, s * st]; P.fL = [3.4, 2.6 + Math.max(0, -c) * 2.4, -s * st];
+      P.bob = Math.abs(s) < .5 ? .8 : 0; P.stride = s; P.wave = a * 2; P.cape = .2 + .05 * Math.abs(c);
+      const sw = ac === 'guerrero' ? 2.2 : 3.2;
+      P.hR = add(P.hR, [0, Math.abs(s) * .5, -s * sw]);
+      if (ac !== 'guerrero') P.hL = add(P.hL, [0, Math.abs(s) * .5, s * sw]); else P.hL = add(P.hL, [0, 0, s * 1.2]);
+      if (ac === 'mago') P.wR = norm([-.04, 1, .1 - s * .25]);
+      P.twist = s * .08; P.lean += .06;
     }
-    if (cls === 'mago') {
-      P.wpn = { kind: 'staff', ang: -.15, raise: 0 };
-      if (anim === 'attack') { P.armF = [.4, -.2, -.8, 1.2, 1.4, .8][f]; P.elbF = .3; P.wpn.ang = [-.2, -.5, -.8, .7, .9, .4][f]; P.glow = [0, .4, .8, 1, .5, .2][f]; P.lean = [0, -.06, -.1, .12, .1, 0][f]; }
-      if (anim === 'skill' || anim === 'channel') { const q = anim === 'channel' ? 1 : [.3, .7, 1, 1, .8, .4][f]; P.armF = -2.6 * q + .3 * (1 - q); P.elbF = .2; P.wpn.ang = -1.2 * q; P.wpn.raise = q; P.armB = -1.2 * q; P.glow = anim === 'channel' ? .6 + .4 * Math.sin(f * 1.57) : q; P.lean = -.06 * q; }
+    if (anim === 'hurt') {
+      P.lean = -.22 - (f ? 0 : .08); P.hp = -.25; P.bob = .3; P.hR = add(P.hR, [-1.5, 3, -2.5]); P.hL = add(P.hL, [1.5, 3, -2.5]); P.cape = .3; P.fR = [-4, 2.6, 1.2]; P.fL = [4, 2.6, -1];
     }
-    if (cls === 'asesino') {
-      P.wpn = { kind: 'daggers', a: .4, b: .3 };
-      P.lean = Math.max(P.lean, anim === 'walk' ? .12 : .06); P.crouch = Math.max(P.crouch, anim === 'idle' ? 1 : 0);
-      if (anim === 'attack') { P.armF = [-.8, 1.4, 1.5, .6, .2, .3][f]; P.armB = [.2, .3, -.9, 1.5, 1.4, .4][f]; P.elbF = .2; P.elbB = .2; P.lean = .2; P.legA = .45; P.legB = -.35; }
-      if (anim === 'skill') { P.armF = [-2, -2.3, .4, 1.6, 1.5, .6][f]; P.armB = [-2, -2.3, .4, 1.6, 1.5, .6][f]; P.elbF = .1; P.elbB = .1; P.lean = [-.1, -.15, .25, .3, .2, .1][f]; P.legA = .5; P.legB = -.4; P.wpn.cross = f >= 2 && f <= 4; }
+    if (anim === 'dodge') {
+      const c = [.4, 1, 1, .45][f]; P.crouch = 7 * c; P.lean = .3 + .55 * c; P.cape = .22 + c * .12; P.fR = [-3.8, 2.6, 4 * c]; P.fL = [3.8, 2.6 + c, -3.5 * c];
+      P.hR = [-7, 24 + 4 * (1 - c), 8 + 2 * c]; P.hL = [7, 24 + 4 * (1 - c), 8 + 2 * c]; P.wave = f;
+      if (ac === 'guerrero') P.wR = norm([-.1, -.3, 1]); if (ac === 'mago') P.wR = norm([0, .6, .8]);
+    }
+    if (anim === 'death') {
+      const fc = [3, 6, 4, 1, 0, 0][f]; P.crouch = fc; P.fall = [0, .12, .55, 1.15, 1.5, 1.55][f]; P.lean = [.25, .45, .2, 0, 0, 0][f]; P.hp = [.2, .4, -.2, -.4, -.4, -.4][f];
+      P.hR = [-9.5, 24 + f, -1 - f]; P.hL = [9.5, 24 + f, -1 - f]; P.cape = .1; P.spread = f / 5;
+      if (ac === 'guerrero') P.wR = norm([-.6, -.3, .7]);
+    }
+    /* --- Ataques y habilidades --- */
+    if (ac === 'guerrero') {
+      if (anim === 'attack') {   // tajo en arco: arriba a la derecha → cruzando por delante → a la izquierda
+        const H = [[-7.5, 39, -2.5], [-9.5, 42, -4], [-6.5, 35, 8.5], [1.5, 31, 11], [7.5, 29, 7.5], [-3, 28, 6]][f];
+        const D = [[-.35, .75, -.55], [-.45, .82, -.35], [-.35, .15, .92], [.75, -.12, .65], [.95, -.25, -.1], [-.3, -.5, .8]][f];
+        P.hR = H; P.wR = norm(D); P.twist = [.35, .45, .1, -.3, -.45, -.1][f]; P.lean = [-.05, -.08, .15, .22, .18, .05][f];
+        P.fR = [-3.8, 2.6, [0, -1, 3.5, 4.5, 4.5, 2][f]]; P.fL = [3.8, 2.6, -2]; P.cape = [.15, .2, .45, .5, .4, .25][f];
+        P.hL = [9.5, 28, [2, 1, 4, 5, 5, 4][f]];
+      }
+      if (anim === 'skill') {    // golpe de escudo
+        const q = [.25, .55, 1, 1, .7, .3][f];
+        P.hL = lerp3([9.6, 27.5, 4], [3.5, 33, 11.5], q); P.shN = norm([.5 * (1 - q), 0, 1]); P.shU = [0, 1, 0];
+        P.lean = .05 + .28 * q; P.fR = [-3.8, 2.6, -2 * q]; P.fL = [3.8, 2.6, 5 * q]; P.hR = [-9.5, 27, -3 * q]; P.wR = norm([-.3, -.6, -.6 * q + .4 * (1 - q)]);
+        P.cape = .2 + .4 * q; P.twist = -.2 * q;
+      }
+    }
+    if (ac === 'arquero') {
+      const aim = (pull, back, lean) => {
+        P.twist = -.55; P.lean = lean; P.hL = [4.5, 39, 13.5]; P.bowU = norm([0, 1, 0]); P.bowF = [0, 0, 1];
+        P.pull = pull; P.hR = back ? [-6, 41, -2.5] : lerp3([4.2, 39, 11], [-1.5, 41, 2], pull);
+        P.fR = [-4, 2.6, -2.5]; P.fL = [4, 2.6, 3];
+      };
+      if (anim === 'attack') aim([.35, .8, 1, 0, 0, 0][f], f >= 3, [-.02, -.04, -.06, .06, .04, 0][f]);
+      if (anim === 'charge') { aim(.45 + f * .18, false, -.08); P.glow = f / 3; }
+      if (anim === 'skill') aim([1, .25, 0, 0, 0, 0][f], f >= 1, [-.1, .12, .08, .04, 0, 0][f]);
+    }
+    if (ac === 'mago') {
+      if (anim === 'attack') {   // empuja el bastón hacia delante y la otra mano lanza
+        const q = [.2, .5, .8, 1, .7, .3][f];
+        P.hR = lerp3([-10.2, 28.5, 4], [-7, 35, 8.5], q); P.wR = norm([-.1, 1 - .3 * q, .1 + .6 * q]); P.hL = lerp3([8.6, 25.5, 2.5], [4.5, 36, 10.5], [0, .3, .8, 1, .6, .2][f]);
+        P.glow = [0, .3, .7, 1, .6, .2][f]; P.lean = .12 * q; P.palm = f >= 2 && f <= 4;
+      }
+      if (anim === 'skill' || anim === 'channel') {
+        const q = anim === 'channel' ? 1 : [.3, .7, 1, 1, .8, .4][f];
+        P.hR = lerp3([-8.8, 27.5, 4], [-6, 46, 4.5], q); P.wR = norm([-.08, 1, .15]); P.hL = lerp3([8.6, 25.5, 2.5], [6.5, 45, 5.5], q);
+        P.glow = anim === 'channel' ? .65 + .35 * Math.sin(f * PI / 2) : q; P.lean = -.08 * q; P.palm = q > .6; P.cape = .25;
+        P.fR = [-4, 2.6, 0]; P.fL = [4, 2.6, 0];
+      }
+    }
+    if (ac === 'asesino') {
+      if (anim === 'attack') {
+        const R = [[-9, 37, -2], [-2.5, 33, 11], [5, 30, 8], [-6.5, 30, 6], [-7, 30, 6.5], [-7.4, 29.5, 6.5]][f];
+        const L = [[7.4, 30, 6], [7.4, 30, 6], [9, 37, -2], [2.5, 33, 11], [-5, 30, 8], [7.4, 29.5, 6.5]][f];
+        P.hR = R; P.hL = L;
+        P.wR = norm([[-.5, .3, -.8], [.85, -.1, .5], [.8, -.4, -.4], [-.45, -.75, -.3], [-.45, -.75, -.3], [-.45, -.75, -.3]][f]);
+        P.wL = norm([[.45, -.75, -.3], [.45, -.75, -.3], [.5, .3, -.8], [-.85, -.1, .5], [-.8, -.4, -.4], [.45, -.75, -.3]][f]);
+        P.twist = [.3, -.25, -.4, -.25, .3, 0][f]; P.lean = .3; P.crouch = 3; P.fR = [-4, 2.6, 3.5]; P.fL = [4, 2.6, -3];
+      }
+      if (anim === 'skill') {    // tajo en cruz con las dos dagas
+        const q = [.2, .55, 1, 1, .7, .3][f], up = f <= 1;
+        P.hR = up ? [-6, 44 - f, 3] : lerp3([-6, 44, 3], [5, 28, 10], q); P.hL = up ? [6, 44 - f, 3] : lerp3([6, 44, 3], [-5, 28, 10], q);
+        P.wR = norm(up ? [-.3, .9, -.2] : [.6, -.6, .5]); P.wL = norm(up ? [.3, .9, -.2] : [-.6, -.6, .5]);
+        P.lean = up ? -.1 : .35; P.crouch = up ? 1 : 4; P.fR = [-4.2, 2.6, 4 * (up ? 0 : 1)]; P.fL = [4.2, 2.6, -2]; P.cape = .5;
+      }
     }
     return P;
-  },
-  paint(cls, dir, anim, f) {
-    const PA = PixelArt, b = PA.buf(this.W, this.H, this.OX, this.OY), P = this.pose(cls, dir, anim, f), M = HERO_MATS[cls];
-    const side = dir === 'side', back = dir === 'up', front = dir === 'down';
-    const crouch = P.crouch, bob = P.bob, lean = P.lean;
-    const hipY = -18 + crouch + bob * .5, shY = -31 + crouch + bob, headY = -39 + crouch + bob + P.head;
-    const leanX = y => lean * (hipY - y) * -.9;        // desplazamiento horizontal por inclinación (perfil)
-    const bulky = cls === 'guerrero' ? 1 : 0, robe = cls === 'mago';
-    const fallen = P.fallAng > 0;
-    // Caída: se dibuja todo girado alrededor de los pies (se aplica al final rotando las coordenadas)
-    const rot = (x, y) => { if (!fallen) return [x, y]; const a = side ? P.fallAng : P.fallAng * .9, c = Math.cos(a), s = Math.sin(a); return [x * c - y * s * (side ? -1 : 1), y * c + x * s * (side ? 1 : 0) + (side ? 0 : -y * (1 - c) * .55)]; };
-    const R = (fn) => (...a) => fn(...a);
-    // Ayudas con rotación
-    const L = (x0, y0, x1, y1, w0, w1, m, p, t) => { const [a, bq] = rot(x0, y0), [c2, d] = rot(x1, y1); PA.limb(b, a, bq, c2, d, w0, w1, m, p, t); };
-    const E = (cx, cy, rx, ry, m, p, t) => { const [x, y] = rot(cx, cy); PA.ellipse(b, x, y, rx, ry, m, p, t); };
-    const G = (pts, m, p, t) => PA.poly(b, pts.map(([x, y]) => rot(x, y)), m, p, t);
-    const D = (x, y, t, m) => { const [a, c] = rot(x, y); PA.tint(b, a, c, t, m); };
-    const X = (x, y, m, p, t) => { const [a, c] = rot(x, y); PA.plot(b, a, c, m, p, t); };
-    const Ln = (x0, y0, x1, y1, w, m, p, t) => { const [a, bq] = rot(x0, y0), [c2, d] = rot(x1, y1); PA.line(b, a, bq, c2, d, w, m, p, t); };
+  }
 
-    // ---------- Piernas ----------
-    const leg = (hx, a, lift, near) => {
-      const p = PA.part(b), len = 16 - crouch * .6, kx = hx + Math.sin(a) * len * .5, ky = hipY + Math.cos(a) * len * .5 - lift;
-      const fx = hx + Math.sin(a) * len * .95 + (side ? 0 : 0), fy = Math.min(0, hipY + Math.cos(a) * len - lift * 1.4);
-      const legMat = cls === 'guerrero' ? 2 : cls === 'asesino' ? 3 : cls === 'mago' ? 4 : 3;
-      L(hx, hipY, kx, ky, 5.2, 4.4, legMat, p); L(kx, ky, fx, fy - 2, 4.4, 4, legMat, p);
-      if (cls === 'guerrero') { E(kx, ky, 2.4, 2, 2, p, 3); }                       // rodillera
-      const bp = PA.part(b), toe = side ? 2.5 : 0;
-      G([[fx - 2.6, fy - 4], [fx + 2.2 + toe, fy - 4], [fx + 2.8 + toe, fy], [fx - 2.8, fy]], 7, bp);   // bota
-      if (cls === 'arquero' || cls === 'asesino') D(fx - 2, fy - 4, 3);
-      if (!near && side) for (let yy = Math.floor(fy - 6); yy < fy; yy++) for (let xx = Math.floor(fx - 3); xx < fx + 4; xx++) D(xx, yy, 1);
-    };
-    const legsFirst = () => {
-      if (robe) { // la túnica cubre las piernas: solo asoman los pies al andar
-        for (const s of [-1, 1]) { const p = PA.part(b), a = s < 0 ? P.legA : P.legB, fx = (side ? 0 : s * 3) + Math.sin(a) * 6; G([[fx - 2.6, -4], [fx + 2.4 + (side ? 2 : 0), -4], [fx + 3 + (side ? 2 : 0), 0], [fx - 2.8, 0]], 7, p); }
-        return;
-      }
-      if (side) { leg(-1, P.legB, P.liftB, false); leg(1, P.legA, P.liftA, true); }
-      else { leg(-3.2, P.legA * .25, P.liftA * 1.2, true); leg(3.2, P.legB * .25, P.liftB * 1.2, true); }
-    };
-    // ---------- Capa (detrás del cuerpo) ----------
-    const cape = () => {
-      if (cls === 'mago') return;
-      const p = PA.part(b), m = cls === 'guerrero' ? 8 : cls === 'arquero' ? 4 : 8, sw = Math.sin(f * 1.1) * (anim === 'walk' ? 1.5 : .5);
-      if (side) G([[-2 + leanX(shY), shY + 1], [-9 - sw + leanX(hipY), hipY + 6], [-7 - sw, -3 - crouch * .2], [-1, -5], [2 + leanX(shY), shY + 2]], m, p);
-      else if (back) G([[-7.5, shY], [-9 - sw * .3, -4], [-3, -2.5], [3, -2.5], [9 + sw * .3, -4], [7.5, shY]], m, p);
-      else G([[-7.5, shY + 1], [-8.5, hipY + 8], [8.5, hipY + 8], [7.5, shY + 1]], m, p);
-      if (back) for (let y = shY + 4; y < -4; y += 4) D(((y * 7) % 5) - 2, y, 1);
-    };
-    // ---------- Torso ----------
-    const torso = () => {
-      const p = PA.part(b), wS = side ? 5.5 + bulky : 7 + bulky * 1.4, wH = side ? 4.8 + bulky * .5 : 5.2 + bulky * .6;
-      const cx = side ? leanX((shY + hipY) / 2) : 0;
-      const tMat = cls === 'guerrero' ? 2 : cls === 'arquero' ? 3 : cls === 'mago' ? 3 : 3;
-      if (robe) {    // túnica larga del mago hasta los tobillos
-        const sw = anim === 'walk' ? Math.sin(f * 1.05) * 1.5 : 0, hemW = side ? 7 : 9;
-        G([[cx - wS, shY], [cx + wS, shY], [cx + hemW + sw, -2], [cx - hemW + sw, -2]], 3, p);
-        const p2 = PA.part(b);
-        if (!back) { G([[cx - 1.5, shY + 2], [cx + 1.5, shY + 2], [cx + 3 + sw, -2], [cx - 3 + sw, -2]], 4, p2); for (let y = shY + 2; y < -2; y++) { D(cx - 2 - (y - shY) * .03 + sw * ((y - shY) / 30), y, 3, 5); D(cx + 2 + (y - shY) * .03 + sw * ((y - shY) / 30), y, 3, 5); } }
-        for (let x = -hemW; x <= hemW; x++) D(cx + x + sw, -3, 3, 5);
-        Ln(cx - wS + .5, hipY - 2, cx + wS - .5, hipY - 2, 2, 3, p, 1);        // cinturón de tela
-        return;
-      }
-      G([[cx - wS, shY], [cx + wS, shY], [cx + wH + .5, hipY + 1], [cx - wH - .5, hipY + 1]], tMat, p);
-      if (cls === 'guerrero') {
-        if (!back) {   // tabardo rojo con león dorado estilizado
-          const p2 = PA.part(b); G([[cx - 3.5 + (side ? 2 : 0), shY + 2], [cx + 3.5, shY + 2], [cx + 4, hipY + 7], [cx - 4 + (side ? 2 : 0), hipY + 7]], 4, p2);
-          if (front) { for (let y = shY + 5; y < shY + 11; y++) D(cx, y, 3, 5); for (let x = -2; x <= 2; x++) D(cx + x, shY + 7, 3, 5); D(cx - 1, shY + 5, 4, 5); }
-        }
-        // placas: líneas de las lamas y remaches
-        for (let y = shY + 4; y < hipY; y += 4) for (let x = -wS + 1; x < wS; x++) if (!(Math.abs(x) < 4 && !back && y > shY + 1)) D(cx + x, y, 1);
-        const p3 = PA.part(b);   // cinturón
-        Ln(cx - wH, hipY - 1, cx + wH, hipY - 1, 2.2, 3, p3); D(cx + (side ? 2 : 0), hipY - 1, 4, 5); D(cx + (side ? 2 : 0) + 1, hipY - 1, 3, 5);
-        // hombreras
-        for (const s of side ? [1] : [-1, 1]) { const p4 = PA.part(b), sx = side ? cx + 1 : s * (wS + .5); E(sx, shY + 1.5, 4.2, 3.4, 2, p4); D(sx - 1, shY, 4); D(sx + 2 * (s || 1), shY + 3, 1); X(sx, shY + 2.5, 5, p4, 3); }
-      }
-      if (cls === 'arquero') {
-        for (let y = shY + 2; y < hipY; y += 3) D(cx - wS + 2 + (y % 2), y, 1);
-        if (!back) { const p2 = PA.part(b); Ln(cx - wS + 1, shY + 1, cx + wH, hipY - 1, 1.4, 3, p2, 1); }   // correa del carcaj
-        const p3 = PA.part(b); Ln(cx - wH, hipY - 1, cx + wH, hipY - 1, 2, 3, p3, 1); D(cx, hipY - 1, 4, 5);
-        if (front) { const p4 = PA.part(b); G([[cx - 2, shY], [cx + 2, shY], [cx + 1, shY + 4], [cx - 1, shY + 4]], 4, p4); }   // cuello de la capa
-      }
-      if (cls === 'asesino') {
-        const p2 = PA.part(b); Ln(cx - wH - .5, hipY - 1.5, cx + wH + .5, hipY - 2.5, 3, 4, p2);   // fajín carmesí
-        if (side || back) { const p3 = PA.part(b); Ln(cx - wH, hipY - 1, cx - wH - 4, hipY + 6 + Math.sin(f) , 1.6, 4, p3); }
-        for (let y = shY + 3; y < hipY - 3; y += 3) { D(cx - 2, y, 3); D(cx + 2, y, 1); }
-        if (front) { D(cx, shY + 2, 4, 5); D(cx, shY + 6, 4, 5); }
-      }
-    };
-    // ---------- Cabeza ----------
-    const head = () => {
-      const hx = side ? leanX(headY) + .5 : 0, p = PA.part(b);
-      if (cls === 'guerrero') {   // yelmo con visera, protector nasal y penacho
-        E(hx, headY, 4.8, 5.2, 2, p);
-        if (!back) {
-          const vy = headY + .5;
-          for (let x = -3; x <= 3; x++) if (!side || x > -1) D(hx + x + (side ? 1 : 0), vy, -1);
-          if (side) { D(hx + 3, vy - 1, -1); E(hx + 2.5, headY + 3, 1.6, 1.6, 1, PA.part(b)); }
-          else { D(hx, vy - 2, 3); D(hx, vy + 1, 3); for (const s of [-2, 2]) D(hx + s, vy, 4, 5); }
-          for (let x = -4; x <= 4; x++) D(hx + x, headY + 4, 1);
-        }
-        const pp = PA.part(b), sw = anim === 'walk' ? Math.sin(f * 1.05) : 0;
-        if (side) G([[hx - 1, headY - 5], [hx - 7 - sw, headY - 7], [hx - 9 - sw, headY - 1], [hx - 5, headY - 3]], 4, pp);
-        else G([[hx - 1.5, headY - 4.5], [hx + 1.5, headY - 4.5], [hx + 1, headY - 9 - (back ? 0 : 0)], [hx - 1, headY - 9]], 4, pp);
-        X(hx, headY - 5, 5, p, 3);
-        return;
-      }
-      if (cls === 'mago') {   // capucha puntiaguda, barba cana
-        if (!back) { E(hx + (side ? 1 : 0), headY + .5, side ? 3.4 : 3.8, 4, 1, p); }
-        const ph = PA.part(b);
-        if (side) G([[hx - 5, headY + 4], [hx - 5, headY - 3], [hx - 2, headY - 7], [hx + 1, headY - 12], [hx + 3, headY - 6], [hx + 5, headY - 3], [hx + 2.5, headY - 2], [hx + .5, headY + 1], [hx - 1, headY + 5]], 3, ph);
-        else if (back) G([[hx - 5.5, headY + 4], [hx - 5, headY - 3], [hx, headY - 12], [hx + 5, headY - 3], [hx + 5.5, headY + 4]], 3, ph);
-        else G([[hx - 5.5, headY + 4], [hx - 5, headY - 3], [hx, headY - 12], [hx + 5, headY - 3], [hx + 5.5, headY + 4], [hx + 3.5, headY + 4], [hx + 3.5, headY - 2], [hx - 3.5, headY - 2], [hx - 3.5, headY + 4]], 3, ph);
-        for (let y = headY - 9; y < headY + 4; y += 3) D(hx + (side ? -2 : 4), y, 1);
-        if (!back) {
-          const pb = PA.part(b), bx = hx + (side ? 2 : 0);
-          G([[bx - 3, headY + 2], [bx + 3, headY + 2], [bx + 2, headY + 8], [bx, headY + 10], [bx - 2, headY + 8]], 2, pb);
-          if (side) { D(bx + 1, headY - .5, -1); X(bx + 3.5, headY + .5, 1, p, 2); }
-          else { D(hx - 1.5, headY - .5, -1); D(hx + 1.5, headY - .5, -1); D(hx - 1.5, headY - 1.5, 3, 2); D(hx + 1.5, headY - 1.5, 3, 2); }
-          D(bx - 1, headY + 5, 1); D(bx + 1, headY + 7, 1);
-        }
-        return;
-      }
-      // Arquero y Asesino: capucha; el asesino lleva máscara hasta la nariz
-      const hm = cls === 'arquero' ? 4 : 8;
-      if (!back) E(hx + (side ? 1 : 0), headY + .5, side ? 3.4 : 3.8, 4, 1, p);
-      const ph = PA.part(b);
-      if (side) G([[hx - 5, headY + 4.5], [hx - 5.5, headY - 2], [hx - 2, headY - 6], [hx + 3, headY - 5.5], [hx + 4.8, headY - 2], [hx + 2, headY - 2.5], [hx + 1, headY + 1], [hx - 1, headY + 5]], hm, ph);
-      else if (back) { G([[hx - 5.2, headY + 4.5], [hx - 5.2, headY - 2], [hx - 2, headY - 6], [hx + 2, headY - 6], [hx + 5.2, headY - 2], [hx + 5.2, headY + 4.5]], hm, ph); if (cls === 'arquero') { const pt = PA.part(b); G([[hx - 2, headY + 4], [hx + 2, headY + 4], [hx, headY + 9]], hm, pt); } }
-      else G([[hx - 5.2, headY + 4.5], [hx - 5.2, headY - 2], [hx - 2, headY - 6], [hx + 2, headY - 6], [hx + 5.2, headY - 2], [hx + 5.2, headY + 4.5], [hx + 3.6, headY + 4.5], [hx + 3.6, headY - 2], [hx - 3.6, headY - 2], [hx - 3.6, headY + 4.5]], hm, ph);
-      if (!back) {
-        if (cls === 'asesino') { const pm = PA.part(b); if (side) G([[hx + .5, headY + .5], [hx + 4.4, headY + .5], [hx + 3.5, headY + 4.5], [hx, headY + 4.5]], 3, pm); else G([[hx - 3.6, headY + .5], [hx + 3.6, headY + .5], [hx + 3, headY + 4.5], [hx - 3, headY + 4.5]], 3, pm); }
-        const eyeT = cls === 'asesino' ? 4 : -1, eyeM = cls === 'asesino' ? 5 : 0;
-        if (side) { D(hx + 2.5, headY - .5, eyeT, eyeM || undefined); D(hx + 2.5, headY - 1.5, 1); }
-        else { D(hx - 1.6, headY - .5, eyeT, eyeM || undefined); D(hx + 1.6, headY - .5, eyeT, eyeM || undefined); D(hx - 1.6, headY - 1.5, 1); D(hx + 1.6, headY - 1.5, 1); }
-        if (cls === 'arquero' && !side) D(hx, headY + 2.5, 1);
-      }
-    };
-    // ---------- Brazos y armas ----------
-    const shoulder = (s) => side ? [leanX(shY) + (s > 0 ? 1 : -1), shY + 1.5] : [s * (back ? -1 : 1) * (7.5 + bulky * 1.5), shY + 1.5];
-    const arm = (s, a, elb) => {
-      const [sx, sy] = shoulder(s), dirx = side ? 1 : s * (back ? -1 : 1), l1 = 7.5, l2 = 7;
-      const ex = sx + Math.sin(a) * l1 * dirx, ey = sy + Math.cos(a) * l1;
-      const a2 = a + elb, hx = ex + Math.sin(a2) * l2 * dirx, hy = ey + Math.cos(a2) * l2;
-      const p = PA.part(b), am = cls === 'guerrero' ? 2 : cls === 'mago' ? 3 : cls === 'arquero' ? 3 : 3;
-      L(sx, sy, ex, ey, 4.2, 3.8, am, p); L(ex, ey, hx, hy, 3.8, 3.4, cls === 'mago' ? 3 : cls === 'guerrero' ? 3 : cls === 'arquero' ? 1 : 3, p);
-      if (cls === 'guerrero') E(ex, ey, 2.2, 2.2, 2, p, 3);                      // codera
-      const ph = PA.part(b); E(hx, hy, 1.9, 1.9, cls === 'mago' || cls === 'arquero' ? 1 : 3, ph);   // mano o guante
-      return { hx, hy, a: a2, dirx };
-    };
-    const sword = (h, ang, dirx) => {
-      const p = PA.part(b), ca = Math.sin(ang) * dirx, sa = Math.cos(ang), L1 = 16;
-      const tipx = h.hx + ca * L1, tipy = h.hy + sa * L1;
-      Ln(h.hx - ca * 3, h.hy - sa * 3, h.hx, h.hy, 2, 3, p);                              // empuñadura
-      const pg = PA.part(b); Ln(h.hx - sa * 3.5 * dirx, h.hy + ca * 3.5 * dirx, h.hx + sa * 3.5 * dirx, h.hy - ca * 3.5 * dirx, 1.8, 5, pg);   // guarda
-      const pb = PA.part(b); Ln(h.hx + ca * 1.5, h.hy + sa * 1.5, tipx, tipy, 2.6, 2, pb); Ln(h.hx + ca * 2, h.hy + sa * 2, tipx - ca * 2, tipy - sa * 2, 1, 2, pb, 4);
-      X(h.hx - ca * 3.5, h.hy - sa * 3.5, 5, p, 3);
-    };
-    const shield = (h, up) => {
-      const p = PA.part(b), cx = h.hx + (side ? 2 + up * 3 : 0), cy = h.hy - 1 - up * 2, w = side ? 3.2 + up * 1.4 : 6, hh = 7.5;
-      G([[cx - w, cy - hh], [cx + w, cy - hh], [cx + w, cy + 1], [cx, cy + hh + 1], [cx - w, cy + 1]], 6, p);
-      const pr = PA.part(b);   // borde de acero y umbo
-      for (let y = Math.floor(cy - hh); y <= cy + 1; y++) { D(cx - w, y, 3, 2); D(cx + w, y, 1, 2); }
-      for (let x = Math.ceil(cx - w); x <= cx + w; x++) D(x, cy - hh, 3, 2);
-      if (!side || up > .5) { E(cx, cy - 2, 1.8, 1.8, 5, pr); D(cx - .5, cy - 2.5, 4); for (let y = cy - hh + 2; y < cy + hh - 1; y++) D(cx, y, 2, 4); }
-      for (let x = Math.ceil(cx - w) + 1; x < cx + w; x += 2) D(x, cy + 2 + (Math.abs(x - cx) < 2 ? 1 : 0), 1);
-    };
-    const bow = (h, pull) => {
-      const p = PA.part(b), dirx = side ? 1 : 1, R0 = 10, bx = h.hx, by = h.hy;
-      // arco vertical delante de la mano, cuerda tensada hacia atrás
-      const pts = []; for (let k = 0; k <= 10; k++) { const t = -1 + k / 5, y = by + t * R0, x = bx + (1 - t * t) * 3.6 * dirx; pts.push([x, y]); }
-      for (let k = 0; k < pts.length - 1; k++) Ln(pts[k][0], pts[k][1], pts[k + 1][0], pts[k + 1][1], 2, 6, p);
-      D(pts[0][0], pts[0][1], 4, 5); D(pts[10][0], pts[10][1], 4, 5);
-      const ps = PA.part(b), sx = bx - pull * 7 * dirx, sy = by;
-      Ln(pts[0][0], pts[0][1], sx, sy, 1, 8, ps, 3); Ln(sx, sy, pts[10][0], pts[10][1], 1, 8, ps, 3);
-      if (pull > .05) { const pa = PA.part(b); Ln(sx, sy, bx + 6 * dirx, by, 1, 6, pa, 3); X(bx + 6.5 * dirx, by, 2, pa, 4); X(bx + 7 * dirx, by, 2, pa, 3); X(sx - dirx, by - 1, 8, pa, 3); X(sx - dirx, by + 1, 8, pa, 3); }
-      return { sx, sy };
-    };
-    const staff = (h, ang, raise, glow) => {
-      const p = PA.part(b), ca = Math.sin(ang + Math.PI), sa = Math.cos(ang + Math.PI);   // apunta hacia arriba
-      const top = [h.hx + ca * (15 + raise * 2), h.hy + sa * (15 + raise * 2)], bot = [h.hx - ca * 12, h.hy - sa * 12];
-      Ln(bot[0], bot[1], top[0], top[1], 2, 6, p); D(bot[0], bot[1], 1);
-      const pc = PA.part(b); E(top[0], top[1] + 1, 2.4, 2, 5, pc);                      // engarce dorado
-      const pg = PA.part(b); G([[top[0], top[1] - 4], [top[0] + 2.2, top[1] - 1], [top[0], top[1] + 1.5], [top[0] - 2.2, top[1] - 1]], 9, pg);
-      D(top[0] - .5, top[1] - 2.5, 4); if (glow > .5) { D(top[0], top[1] - 1, 4); D(top[0] + 1, top[1] - 1, 4); }
-      return top;
-    };
-    const dagger = (h, ang, dirx, rev) => {
-      const p = PA.part(b), ca = Math.sin(ang) * dirx, sa = Math.cos(ang), L1 = 8;
-      Ln(h.hx - ca * 2, h.hy - sa * 2, h.hx, h.hy, 1.8, 6, p);
-      const pb = PA.part(b); Ln(h.hx + ca, h.hy + sa, h.hx + ca * L1, h.hy + sa * L1, 1.8, 2, pb); X(h.hx + ca * (L1 - 1), h.hy + sa * (L1 - 1), 2, pb, 4);
-      X(h.hx + ca * .5 - sa * 1.5 * dirx, h.hy + sa * .5 + ca * 1.5 * dirx, 4, pb, 3);
-    };
-    const quiver = () => {
-      if (cls !== 'arquero') return;
-      const p = PA.part(b), qx = side ? -5 + leanX(shY) : back ? 2.5 : 5, qy = shY - 1;
-      G([[qx - 2, qy - 2], [qx + 2, qy - 3], [qx + 4, hipY - 1], [qx, hipY]], 3, p);
-      const pf = PA.part(b); for (let k = 0; k < 3; k++) { X(qx - 1 + k * 1.5, qy - 4 - (k % 2), 8, pf, 3); X(qx - 1 + k * 1.5, qy - 5 - (k % 2), 4, pf, 2); }
-    };
+  /* ---------- Construcción del héroe ---------- */
+  function build(cls, yaw, anim, f, n) {
+    const P = pose(cls, anim, f, n);
+    // Caída: en el plano de la pantalla, hacia la izquierda del lienzo (de espaldas si mira a la derecha); el cuerpo queda centrado
+    const fallA = P.fall, fs = Math.sin(Math.min(fallA, 1.55)), xf = p => { let q = rotY(p, yaw); if (fallA) { q = F.rotZ(q, fallA); q = [q[0] + fs * 25, q[1] + fs * 6, q[2]]; } return q; };
+    const S = new F.Scene(xf);
+    const pel = [0, 23.8 - P.crouch + P.bob, P.crouch * .25];
+    const up = p => add(pel, rotY(rotX(p, P.lean), P.twist));                       // tronco: inclinación y giro
+    const upD = v => rotY(rotX(v, P.lean), P.twist);
+    const W = cls === 'guerrero' ? 1 : 0;
+    const shR = up([-(8 + W * .8), 14.8, -.3]), shL = up([8 + W * .8, 14.8, -.3]);
+    const neck = up([0, 17.6, .1]), headC = add(up([0, 23.4, .5]), [0, 0, 0]);
+    const hipR = add(pel, [-3.9, -1.2, 0]), hipL = add(pel, [3.9, -1.2, 0]);
+    const headF = rotY(rotX([0, 0, 1], P.lean + P.hp), P.twist), headU = rotY(rotX([0, 1, 0], P.lean + P.hp), P.twist);
+    const fwd = [0, 0, 1];
+    const arm = (sh, hand, s) => { const r = F.ik(sh, hand, 8.2, 7.6, [s * 1, -.5, -1.1]); return { sh, el: r.j, ha: r.end }; };
+    const leg = (hip, foot) => { const r = F.ik(hip, foot, 10.7, 10.5, [0, .1, 1]); return { hip, kn: r.j, an: r.end }; };
+    const aR = arm(shR, P.hR, -1), aL = arm(shL, P.hL, 1), lR = leg(hipR, P.fR), lL = leg(hipL, P.fL);
+    const C = { S, P, up, upD, pel, shR, shL, neck, headC, headF, headU, aR, aL, lR, lL, fwd, cls };
+    BUILD[cls](C);
+    return S;
+  }
+  /** Pie y bota: del tobillo a la punta. */
+  function boot(C, l, m, o = {}) {
+    const { S } = C, an = l.an, toe = add(an, [0, -1.4, 3.8]), heel = add(an, [0, -1.5, -1.2]);
+    S.rc(heel, toe, 2.3, 1.9, m, { deco: o.deco });
+    S.rc(an, add(an, [0, 4.5, 0]), 2.4, 2.4, o.shaft || m, { deco: o.shaftDeco });
+  }
 
-    // ---------- Composición según la vista ----------
-    const W = P.wpn, armsBack = () => {}, drawArms = (which) => {
-      if (cls === 'guerrero') {
-        if (which === 'back') { const h = arm(-1, P.armB, P.elbB); shield(h, W.shieldUp); }
-        else { const h = arm(1, P.armF, P.elbF); sword(h, W.ang, h.dirx); }
-      } else if (cls === 'arquero') {
-        if (which === 'back') { const h = arm(-1, P.armB, P.elbB); }
-        else { const h = arm(1, W.aim ? P.armF : P.armF, P.elbF); bow(h, W.pull); }
-      } else if (cls === 'mago') {
-        if (which === 'back') { arm(-1, P.armB, P.elbB); }
-        else { const h = arm(1, P.armF, P.elbF); staff(h, W.ang, W.raise, P.glow); }
-      } else if (cls === 'asesino') {
-        if (which === 'back') { const h = arm(-1, P.armB, P.elbB); dagger(h, P.armB + .6, h.dirx); }
-        else { const h = arm(1, P.armF, P.elbF); dagger(h, P.armF + .6, h.dirx); }
+  const BUILD = {
+    /* =================== GUERRERO =================== */
+    guerrero(C) {
+      const { S, P, up, upD, aR, aL, lR, lL, headC, headF, headU, shR, shL } = C;
+      // Capa roja (detrás), cae de los hombros y ondea
+      const capeDown = norm(upD([0, -1, -P.cape * 1.8]));
+      S.sheet(up([0, 15.6, -4.3]), capeDown, upD([0, 0, -1]), 24 - P.crouch * .6, 7.4, 10.5, .75, M.redC, { wrap: .045, wave: .6, ph: P.wave, curl: -.04, deco: l => {
+        const t = l.y / 24; if (t > .94) return { m: M.gold, s: 0 }; const fold = Math.sin(l.x * 1.15 + t * 2 + P.wave * .4); return fold > .55 ? { s: 1 } : fold < -.6 ? { s: -1 } : null; } });
+      // Piernas: quijotes de malla, rodilleras y grebas
+      for (const l of [lR, lL]) {
+        S.rc(l.hip, l.kn, 3.4, 2.9, M.steelD, { deco: mailDeco });
+        S.rc(l.kn, l.an, 2.9, 2.4, M.steel, { deco: q => (Math.abs(q.x) < .7 && q.z > 0 ? { s: 1 } : q.s > .82 ? { s: -1 } : null) });
+        S.ell(l.kn, [3, 2.6, 3.1], M.steel, { deco: q => (q.y < -1.7 ? { m: M.gold } : null) });
+        boot(C, l, M.steel, { shaft: M.steel, deco: q => (Math.abs(q.s - .45) < .06 || Math.abs(q.s - .7) < .06 ? { s: -1 } : null) });
+        S.dot(add(l.kn, [0, 0, 3]), M.gold, 4, { n: [0, 0, 1] });
       }
-    };
-    if (back) { legsFirst(); torso(); drawArms('back'); drawArms('front'); cape(); quiver(); head(); }
-    else if (front) { cape(); quiver(); legsFirst(); torso(); head(); drawArms('back'); drawArms('front'); }
-    else { drawArms('back'); quiver(); cape(); legsFirst(); torso(); head(); drawArms('front'); }
-    const cv = PA.render(b, M);
+      // Faldar de lamas y cinturón
+      S.ell(up([0, -1.8, .2]), [7.4, 4.4, 5.4], M.steel, { deco: q => { const b = (q.y + 10) % 2.4; return b < .7 ? { s: -1 } : null; } });
+      S.ell(up([0, 2.4, .3]), [7.1, 1.4, 5.2], M.leather, { deco: q => (Math.abs(q.y) > .9 ? { s: -1 } : null) });
+      S.box(up([0, 2.4, 5.2]), [1.4, 1.2, .5], M.gold, { r: .3 });
+      // Peto: arista central, lamas abajo y ribete dorado arriba
+      S.ell(up([0, 9.4, .3]), [7.5, 8, 5.4], M.steel, { deco: q => {
+        if (q.y > 6.3 || q.y < -7.3) return { m: M.gold };
+        if (q.z > 2 && Math.abs(q.x) < .55 && q.y > -3) return { s: 1 };
+        if (q.y < -2.5 && ((q.y + 20) % 2.6) < .75) return { s: -1 };
+        return null; } });
+      S.ell(up([0, 16.4, 0]), [4.3, 2.3, 3.8], M.steel);                                       // gola
+      // Hombreras grandes en dos capas, ribete y remaches dorados
+      for (const [sh, s] of [[shR, -1], [shL, 1]]) {
+        const out = norm(upD([s, .55, 0]));
+        S.ell(add(sh, upD([s * .6, 1, 0])), [5.2, 3.9, 5.2], M.steel, { y: out, deco: q => (q.y < -2.6 ? { m: M.gold } : null) });
+        S.ell(add(sh, upD([s * 1.4, -1.9, 0])), [4.4, 2.7, 4.6], M.steel, { y: out, deco: q => (q.y < -1.6 ? { s: -1 } : null) });
+        S.dot(add(sh, upD([s * .4, 4.6, 2.4])), M.gold, 5, { n: upD([0, .6, .8]) });
+        S.dot(add(sh, upD([s * 3.4, 2.2, 3.4])), M.gold, 4, { n: upD([s * .5, .2, .8]) });
+      }
+      // Brazos: malla, codera, brazal y guantelete
+      for (const a of [aR, aL]) {
+        S.rc(a.sh, a.el, 2.7, 2.4, M.steelD, { deco: mailDeco });
+        S.ell(a.el, [2.5, 2.5, 2.5], M.steel);
+        S.rc(a.el, a.ha, 2.6, 2.2, M.steel, { deco: q => (q.s > .78 ? { m: M.leather } : null) });
+        S.ell(a.ha, [2.3, 2.1, 2.4], M.steel);
+      }
+      // Yelmo cerrado de cubo: rendija en T, ribetes dorados y respiraderos
+      const hc = add(headC, mul(headU, .4));
+      S.box(hc, [5.4, 6.4, 5.6], M.steel, { y: headU, zh: headF, r: 2.6, deco: (q, n) => {
+        const front = q.z > 2.8;
+        if (front && q.y > .5 && q.y < 1.9 && Math.abs(q.x) < 4.2) return { t: 0 };                       // rendija de los ojos
+        if (front && Math.abs(q.x) < .75 && q.y > -3.6 && q.y <= .5) return { t: 0 };                     // rendija vertical (T)
+        if (front && Math.abs(q.x) < 1.6 && q.y >= 1.9) return { m: M.gold };                              // nervio central dorado
+        if (front && q.y > 1.9 && q.y < 2.9) return { m: M.gold };                                         // ceja dorada
+        if (q.y < -5.2) return { m: M.gold };                                                              // borde inferior
+        if (n[1] > .7) return { t: 3 };                                                                    // tapa plana
+        return null; } });
+      for (const [x, y] of [[-2.6, -1.6], [-2.6, -3], [2.6, -1.6], [2.6, -3]]) S.dot(add(hc, add(add(mul(headF, 5.6), mul(headU, y)), rotY([x, 0, 0], C.P.twist))), M.steel, 0, { n: headF });
+      // Espada ancha
+      sword(C, aR.ha, P.wR);
+      // Escudo de lágrima: borde de acero, campo azul, cruz y umbo dorados
+      const shC = add(aL.ha, add(mul(norm(P.shN), 1.6), [.6, 0, 0]));
+      S.shield(shC, P.shN, P.shU, 6.2, 6.8, .85, M.blueC, { deco: q => {
+        const x = q.x, y = q.y, xm = y > 0 ? 6.2 : 6.2 * Math.sqrt(Math.max(0, 1 - (y / (1.3 * 6.8)) ** 2)), e = Math.min(xm - Math.abs(x), 6.8 - y, y + 1.3 * 6.8);
+        if (q.z < 0) return { m: M.wood };
+        if (e < 1.3) return { m: M.gold };
+        if (e < 2.1) return { m: M.steel };
+        if (Math.abs(x) < 1 && y > -6.5 && y < 5.3) return { m: M.gold };
+        if (Math.abs(y - 1.8) < .9 && Math.abs(x) < 4.7) return { m: M.gold };
+        return ((Math.floor(x + 20) + Math.floor(y + 20)) % 7 === 0) ? { s: -1 } : null; } });
+      S.ell(add(shC, mul(norm(P.shN), 1)), [1.6, 1.6, 1.1], M.gold, { y: P.shU, zh: P.shN });
+    },
+
+    /* =================== ARQUERO =================== */
+    arquero(C) {
+      const { S, P, up, upD, aR, aL, lR, lL, headC, headF, headU, shR, shL } = C;
+      // Capa corta verde
+      const capeDown = norm(upD([0, -1, -P.cape * 2]));
+      S.sheet(up([0, 15.2, -4]), capeDown, upD([0, 0, -1]), 17 - P.crouch * .4, 7, 9, .7, M.green, { wrap: .05, wave: .7, ph: P.wave, deco: l => { const fold = Math.sin(l.x * 1.2 + P.wave * .5); if (l.y > 15.6) return { s: -1 }; return fold > .6 ? { s: 1 } : fold < -.6 ? { s: -1 } : null; } });
+      // Carcaj a la espalda con flechas
+      const q0 = up([4.2, 20.5, -5.2]), q1 = up([-2.2, 4, -5]);
+      S.rc(q1, q0, 2, 2.3, M.leather, { deco: q => (Math.abs(q.s - .15) < .05 || Math.abs(q.s - .85) < .05 ? { m: M.brass } : Math.abs(q.x) < .5 && q.z < 0 ? { s: -1 } : null) });
+      const qd = norm(F.sub(q0, q1));
+      for (const [dx, dz, m] of [[-1, 0, M.feather], [.8, -.6, M.redC], [0, .9, M.feather]]) { const b = add(q0, [dx, 0, dz]); S.rc(b, add(b, mul(qd, 2)), .4, .4, M.wood); S.rc(add(b, mul(qd, 2)), add(b, mul(qd, 5)), .8, 1.1, m); }
+      // Piernas: calzas y botas altas con vuelta
+      for (const l of [lR, lL]) {
+        S.rc(l.hip, l.kn, 3.1, 2.6, M.olive, { deco: q => (q.z > 1.6 && Math.abs(q.x) < .5 ? { s: -1 } : null) });
+        S.rc(l.kn, l.an, 2.5, 2.1, M.olive);
+        boot(C, l, M.leathD, { shaft: M.leathD });
+        S.rc(add(l.an, [0, 4.2, 0]), add(l.an, [0, 6.2, 0]), 2.9, 2.8, M.leather, { deco: q => (q.s > .5 ? { s: 1 } : null) });
+      }
+      // Jubón de cuero con costura y cordones, cinturón, bolsas y correa del carcaj
+      S.ell(up([0, 2, .2]), [6.6, 3.2, 5], M.leather);
+      S.ell(up([0, 9.2, .3]), [6.7, 7.8, 4.9], M.leather, { deco: q => {
+        const strap = q.x * .62 + q.y; if (q.z > 0 && Math.abs(strap - 1.5) < 1.1) return { m: M.leathD };
+        if (q.z > 0 && Math.abs(q.x) < .45 && q.y > -4 && q.y < 5.5) return { s: -1 };
+        if (q.z < 0 && Math.abs(q.x * .62 - q.y - 1) < 1.1) return { m: M.leathD };
+        return null; } });
+      for (let y = -2; y <= 4; y += 2.2) S.dot(up([.9, 9.2 + y, 5.2]), M.linen, 4, { n: upD([0, 0, 1]) });
+      S.ell(up([0, 2.6, .3]), [6.9, 1.3, 5.1], M.leathD);
+      S.dot(up([-.5, 2.6, 5.5]), M.brass, 4, { n: upD([0, 0, 1]), size: 2 });
+      S.box(up([-5.3, 1.4, 3.6]), [1.5, 1.8, 1.2], M.leather, { r: .6, y: upD([0, 1, 0]), zh: upD([-.5, 0, 1]) });
+      S.box(up([5.8, 1.6, 1.8]), [1.2, 1.6, 1.4], M.leathD, { r: .6 });
+      // Brazos: mangas verdes, brazales de cuero
+      for (const a of [aR, aL]) {
+        S.rc(a.sh, a.el, 2.6, 2.3, M.green, { deco: q => (q.s < .15 ? { s: 1 } : null) });
+        S.rc(a.el, a.ha, 2.4, 2, M.leather, { deco: q => (Math.abs(q.s - .3) < .07 || Math.abs(q.s - .7) < .07 ? { m: M.leathD } : null) });
+        S.ell(a.ha, [1.9, 1.8, 2], M.skin);
+      }
+      // Esclavina y capucha (abierta por delante) con punta
+      S.ell(up([0, 15.2, -.4]), [9, 3.6, 6.4], M.green, { deco: q => (q.y < -2.2 ? { s: -1 } : null) });
+      head(C, M.skin, { eyes: true });
+      hood(C, M.green, { point: true, trim: M.lime });
+      bow(C);
+    },
+
+    /* =================== MAGO =================== */
+    mago(C) {
+      const { S, P, up, upD, aR, aL, lR, lL, headC, headF, headU } = C;
+      const sway = P.stride * 1.3;
+      // Capa interior (oscura) a la espalda
+      S.sheet(up([0, 15.4, -4.2]), norm(upD([0, -1, -P.cape * 1.4])), upD([0, 0, -1]), 25 - P.crouch * .5, 7.2, 11, .7, M.robeD, { wrap: .05, wave: .5, ph: P.wave, deco: l => { const fold = Math.sin(l.x * 1.1 + P.wave * .3); return fold > .6 ? { s: 1 } : fold < -.6 ? { s: -1 } : null; } });
+      // Pies asomando
+      for (const l of [lR, lL]) boot(C, { an: [l.an[0], Math.min(l.an[1], 3.5), l.an[2]] }, M.night);
+      // Túnica larga granate: pliegues hondos, bajo más oscuro y franja central de otro tono
+      const hem = [sway * .5, 1.6, sway];
+      S.cc([hem[0], .3, hem[2]], up([0, 1.5, 0]), 8.6, 6, M.robe, { deco: (l, n) => {
+        const ang = Math.atan2(l.x, l.z), s = l.s;
+        if (s < .08 && Math.abs(n[1]) < .6) return { m: M.robeD };
+        if (n[1] < -.6) return { m: M.robeD, t: 1 };
+        if (Math.abs(ang) < .2 && s < .97) return { m: M.robeD, s: Math.abs(ang) < .07 ? -1 : 0 };
+        const fold = Math.sin(ang * 6 + s * 2.5); return fold > .62 ? { s: 1 } : fold < -.62 ? { s: -1 } : null; } });
+      S.ell(up([0, 9.2, .3]), [6.6, 8, 4.9], M.robe);
+      // Cordón de cuero a la cintura con caída
+      S.ell(up([0, 2.4, .2]), [7, 1.1, 5.2], M.leather, { deco: q => (Math.sin(q.x * 3) > .6 ? { s: 1 } : null) });
+      S.sheet(up([3.6, 2, 4]), norm(upD([.05, -1, .12 + P.stride * .2])), upD([.4, 0, 1]), 9, .8, .8, .55, M.leather, { wrap: 0 });
+      S.dot(up([3.6, -7.6, 4.8 + P.stride * 1.4]), M.brass, 4, { n: upD([0, 0, 1]), size: 2 });
+      // Esclavina granate oscura
+      S.ell(up([0, 15, -.2]), [9.2, 3.4, 6.3], M.robeD, { deco: q => (q.y < -2.5 ? { s: -1 } : null) });
+      // Mangas anchas con puños dorados
+      for (const a of [aR, aL]) {
+        S.rc(a.sh, a.el, 2.8, 3.1, M.robe);
+        const end = add(a.ha, mul(norm(F.sub(a.el, a.ha)), 2.4));
+        S.rc(a.el, end, 3, 3.9, M.robe, { deco: q => (q.s > .84 ? { m: M.robeD } : null) });
+        S.ell(a.ha, [1.8, 1.8, 1.9], M.skin);
+      }
+      // Cabeza, barba y cejas canas
+      head(C, M.skin, { eyes: true, brows: M.beard });
+      // Barba larga y blanca que cubre el pecho, con bigote
+      const chin = add(headC, add(mul(headF, 4), mul(headU, -2.6)));
+      const b1 = add(chin, add(mul(headU, -6), mul(headF, 1.2 + P.lean * 2))), b2 = add(b1, add(mul(headU, -6), mul(headF, .2 + P.lean * 2)));
+      const bd = q => (Math.sin(q.x * 2.4 + q.s * 3) > .65 ? { s: -1 } : q.x < -1.4 ? { s: 1 } : null);
+      S.rc(chin, b1, 4, 3.2, M.beard, { deco: bd }); S.rc(b1, b2, 3.2, .9, M.beard, { deco: bd });
+      S.ell(add(headC, add(mul(headF, 4.9), mul(headU, -1.5))), [3.2, 1.2, 1.4], M.beard, { y: headU, zh: headF });
+      // Gran sombrero de ala ancha y punta caída
+      const hb = add(add(headC, mul(headU, 5)), mul(headF, -1.2)), side = rotY([1, 0, 0], P.twist);
+      S.ell(hb, [9.8, 1.3, 9.4], M.robe, { y: headU, zh: headF, deco: q => { const r = Math.hypot(q.x, q.z); return r > 9.4 ? { s: -1 } : (Math.sin(Math.atan2(q.x, q.z) * 5) > .7 ? { s: 1 } : null); } });
+      const t1 = add(hb, add(mul(headU, 7), mul(headF, -.6))), t2 = add(t1, add(add(mul(headU, 4.5), mul(headF, -1.5)), mul(side, 1.5))), t3 = add(t2, add(add(mul(headU, 1), mul(side, 4)), mul(headF, -.5))), t4 = add(t3, add(mul(headU, -2.4), mul(side, 2)));
+      S.rc(add(hb, mul(headU, .8)), t1, 6, 3.6, M.robe, { deco: q => (q.s < .2 ? { m: M.robeD } : (Math.sin(Math.atan2(q.x, q.z) * 4 + q.s * 3) > .75 ? { s: -1 } : null)) });
+      S.rc(t1, t2, 3.6, 2.2, M.robe); S.rc(t2, t3, 2.2, 1.3, M.robe); S.rc(t3, t4, 1.3, .6, M.robe);
+      staff(C);
+      if (P.palm) { const pc = add(aL.ha, mul(norm(F.sub(aL.ha, aL.el)), 2.5)); S.ell(pc, [1.8, 1.8, 1.8], M.arcane); for (let i = 0; i < 5; i++) { const a = i * 1.26 + P.glow * 3; S.dot(add(pc, [Math.cos(a) * 3.4, Math.sin(a) * 3.4, 0]), M.arcane, i % 2 ? 4 : 5, { glow: true }); } }
+    },
+
+    /* =================== ASESINO =================== */
+    asesino(C) {
+      const { S, P, up, upD, aR, aL, lR, lL, headC, headF, headU, shR } = C;
+      // Colas de la bufanda carmesí ondeando a la espalda
+      for (const s of [-1, 1]) S.sheet(up([s * 1.4, 17.2, -3.6]), norm(upD([s * .15, -1, -.4 - P.cape * 2.2])), upD([0, 0, -1]), 13, 1.3, .9, .5, M.wine, { wrap: 0, wave: 1, ph: P.wave + s, deco: l => (l.y > 11.5 ? { s: -1 } : null) });
+      // Piernas: pantalón oscuro, rodilleras, botas blandas vendadas
+      for (const l of [lR, lL]) {
+        S.rc(l.hip, l.kn, 3, 2.5, M.shade);
+        S.ell(l.kn, [2.5, 2.3, 2.7], M.nightL, { deco: q => (q.y > 1 ? { s: 1 } : null) });
+        S.rc(l.kn, l.an, 2.4, 2, M.night, { deco: q => (((q.s * 9 + q.x * .4) % 1) < .3 ? { m: M.nightL } : null) });
+        boot(C, l, M.night, { shaft: M.night });
+      }
+      // Jubón de cuero ceñido: correas cruzadas con hebillas
+      S.ell(up([0, 2, .2]), [6.1, 3, 4.6], M.teal, { deco: q => (q.y < -1.5 ? { s: -1 } : null) });
+      S.ell(up([0, 9.3, .2]), [6.2, 7.6, 4.4], M.teal, { deco: q => {
+        if (Math.abs(q.x * .7 - q.y + 1.5) < .9 || Math.abs(-q.x * .7 - q.y + 1.5) < .9) return { m: M.leathD };
+        if (q.y < -4 && Math.abs(q.x) < 5 && ((q.y + 20) % 2) < .6) return { s: -1 };
+        return null; } });
+      S.dot(up([0, 10.6, 4.4]), M.steel, 4, { n: upD([0, 0, 1]), size: 2 });
+      S.ell(up([0, 2.6, .2]), [6.6, 1.5, 4.9], M.wine, { deco: q => (Math.abs(q.y) < .4 ? { s: 1 } : null) });
+      S.sheet(up([-3.8, 2.2, 3.6]), norm(upD([-.15, -1, .25 + P.stride * .3])), upD([-.3, 0, 1]), 8.5, 1.1, .8, .45, M.wine, { wrap: 0, wave: .6, ph: P.wave });
+      S.box(up([5.1, 1.4, 2.8]), [1.2, 1.4, 1.1], M.nightL, { r: .5 });
+      S.box(up([-1.2, 1.6, -5]), [2.6, 1.2, .9], M.nightL, { r: .5 });
+      // Hombrera de cuero en el lado del arma
+      S.ell(add(shR, upD([-.8, .9, 0])), [4.2, 2.2, 4.2], M.nightL, { y: norm(upD([-1, .7, 0])), deco: q => (q.y < -1.6 ? { s: -1 } : Math.abs(q.y) < .3 ? { s: 1 } : null) });
+      S.dot(add(shR, upD([-1.6, 3, 2.4])), M.steel, 4, { n: upD([0, .5, .8]) });
+      // Brazos: mangas oscuras, brazales con correas
+      for (const a of [aR, aL]) {
+        S.rc(a.sh, a.el, 2.4, 2.1, M.teal);
+        S.rc(a.el, a.ha, 2.3, 1.9, M.linen, { deco: q => (((q.s * 6 + q.x * .25) % 1) < .28 ? { s: -1 } : q.s > .8 ? { m: M.leathD } : null) });
+        S.ell(a.ha, [1.8, 1.7, 1.9], M.nightL);
+      }
+      dagger(C, aR.ha, P.wR); dagger(C, aL.ha, P.wL);
+      // Capucha, máscara y mirada
+      head(C, M.skin, { eyes: false });
+      hood(C, M.nightL, { tail: 3, size: .95 });
+      S.sheet(up([0, 19.5, -4.6]), norm(upD([0, -1, -.25 - P.cape])), upD([0, 0, -1]), 8, 3.6, 5.2, .6, M.nightL, { wrap: .06, deco: l => (l.y > 6.8 ? { s: -1 } : Math.sin(l.x * 1.6) > .7 ? { s: 1 } : null) });
+      const mc = add(headC, add(mul(headF, 1.6), mul(headU, -1.8)));
+      S.ell(mc, [4.6, 2.9, 4.4], M.wine, { y: headU, zh: headF, deco: q => (q.y > 2 ? { s: -1 } : (Math.sin(q.x * 2) > .8 ? { s: -1 } : null)) });
+      for (const s of [-1, 1]) S.dot(add(headC, add(add(mul(headF, 5.3), mul(headU, .4)), rotY([s * 1.8, 0, 0], P.twist))), M.glint, 4, { n: headF });
+      const vz = add(headC, add(mul(headF, 3.6), mul(headU, 4.4)));
+      S.ell(vz, [4.8, 1.6, 3], M.nightL, { y: headU, zh: headF, deco: q => (q.y < -.6 ? { s: -1 } : null) });
+    },
+  };
+
+  /** Cabeza (piel) con ojos. */
+  function head(C, m, o) {
+    const { S, headC, headF, headU, P } = C;
+    S.ell(headC, [5.2, 5.5, 5.2], m, { y: headU, zh: headF });
+    const side = rotY([1, 0, 0], P.twist);
+    if (o.eyes) for (const s of [-1, 1]) {
+      const e = add(headC, add(add(mul(headF, 4.9), mul(headU, -.2)), mul(side, s * 1.9)));
+      S.dot(e, M.eye, 0, { n: add(headF, mul(side, s * .5)) });
+      if (o.brows) S.dot(add(e, mul(headU, 1.2)), o.brows, 4, { n: headF });
+    }
+  }
+  /** Capucha abierta por delante, con punta hacia atrás. */
+  function hood(C, m, o) {
+    const { S, headC, headF, headU } = C;
+    const k = o.size || 1, c = add(headC, add(mul(headF, -.6), mul(headU, .5))), cutC = add(headC, add(mul(headF, 5.1), mul(headU, -.8))), cutR = [4.3, 4.6, 3.4];
+    S.ell(c, [6.5 * k, 6.8 * k, 6.7 * k], m, { y: headU, zh: headF, cut: [{ c: cutC, r: cutR, y: headU, zh: headF }], deco: (q, n, P, pr) => {
+      if (o.trim && F.sdEll(F.toLocal(P, pr.cut[0].C, pr.cut[0].F), pr.cut[0].r) < .75) return { m: o.trim };   // ribete alrededor de la cara
+      if (q.z > 3.2) return { s: -1 };
+      return Math.sin(q.x * 1.4 + q.y * .3) > .8 ? { s: -1 } : null; } });
+    if (o.point) { const t0 = add(c, add(mul(headU, 5), mul(headF, -1.5))), t1 = add(t0, add(mul(headU, 4.5), mul(headF, -2))); S.rc(t0, t1, 3.2, .7, m); }
+    else { const t0 = add(c, add(mul(headF, -4.5), mul(headU, 1.5))), t1 = add(t0, add(mul(headF, -o.tail), mul(headU, -1.5))); S.rc(t0, t1, 2.6, .8, m); }
+  }
+  function sword(C, hand, d) {
+    const { S } = C, side = norm(cross(d, Math.abs(d[1]) > .9 ? [0, 0, 1] : [0, 1, 0])), flat = norm(cross(side, d));
+    S.rc(F.sub(hand, mul(d, 2.6)), add(hand, mul(d, 1.2)), 1.05, 1, M.leathD, { deco: q => (((q.s * 5) % 1) < .4 ? { s: 1 } : null) });
+    S.ell(F.sub(hand, mul(d, 3.3)), [1.4, 1.4, 1.4], M.gold);
+    S.rc(add(add(hand, mul(d, 1.8)), mul(side, 4.4)), add(add(hand, mul(d, 1.8)), mul(side, -4.4)), 1, 1, M.gold, { deco: q => (q.s < .12 || q.s > .88 ? { s: 1 } : null) });
+    const bc = add(hand, mul(d, 11)), Lh = 8.6;
+    S.box(bc, [1.75, Lh, .45], M.steel, { y: d, zh: flat, r: .3, deco: q => (Math.abs(q.x) < .45 && q.y < Lh - 3 ? { s: -1 } : Math.abs(q.x) > 1.25 ? { s: 1 } : null) });
+    S.rc(add(bc, mul(d, Lh - .4)), add(bc, mul(d, Lh + 2.6)), 1.6, .3, M.steel, { hint: flat });
+  }
+  function bow(C) {
+    const { S, P, aL, aR } = C, g = aL.ha, U = norm(P.bowU || [0, 1, 0]), Fw = norm(P.bowF || [0, 0, 1]), pts = [];
+    for (let i = 0; i <= 8; i++) { const t = -1 + i / 4, y = t * 11.5, bend = (1 - t * t) * 3.6 - Math.abs(t) ** 3 * 1.8; pts.push(add(g, add(mul(U, y), mul(Fw, bend - 1.4)))); }
+    for (let i = 0; i < 8; i++) S.rc(pts[i], pts[i + 1], i === 3 || i === 4 ? 1.25 : 1, i === 3 || i === 4 ? 1.25 : .85, M.wood, { deco: q => (Math.abs(i - 3.5) < .6 ? { m: M.leathD } : null) });
+    for (const e of [pts[0], pts[8]]) S.ell(e, [.9, .9, .9], M.brass);
+    const nock = P.pull > .02 ? lerp3(add(g, mul(Fw, -1.2)), aR.ha, Math.min(1, P.pull * 1.05)) : add(g, mul(Fw, -2));
+    S.rc(pts[0], nock, .32, .32, M.feather); S.rc(nock, pts[8], .32, .32, M.feather);
+    if (P.pull > .02) {
+      const dir = norm(F.sub(add(g, mul(Fw, 8)), nock)), tip = add(nock, mul(dir, 17));
+      S.rc(nock, tip, .45, .45, M.wood); S.rc(tip, add(tip, mul(dir, 2.2)), .9, .2, M.steel);
+      S.rc(add(nock, mul(dir, .6)), add(nock, mul(dir, 3)), .9, .7, M.redC);
+      if (P.glow > 0) for (let i = 0; i < 3; i++) S.dot(add(tip, [Math.cos(i * 2.1) * 1.8, Math.sin(i * 2.1) * 1.8 + 1, 0]), M.glint, P.glow > .6 ? 5 : 4, { glow: true });
+    }
+  }
+  function staff(C) {
+    const { S, P, aR } = C, d = norm(P.wR), h = aR.ha, bot = F.sub(h, mul(d, Math.min(24, Math.max(10, (h[1] - .6) / Math.max(.3, d[1])))));
+    // Vara nudosa que se ensancha y se retuerce en espiral arriba
+    const side = norm(cross(d, Math.abs(d[2]) > .9 ? [0, 1, 0] : [0, 0, 1])), fr = norm(cross(side, d));
+    const mid = add(h, mul(d, 15)), knot = q => (Math.sin(q.s * 19) > .78 ? { s: -1 } : q.x < -.4 ? { s: 1 } : null);
+    S.rc(bot, h, .95, 1.05, M.wood, { deco: knot }); S.rc(h, mid, 1.05, 1.15, M.wood, { deco: knot });
+    S.ell(add(h, mul(d, -6)), [1.4, 1.1, 1.4], M.wood, { y: d });                                   // nudo
+    const spiral = []; for (let i = 0; i <= 7; i++) { const a = i * .95, r = .4 + i * .42, y = 15 + i * 1.6 - Math.max(0, i - 4) * 1.1; spiral.push(add(add(h, mul(d, y)), add(mul(side, Math.cos(a) * r), mul(fr, Math.sin(a) * r * .8)))); }
+    for (let i = 0; i < spiral.length - 1; i++) S.rc(spiral[i], spiral[i + 1], 1.25 - i * .07, 1.25 - (i + 1) * .07, M.wood, { deco: knot });
+    S.ell(bot, [1.1, 1.1, 1.1], M.leathD);
+    const g = add(h, mul(d, 22.6));
+    if (P.glow > .05) {
+      S.ell(g, [1.3 + P.glow * .7, 1.3 + P.glow * .7, 1.3 + P.glow * .7], M.arcane);
+      for (let i = 0; i < 6; i++) { const a = i * 1.05 + P.glow * 4, r = 2.6 + P.glow * 1.8; S.dot(add(g, [Math.cos(a) * r, Math.sin(a) * r, 0]), M.arcane, i % 2 ? 4 : 5, { glow: true }); }
+    }
+  }
+  function dagger(C, hand, d) {
+    const { S } = C, side = norm(cross(d, Math.abs(d[1]) > .9 ? [0, 0, 1] : [0, 1, 0])), flat = norm(cross(side, d));
+    S.rc(F.sub(hand, mul(d, 2)), add(hand, mul(d, .9)), .8, .75, M.leathD);
+    S.rc(add(add(hand, mul(d, 1.3)), mul(side, 2)), add(add(hand, mul(d, 1.3)), mul(side, -2)), .65, .65, M.steelD);
+    const bc = add(hand, mul(d, 6));
+    S.box(bc, [1.1, 4.6, .35], M.steel, { y: d, zh: flat, r: .25, deco: q => (q.x > .4 ? { s: 1 } : null) });
+    S.rc(add(bc, mul(d, 4.2)), add(bc, mul(d, 6.4)), 1, .2, M.steel, { hint: flat });
+  }
+
+  return { build, pose };
+})();
+
+/* Fotogramas de los héroes en caché, con la interfaz de siempre (frame / pick / ANIMS). */
+const HeroSprites = {
+  W: 124, H: 108, OX: 62, OY: 78,
+  cache: {},
+  ANIMS: { idle: 6, walk: 8, attack: 6, skill: 6, charge: 4, channel: 4, hurt: 2, dodge: 4, death: 6 },
+  VIEWS: [0, Math.PI / 4, Math.PI / 2, Math.PI * 3 / 4, Math.PI],
+  DIRS: [0, 1, 2, 3, 4],
+  frame(cls, dir, anim, f) {
+    const v = typeof dir === 'number' ? dir : dir === 'up' ? 4 : dir === 'side' ? 2 : 0;
+    const key = cls + v + anim + f; let cv = this.cache[key];
+    if (!cv) cv = this.cache[key] = HeroForge.render(HeroModels.build(cls, this.VIEWS[v], anim, f, this.ANIMS[anim]), HERO_MATS2, this.W, this.H, this.OX, this.OY);
     return cv;
   },
-  /** Animación y fotograma según el estado del jugador (drawState). */
   pick(cls, st) {
-    let anim = 'idle', f = 0, t = st.t || 0, dir;
+    let anim = 'idle', f = 0; const t = st.t || 0;
     const a = st.swing ? st.swing.ang : null;
     const fx = a != null ? Math.cos(a) : st.fx, fy = a != null ? Math.sin(a) : st.fy;
-    const ranged = (cls === 'arquero' && (st.swing || st.charge > 0));   // el arquero se gira de perfil para disparar salvo en vertical
-    dir = Math.abs(fy) > Math.abs(fx) * (ranged ? 2.4 : 1.15) ? (fy > 0 ? 'down' : 'up') : 'side';
-    const flip = dir === 'side' ? (fx < 0 ? -1 : 1) : 1;
+    const ang = Math.atan2(fx || 0, fy || 1);                     // 0 abajo, +π/2 derecha
+    const oct = Math.round(Math.abs(ang) / (Math.PI / 4));
+    const dir = Math.min(4, oct), flip = ang < -.05 && dir > 0 && dir < 4 ? -1 : 1;
     const N = this.ANIMS;
-    if (st.dead) { anim = 'death'; f = Math.min(N.death - 1, Math.floor((st.deadT || 0) / .12)); }
+    if (st.dead) { anim = 'death'; f = Math.min(N.death - 1, Math.floor((st.deadT || 0) / .11)); }
     else if (st.dash) { anim = 'dodge'; f = Math.min(N.dodge - 1, Math.floor((st.dashK || 0) * N.dodge)); }
     else if (st.hurt) { anim = 'hurt'; f = st.hurtF || 0; }
     else if (st.charge > 0) { anim = cls === 'mago' ? 'channel' : 'charge'; f = cls === 'mago' ? Math.floor(t * 8) % 4 : Math.min(3, Math.floor(st.charge * 4)); }
@@ -8986,13 +9369,28 @@ const HeroSprites = {
       const kind = st.swing.kind, skill = kind === 'shield' || kind === 'x' || (cls === 'mago' && st.swing.dur > .4) || (cls === 'arquero' && st.swing.dur > .25);
       anim = skill ? 'skill' : 'attack'; f = Math.min(N[anim] - 1, Math.floor(st.swing.k * N[anim]));
     }
-    else if (st.moving) { anim = 'walk'; f = Math.floor(t * (st.speed ? st.speed / 26 : 7)) % N.walk; }
-    else { anim = 'idle'; f = Math.floor(t * 2.5) % N.idle; }
+    else if (st.moving) { anim = 'walk'; f = Math.floor(t * (st.speed ? st.speed / 20 : 9)) % N.walk; }
+    else { anim = 'idle'; f = Math.floor(t * 3) % N.idle; }
     return { dir, flip, anim, f };
+  },
+  /** Prepara en segundo plano (≈6 ms por fotograma del juego) los fotogramas de una clase: primero
+   *  reposo y andar en todas las vistas, luego el resto. Así no hay tirones la primera vez que se gira. */
+  queue: [], warmed: {},
+  warm(cls) {
+    if (!cls || this.warmed[cls] || typeof document === 'undefined') return; this.warmed[cls] = true;
+    const order = ['idle', 'walk', 'attack', 'hurt', 'dodge', 'skill', 'charge', 'channel', 'death'];
+    for (const a of order) { if ((a === 'charge' && cls !== 'arquero') || (a === 'channel' && cls !== 'mago')) continue; for (const v of this.DIRS) for (let f = 0; f < this.ANIMS[a]; f++) this.queue.push([cls, v, a, f]); }
+    if (!this.timer) this.pump();
+  },
+  pump() {
+    const t0 = performance.now();
+    while (this.queue.length && performance.now() - t0 < 6) { const [c, v, a, f] = this.queue.shift(); this.frame(c, v, a, f); }
+    this.timer = this.queue.length ? setTimeout(() => this.pump(), 16) : null;
   },
 };
 /** Dibuja un héroe (pies en 0,0). El lienzo ya está trasladado; el reflejo lo decide la vista. */
 function drawHero(c, st, id) {
+  HeroSprites.warm(id);
   const sel = HeroSprites.pick(id, st), cv = HeroSprites.frame(id, sel.dir, sel.anim, sel.f);
   c.save();
   if (sel.flip < 0) c.scale(-1, 1);

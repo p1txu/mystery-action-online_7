@@ -1,11 +1,10 @@
 {
-  "build": 34,
-  "version": "0.34",
-  "date": "2026-10-26",
+  "build": 35,
+  "version": "0.35",
+  "date": "2026-10-27",
   "notes": [
-    "Si al abrir el juego ya había otro abierto con una versión antigua (otra ventana negra o la copia vieja), el lanzador ya no lo usa sin avisar: te dice que cierres la otra ventana. Antes podías acabar jugando a la versión antigua sin saberlo.",
-    "Si tenías una pestaña del navegador abierta de antes de actualizar, se recarga sola con la versión nueva.",
-    "La versión del juego se ve en la pantalla de título.",
-    "El alcalde Bartolo te deja volver a ver la llegada en carretilla («¿Cómo llegué aquí?»)."
+    "Héroes rediseñados por completo en pixel art: caballero con yelmo cerrado, armadura de placas con ribetes dorados, escudo y capa roja; arquero con capucha puntiaguda, cuero y carcaj; mago con túnica y sombrero granates, barba larga y bastón retorcido; asesino encapuchado con máscara y dos dagas.",
+    "Ocho direcciones de verdad (frente, tres cuartos, perfil y espalda) y animaciones nuevas: reposo con respiración, andar, tajo, disparo con el arco tensado, hechizos con brillo, tajos con las dos dagas, golpe de escudo, daño, esquiva y caída al suelo.",
+    "Los fotogramas se preparan en segundo plano: no hay tirones al girar por primera vez."
   ]
 }
