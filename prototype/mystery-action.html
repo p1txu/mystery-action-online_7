@@ -1703,7 +1703,7 @@ const Combat = {
       dmg = this.calc(s, t, o);
       // Crítico (solo los héroes): probabilidad y multiplicador de su clase (+ don Golpe certero)
       if (s && s.cls && !o.dot && !o.noCrit && Math.random() < (s.stats.crit || 0) + ((s.boons && s.boons.critico) || 0) * .1) { crit = true; dmg *= s.stats.critMul || 1.5; }
-      dmg = Math.max(1, Math.round(dmg * t.damageTakenMul()));
+      dmg = Math.max(1, Math.round(dmg * t.damageTakenMul(o)));
       if (crit) Effects.floater(g, t.x - 10, t.y - t.height - 14, '¡Crítico!', '#ffd166', 9);
       t.hp = Math.max(0, t.hp - dmg);
       if (s && s.boons) {
@@ -2272,7 +2272,7 @@ class Actor {
     this.status = { stun: 0, slow: 0, slowAmt: 0, burn: 0, burnTick: 0, burnDmg: 0, sleep: 0, petrify: 0, bleedTicks: 0, bleedNext: 0, bleedDmg: 0, bleedSrc: null, bleedBasic: 0 };
     this.facing = { x: 0, y: 1 }; this.anim = Math.random() * 10; this.bob = 0; this.moving = false;
   }
-  damageTakenMul() { return this.vuln || 1; }
+  damageTakenMul(o) { return this.kind && this.kind.bk ? BossKit.takenMul(this, o) : this.vuln || 1; }
   kbMul() { return this.kbRes; }
   free(world, x, y) { return !world.rectHitsSolid(x - this.hbW / 2, y - this.hbH / 2, this.hbW, this.hbH); }
   tickCommon(dt, g) {
@@ -3078,6 +3078,7 @@ const SMALL_VARIANTS = {
   rataRaiz: { base: 'rata', name: 'Rata de raíz', pal: { body: '#6a5440', belly: '#9a8268', accent: '#3a2a1a', eye: '#e84a3a', tail: '#b08070' } },
   limoMusgo: { base: 'limo', name: 'Limo de musgo', pal: { body: '#5a8a3a', light: '#a8d878', core: '#2e5420', eye: '#102008' } },
   setaBruma: { base: 'hongo', name: 'Seta brumosa', slowSpore: true, pal: { cap: '#7a4a9a', spot: '#d8b8ff', stem: '#d8ccb0', spore: '#c79bff', eye: '#1a1020' } },
+  broteSavia: { base: 'planta', name: 'Brote de savia', exp: 4, stats: { hp: 30, def: 26 }, brain: () => STOP, noLoot: true, pal: { leaf: '#5fbf3a', bulb: '#d8ff8a', thorn: '#e8f0b0', root: '#4a6a20', eye: '#ffffff' } },
   zarza: { base: 'planta', name: 'Zarza mordedora', pal: { leaf: '#3d6a2c', bulb: '#8a3a4a', thorn: '#c8b890', root: '#5a3a20', eye: '#f0d060' } },
   cuervo: { base: 'ave', name: 'Cuervo tuerto', pal: { body: '#2a2a34', wing: '#3a3a48', beak: '#c89a3a', eye: '#e84a3a' } },
   // Gruta de Cuarzo
@@ -3240,10 +3241,14 @@ function drawSmallEnemy(c, st, e) {
 
 /* --- Jefes: un patrón de ataques por bioma, con segunda fase por debajo del 50 % --- */
 const BOSSES = {
-  robleton: { name: 'Robletón', base: 'pedrolon', type: 'planta', exp: 120, stats: { hp: 230, atk: 70, def: 62, spa: 60, spd: 58, spe: 40 }, speed: 46, patterns: ['slam', 'radial', 'summon'], proj: { kind: 'spore', color: '#b46cf0' }, minion: 'rataRaiz', pal: { dark: '#25281a', body: '#5f6a45', light: '#7d8a5c', moss: '#3f9a3a', arm: '#4a5236', eye: '#ffe14d', crack: '#3a4128' } },
+  robleton: { name: 'Robletón', title: 'el Guardián de Espinas', base: 'pedrolon', type: 'planta', exp: 120, stats: { hp: 230, atk: 70, def: 62, spa: 60, spd: 58, spe: 40 }, speed: 46, bk: 'espinas', resist: { fis: .9, mag: 1.2 },
+    brain: (e, dt, g, d) => BossKit.brain(e, dt, g, d), telegraph: (c, e, x, y, g) => BossKit.telegraph(c, e, x, y, g), patterns: ['slam', 'radial', 'summon'], proj: { kind: 'spore', color: '#b46cf0' }, minion: 'rataRaiz', pal: { dark: '#25281a', body: '#5f6a45', light: '#7d8a5c', moss: '#3f9a3a', arm: '#4a5236', eye: '#ffe14d', crack: '#3a4128' } },
   reinageoda: { name: 'Reina Geoda', base: 'pufon', type: 'cristal', exp: 120, stats: { hp: 200, atk: 52, def: 50, spa: 74, spd: 66, spe: 60 }, speed: 64, patterns: ['rain', 'radial'], script: 'geoda', proj: { kind: 'shard', color: '#8ff0ff' }, minion: 'rataCristal', pal: { stemDark: '#6f7f9a', stem: '#d8e6f5', capDark: '#3a1d5c', cap: '#9a5fe0', spot: '#8ff0ff', glow: '143,240,255', eye: '#1a1030' } },
   cienagon: { name: 'Ciénago', base: 'pedrolon', type: 'planta', exp: 120, stats: { hp: 240, atk: 72, def: 64, spa: 66, spd: 60, spe: 40 }, speed: 48, patterns: ['slam', 'rain', 'summon', 'radial'], proj: { kind: 'spore', color: '#a6e06a' }, minion: 'lagartoCieno', pal: { dark: '#16201a', body: '#3a4a3a', light: '#526652', moss: '#7ac45a', arm: '#2a362a', eye: '#e8f070', crack: '#1e2a1e' } },
   picoferro: { name: 'Picoferro', base: 'pedrolon', type: 'roca', exp: 120, stats: { hp: 250, atk: 80, def: 74, spa: 70, spd: 62, spe: 44 }, speed: 50, patterns: ['slam', 'charge', 'radial', 'summon'], proj: { kind: 'shard', color: '#ffe066' }, minion: 'rataMinera', pal: { dark: '#1a1714', body: '#4a423a', light: '#665c50', moss: '#e0a040', arm: '#36302a', eye: '#ffe066', crack: '#c87a3a' } },
+  gromgar: { name: 'Gromgar', title: 'el Quebrantamontañas', base: 'pedrolon', type: 'roca', exp: 140, stats: { hp: 270, atk: 82, def: 76, spa: 60, spd: 58, spe: 44 }, speed: 52, drawScale: 2.3, radius: 28, bk: 'gromgar', resist: { fis: .85, mag: 1.15 },
+    brain: (e, dt, g, d) => BossKit.brain(e, dt, g, d), telegraph: (c, e, x, y, g) => BossKit.telegraph(c, e, x, y, g), patterns: ['golpe', 'roca', 'carga'], proj: { kind: 'shard', color: '#e0a040' }, minion: 'rataMinera',
+    pal: { dark: '#16120e', body: '#5a4a3a', light: '#7a6650', moss: '#e0a040', arm: '#3a2e24', eye: '#ff8a3d', crack: '#ff7a2a' } },
   magmatron: { name: 'Magmatrón', base: 'pedrolon', type: 'fuego', exp: 120, stats: { hp: 250, atk: 82, def: 75, spa: 80, spd: 62, spe: 45 }, speed: 52, patterns: ['slam', 'pools', 'charge', 'radial'], proj: { kind: 'ember', color: '#ff8a3d', burn: true }, minion: 'lagartoBrasa', slamPool: true, pal: { dark: '#140c0c', body: '#3a2a2a', light: '#4e3a3a', moss: '#ff6a1a', arm: '#2a1e1e', eye: '#ffd166', crack: '#ff6a1a' } },
 };
 const BOSS_WIND = { slam: .95, radial: .65, summon: .8, charge: .6, rain: .7, pools: .7, dash: .55 };
@@ -3263,7 +3268,7 @@ const BOSS_RAGE = { at: .3, dmg: 1.2, cd: .8, pause: 1.9, pauses: [1.9, 2.6, 3] 
 const GEODA = { rage1: .6, rage2: .3, rocks: 4, minRocks: 3, rockHp: 2, fall: 1.1, hits: 3, daze: 8, defCut: .3, leap: 1.5, dashSpeed: 620, dashTime: .6, bounce: .45 };
 /** Roca caída del techo: ocupa 2×2 casillas (tx, ty = esquina superior izquierda). Sólida al aterrizar. */
 class Boulder {
-  constructor(id, tx, ty, fall) { this.id = id; this.tx = tx; this.ty = ty; this.hp = GEODA.rockHp; this.fall = fall; this.fallT = fall; const TS = CONFIG.TILE; this.x = (tx + 1) * TS; this.y = (ty + 2) * TS - 4; this.cx = (tx + 1) * TS; this.cy = (ty + 1) * TS; this.crack = 0; }
+  constructor(id, tx, ty, fall, hp = GEODA.rockHp, look = 'rock') { this.id = id; this.tx = tx; this.ty = ty; this.hp = this.hp0 = hp; this.look = look; this.fall = fall; this.fallT = fall; const TS = CONFIG.TILE; this.x = (tx + 1) * TS; this.y = (ty + 2) * TS - 4; this.cx = (tx + 1) * TS; this.cy = (ty + 1) * TS; this.crack = 0; }
   get solid() { return this.fall <= 0 && this.hp > 0; }
   setSolid(world, on) { for (let j = 0; j < 2; j++) for (let i = 0; i < 2; i++) world.block(this.tx + i, this.ty + j, on); }
   /** ¿El punto (px, py) toca la roca (con margen)? */
@@ -3281,17 +3286,29 @@ class Boulder {
     c.save(); c.translate(cx, cy); c.scale(1.18, 1.18); this.drawRock(c, 0, 0, this.hp); c.restore();
   }
   drawRock(c, x, y, hp) {
+    if (this.look === 'stump') { this.drawStump(c, x, y, hp); return; }
     const P = typeof PAL !== 'undefined' ? PAL : {}, dark = P.rockDark || '#262833', mid = P.rock || '#3d4150', light = P.rockLight || '#5c6274', vein = P.rockVein || '#4fb8d0';
     c.fillStyle = dark; c.beginPath(); c.moveTo(x - 30, y + 10); c.lineTo(x - 33, y - 12); c.lineTo(x - 18, y - 34); c.lineTo(x + 6, y - 40); c.lineTo(x + 28, y - 26); c.lineTo(x + 33, y + 2); c.lineTo(x + 20, y + 14); c.closePath(); c.fill();
     c.fillStyle = mid; c.beginPath(); c.moveTo(x - 27, y + 6); c.lineTo(x - 29, y - 12); c.lineTo(x - 16, y - 31); c.lineTo(x + 5, y - 36); c.lineTo(x + 25, y - 24); c.lineTo(x + 29, y); c.lineTo(x + 18, y + 10); c.closePath(); c.fill();
     c.fillStyle = light; c.beginPath(); c.moveTo(x - 16, y - 30); c.lineTo(x + 5, y - 35); c.lineTo(x + 18, y - 27); c.lineTo(x + 2, y - 22); c.lineTo(x - 12, y - 20); c.closePath(); c.fill();
     c.strokeStyle = vein; c.globalAlpha = .55; c.lineWidth = 1.5; c.beginPath(); c.moveTo(x - 20, y - 4); c.lineTo(x - 8, y - 10); c.lineTo(x + 4, y - 6); c.stroke(); c.globalAlpha = 1;
-    if (hp < GEODA.rockHp) {                              // grieta tras el primer choque
+    if (hp < (this.hp0 || GEODA.rockHp)) {                // grieta tras el primer choque
       c.strokeStyle = '#0a0a0e'; c.lineWidth = 2; c.beginPath(); c.moveTo(x + 2, y - 36); c.lineTo(x - 4, y - 22); c.lineTo(x + 6, y - 12); c.lineTo(x - 2, y + 2); c.lineTo(x + 4, y + 10); c.stroke();
       c.lineWidth = 1.2; c.beginPath(); c.moveTo(x - 4, y - 22); c.lineTo(x - 16, y - 18); c.moveTo(x + 6, y - 12); c.lineTo(x + 18, y - 8); c.stroke();
     }
   }
 }
+/** Tocón (guarida del Guardián de Espinas): madera con anillos, raíces y musgo; astillado cuando ya ha recibido un golpe. */
+Boulder.prototype.drawStump = function (c, x, y, hp) {
+  c.fillStyle = '#3a2614'; c.beginPath(); c.moveTo(x - 30, y + 8); c.lineTo(x - 26, y - 26); c.lineTo(x + 26, y - 26); c.lineTo(x + 30, y + 8); c.closePath(); c.fill();
+  c.fillStyle = '#5a3a1e'; c.fillRect(x - 24, y - 26, 48, 30);
+  c.fillStyle = '#6e4a28'; for (let i = 0; i < 5; i++) c.fillRect(x - 22 + i * 10, y - 24, 3, 26);
+  U.ellipse(c, x, y - 27, 27, 11, '#3a2614'); U.ellipse(c, x, y - 28, 25, 9.5, '#b88a5a');
+  c.strokeStyle = '#8a6234'; c.lineWidth = 1.2; for (const r of [5, 11, 17]) { c.beginPath(); c.ellipse(x + 1, y - 28, r, r * .38, 0, 0, Math.PI * 2); c.stroke(); }
+  for (const [dx, w] of [[-30, -1], [30, 1]]) { c.strokeStyle = '#3a2614'; c.lineWidth = 6; c.lineCap = 'round'; c.beginPath(); c.moveTo(x + dx * .7, y); c.quadraticCurveTo(x + dx, y + 2, x + dx + w * 8, y + 10); c.stroke(); }
+  c.lineCap = 'butt'; U.ellipse(c, x - 14, y - 4, 7, 4, '#4f7a30'); U.ellipse(c, x + 16, y - 10, 5, 3, '#5f8f3a');
+  if (hp < (this.hp0 || 2)) { c.strokeStyle = '#1a0e06'; c.lineWidth = 2; c.beginPath(); c.moveTo(x - 4, y - 32); c.lineTo(x + 3, y - 18); c.lineTo(x - 2, y - 4); c.lineTo(x + 5, y + 6); c.stroke(); c.fillStyle = '#d8b888'; c.fillRect(x + 6, y - 20, 4, 2); c.fillRect(x - 10, y - 12, 3, 2); }
+};
 const Geoda = {
   stage(e) { return e.geodaStage || 0; },
   /** Cada paso del cerebro del guardián: fases, rocas y estados propios. Devuelve un movimiento o null. */
@@ -3401,7 +3418,7 @@ const Geoda = {
     if (g.onBossEvent) g.onBossEvent(e, 'land', {});
   },
   /** Elige sitios libres de 2×2 casillas alrededor del guardián, lejos de los jugadores y entre sí. */
-  dropRocks(e, g, n) {
+  dropRocks(e, g, n, hp = GEODA.rockHp, fall = GEODA.fall, look = 'rock', stagger = .3) {
     const TS = CONFIG.TILE, W = g.world, list = g.boulders || (g.boulders = []);
     const players = g.actors.filter(a => a.team === 'player' && a.alive);
     const okTile = (tx, ty) => { const t = W.get(tx, ty); return !W.isSolid(tx, ty) && t !== T.STAIRS && t !== T.WATER && t !== T.LAVA; };
@@ -3420,13 +3437,13 @@ const Geoda = {
       if (players.some(p => Math.hypot(p.x - bx, p.y - by) < 70) || Math.hypot(e.x - bx, e.y - by) < 80) continue;
       if (list.some(b => Math.hypot(b.cx - bx, b.cy - by) < P.sep)) continue;
       g.boulderN = (g.boulderN || 0) + 1;
-      list.push(new Boulder(g.boulderN, tx, ty, GEODA.fall + made * .3)); made++;
+      list.push(new Boulder(g.boulderN, tx, ty, fall + made * stagger, hp, look)); made++;
     }
     return made;
   },
-  land(e, g, b) {
+  land(e, g, b, dmg = 14) {
     b.fall = 0; b.setSolid(g.world, true);
-    Combat.circle(g, 'enemy', b.cx, b.cy, 42, { dmg: 14, kb: 280, src: e, color: '#9aa4b8' });
+    if (dmg > 0) Combat.circle(g, 'enemy', b.cx, b.cy, 42, { dmg, kb: 280, src: e, color: '#9aa4b8' });
     for (const a of g.actors) if (a.alive) this.unstick(a, g);
     Effects.burst(g, b.cx, b.cy, '#8a8070', 22, 200, .6); Effects.ring(g, b.cx, b.cy + 8, 8, 56, '#c8c0b0', .35, 5, 'ground');
     g.shake = Math.max(g.shake, 6);
@@ -3559,6 +3576,490 @@ function bossTelegraph(c, e, x, y, g) {
   }
   c.restore();
 }
+
+/* --- Jefes con mecánicas propias: base común (BossKit) ----------------------------------------------
+   Cada jefe es una DEFINICIÓN (datos + ganchos pequeños) sobre una máquina de estados común:
+     idle (se acerca) → aviso (windup, con telegráfico) → acción → recuperación → idle
+   y estados especiales: transición de fase (rugido), aturdido y vulnerable (derribado).
+   Común a todos: fases por umbral de vida o por evento (cada una una sola vez), aviso mínimo, ventanas de
+   vulnerabilidad con su motivo, resistencias, escalado por jugadores, anti-atasco, limpieza al morir,
+   vista para la red y recompensas persistentes. Lo propio de cada jefe va en BossKit.DEFS[id]. */
+const BOSS_MIN_TELE = .6;   // ningún ataque avisa menos que esto (s)
+const BossKit = {
+  DEFS: {},
+  /** Escalado moderado por jugadores (1-4): poca vida extra; el grupo recibe ataques y oportunidades nuevas. */
+  COOP_HP: [1, 1.6, 2.1, 2.6], COOP_DMG: [1, 1.05, 1.1, 1.15],
+  def(e) { return e && e.kind && e.kind.bk ? this.DEFS[e.kind.bk] : null; },
+  st(e) { return e.bk || (e.bk = { phase: 0, done: [0], stage: 'idle', t: 0, hits: 0, mv: null, recent: [], why: '', vulnT: 0, stuckT: 0, unstuck: 0, chain: 0, said: {} }); },
+  party(g) { return Math.max(1, Math.min(4, g.partyN || 1)); },
+  heroes(g) { return g.actors.filter(a => a.team === 'player' && a.alive && !a.dormant && a.cls); },
+  phaseDef(e) { const D = this.def(e), S = this.st(e); return D.phases[S.phase] || D.phases[0]; },
+
+  /** Cerebro común (kind.brain). Devuelve el movimiento deseado, como cualquier enemigo. */
+  brain(e, dt, g, d) {
+    const D = this.def(e), S = this.st(e);
+    if (!e.alive || e.hp <= 0 || S.stage === 'dead') return STOP;
+    if (!S.init) { S.init = true; if (D.init) D.init(e, g, S); }        // escenario propio del jefe (tocones, etc.)
+    if (S.engaged && BossKit.heroes(g).length) e.aggro = true;          // empezado el combate, no se distrae (ni se oculta su barra) aunque te escondas
+    if (D.tick) D.tick(e, g, dt, S);
+    e.guardMul = D.guard ? D.guard(e, g, S) : 1;
+    if (this.phases(e, g, D, S)) return STOP;
+    const P = e.target && e.target.alive ? e.target : g.player;
+    switch (S.stage) {
+      case 'trans': S.t -= dt; e.timer = Math.max(0, S.t); if (S.t <= 0) { const ph = D.phases[S.phase]; if (ph.after) ph.after(e, g, S, D); this.rec(e, S, .4); } return STOP;
+      case 'stun': case 'vuln':
+        S.t -= dt; e.timer = Math.max(0, S.t); if (S.stage === 'vuln') S.vulnT = Math.max(0, S.t);
+        if (S.t <= 0) this.endStun(e, g, D, S);
+        return STOP;
+      case 'tele': {
+        S.t -= dt; e.timer = Math.max(0, S.t);
+        const M = S.mv, lock = e.windupTime * (M.lock != null ? M.lock : .35);
+        if (S.t > lock) this.aim(e, M.target ? M.target(e, g, S, D) || P : P);   // sigue al objetivo hasta el último tramo del aviso
+        if (S.t <= 0) {
+          S.stage = 'act'; S.t = M.act || 0; e.state = M.actState || 'attack'; e.atkT = .25;
+          if (M.start) M.start(e, g, S, D);
+          if (S.stage === 'act' && S.t <= 0) this.rec(e, S, M.rec != null ? M.rec : .5, M);
+        }
+        return STOP;
+      }
+      case 'act': {
+        S.t -= dt; if (S.mv.actState === 'leap') e.timer = Math.max(0, S.t); const M = S.mv, mv = M.tick ? M.tick(e, g, dt, S, D) : null;
+        if (S.stage !== 'act') return mv && mv !== 'end' ? mv : STOP;          // el gancho cambió de estado (choque, aturdido…)
+        if (S.t <= 0 || mv === 'end') { this.rec(e, S, M.rec != null ? M.rec : .5, M); return STOP; }
+        return mv || STOP;
+      }
+      case 'rec': S.t -= dt; e.timer = Math.max(0, S.t); if (S.t <= 0) { S.stage = 'idle'; e.state = 'idle'; } return STOP;
+    }
+    // idle: elegir ataque o acercarse. Una vez empezado el combate no se distrae aunque te escondas tras una roca.
+    if (e.aggro) S.engaged = true; else if (S.engaged && BossKit.heroes(g).length) e.aggro = true;
+    if (!e.aggro || !P || !P.alive) return idleBehaviour(e, dt);
+    if (e.cd <= 0) { const M = this.pick(e, g, D, S, P, d); if (M) { this.begin(e, g, M, S, D, M.target ? M.target(e, g, S, D) || P : P); return STOP; } }
+    const want = D.approach ? D.approach(e, g, P, d, S) : d < (D.keep || 80) ? STOP : steerTo(e, P.x, P.y, 1);
+    return this.watchStuck(e, g, dt, S, want);
+  },
+  /** Apunta: dirección y punto fijos (aimPt). `e.target` lo reescribe la elección de objetivo; el aviso usa aimPt. */
+  aim(e, P) { if (!P) return; const l = Math.hypot(P.x - e.x, P.y - e.y) || 1; e.atk = { x: (P.x - e.x) / l, y: (P.y - e.y) / l }; e.facing = e.atk; e.aimPt = { x: P.x, y: P.y }; },
+  /** Elige el ataque: los de la fase, que cumplan su condición, sin repetir el último dos veces seguidas. */
+  pick(e, g, D, S, P, d) {
+    const ph = D.phases[S.phase], n = this.party(g);
+    let opts = ph.moves.map(id => D.moves[id]).filter(M => M && (!M.when || M.when(e, g, S, P, d, n)));
+    if (opts.length > 1) { const last = S.recent[S.recent.length - 1], twice = S.recent.length > 1 && S.recent[S.recent.length - 2] === last; if (twice) opts = opts.filter(M => M.id !== last) }
+    if (!opts.length) return null;
+    const w = opts.map(M => Math.max(0, typeof M.weight === 'function' ? M.weight(e, g, S, P, d, n) : M.weight || 1)), tot = w.reduce((a, b) => a + b, 0);
+    if (tot <= 0) return null;
+    let r = Math.random() * tot; for (let i = 0; i < opts.length; i++) if ((r -= w[i]) < 0) return opts[i];
+    return opts[opts.length - 1];
+  },
+  begin(e, g, M, S, D, P) {
+    const ph = D.phases[S.phase];
+    S.mv = M; S.stage = 'tele'; S.recent.push(M.id); if (S.recent.length > 4) S.recent.shift();
+    const tele = Math.max(BOSS_MIN_TELE, (typeof M.tele === 'function' ? M.tele(e, g, S) : M.tele) * (ph.teleMul || 1));
+    S.t = e.timer = e.windupTime = tele; e.state = 'windup'; e.pattern = e.lastPattern = M.id;
+    this.aim(e, P);
+    if (M.begin) M.begin(e, g, S, D);
+  },
+  /** Recuperación tras un ataque: el jefe se queda quieto (ventana corta para golpearle). */
+  rec(e, S, t, M) {
+    const D = this.def(e), ph = D.phases[S.phase];
+    S.stage = 'rec'; S.t = t; e.state = 'recover'; e.timer = t;
+    if (M) e.cd = ((M.cd != null ? M.cd : 1.6) + Math.random() * .5) * (ph.cdMul || 1);
+  },
+  /** Fases: por umbral de vida (en orden) o por evento. Cada una entra UNA vez; interrumpe lo que hacía. */
+  phases(e, g, D, S) {
+    if (S.stage === 'vuln' || S.stage === 'trans') return false;   // nunca se le quita al jugador una ventana ganada: la fase espera
+    for (let i = S.phase + 1; i < D.phases.length; i++) {
+      const ph = D.phases[i]; if (S.done.includes(i)) continue;
+      if (ph.at != null && e.hp <= e.maxHp * ph.at) { this.enter(e, g, D, S, i); return true; }
+      if (ph.at != null) break;                     // las de vida van en orden: no se salta ninguna
+    }
+    return false;
+  },
+  event(e, g, name) {
+    const D = this.def(e), S = this.st(e); if (!D || !e.alive) return false;
+    const i = D.phases.findIndex((ph, k) => ph.event === name && !S.done.includes(k));
+    if (i < 0) return false; this.enter(e, g, D, S, i); return true;
+  },
+  enter(e, g, D, S, i) {
+    const ph = D.phases[i];
+    S.done.push(i); S.phase = i; S.mv = null; e.vuln = 1;
+    S.stage = 'trans'; S.t = e.timer = e.windupTime = ph.trans || 1.4; e.state = 'roar'; e.pattern = '';
+    if (ph.enrage) { e.enraged = true; e.dmgMul *= ph.enrage; S.dmgK = (S.dmgK || 1) * ph.enrage; }
+    if (ph.enter) ph.enter(e, g, S, D);
+    if (ph.card && g.onBossRage) g.onBossRage(e, i);     // escena (solitario) o pausa para todos (servidor)
+  },
+  /** Aturdido: no ataca durante `t` s (sin bajar defensas). */
+  stun(e, g, t, why) {
+    const S = this.st(e); S.stage = 'stun'; S.t = e.timer = e.windupTime = t; S.why = why || ''; e.state = 'dazed'; S.mv = null;
+    if (g.onBossEvent) g.onBossEvent(e, 'stun', { hits: S.hits, why: S.why });
+  },
+  /** Ventana de vulnerabilidad: derribado `t` s y recibe más daño (defCut = −% de defensa). Siempre con su motivo. */
+  vulnerable(e, g, t, why, defCut) {
+    const S = this.st(e); S.stage = 'vuln'; S.t = S.vulnT = e.timer = e.windupTime = t; S.why = why; S.defCut = defCut; S.mv = null;
+    e.state = 'dazed'; e.vuln = 1 / (1 - defCut);
+    Effects.floater(g, e.x, e.y - e.height - 34, `¡DERRIBADO! Defensa −${Math.round(defCut * 100)} %`, '#ffe14d', 14);
+    if (g.onBossEvent) g.onBossEvent(e, 'vuln', { hits: S.hits, why, t });
+  },
+  endStun(e, g, D, S) {
+    const was = S.stage; e.vuln = 1; S.vulnT = 0;
+    if (was === 'vuln' && D.onVulnEnd) D.onVulnEnd(e, g, S);
+    if (S.stage === was) this.rec(e, S, .8);
+    if (was === 'vuln' && g.onBossEvent) g.onBossEvent(e, 'recover', { hits: S.hits });
+  },
+  /** Anti-atasco: si quiere moverse y no avanza, rodea; si sigue así, vuelve al centro de su sala. */
+  watchStuck(e, g, dt, S, want) {
+    const moved = S.lastXY ? Math.hypot(e.x - S.lastXY.x, e.y - S.lastXY.y) : 99; S.lastXY = { x: e.x, y: e.y };
+    if (want.mul > 0 && moved < 4 * dt * 60 * .05) S.stuckT += dt; else S.stuckT = Math.max(0, S.stuckT - dt * 2);
+    if (S.stuckT > 2.2) { S.stuckT = 0; S.unstuck++; this.toward(e, g, e.home.x, e.home.y); }
+    return want;
+  },
+  /** Lleva al jefe al hueco libre más cercano en dirección a (x, y) (nunca lo deja dentro de un muro o roca). */
+  toward(e, g, x, y) {
+    const d = Math.hypot(x - e.x, y - e.y) || 1;
+    for (let s = 1; s <= 8; s++) { const k = Math.min(1, s * 40 / d), nx = e.x + (x - e.x) * k, ny = e.y + (y - e.y) * k; if (e.free(g.world, nx, ny)) { e.x = e.px = nx; e.y = e.py = ny; return true; } }
+    BossArena.unstick(e, g); return false;
+  },
+  /** Al morir: nada suyo sigue atacando (zonas, disparos, rocas que caen, cadenas de ataques). */
+  onDeath(e, g) {
+    const S = this.st(e); S.stage = 'dead'; S.mv = null; e.state = 'dead'; e.vuln = 1; S.chain = 0;
+    g.zones = g.zones.filter(z => z.owner !== e && z.src !== e); for (const z of g.zones) if (z.owner === e) z.alive = false;
+    for (const p of g.projectiles) if (p.src === e && p.team === 'enemy') p.alive = false;
+    if (g.boulders) for (const b of g.boulders.slice()) if (b.fall > 0) g.boulders = g.boulders.filter(x => x !== b);
+    for (const a of g.actors.slice()) if (a.summoner === e && a.alive && a !== e) a.die(g);   // sus invocaciones (brotes…) caen con él
+    const D = this.def(e); if (D && D.onDeath) D.onDeath(e, g, S);
+  },
+  /** Daño recibido: vulnerabilidad × resistencia (física / mágica). */
+  takenMul(e, o) {
+    let m = (e.vuln || 1) * (e.guardMul || 1); const r = e.kind.resist;
+    if (r && o) m *= (o.cat === 'esp' || o.cat === 'mag') ? (r.mag != null ? r.mag : 1) : (r.fis != null ? r.fis : 1);
+    return m;
+  },
+  /** Vista compacta para la red: «fase|estado|vulnT|choques|necesarios|motivo». */
+  view(e) {
+    const S = this.st(e), D = this.def(e);
+    return [S.phase, S.stage, Math.round((S.vulnT || 0) * 10) / 10, S.hits || 0, D.need ? D.need(e, S) : 0, S.why || ''].join('|');
+  },
+  apply(e, str) {
+    if (!str) return; const [ph, stage, vt, hits, need, why] = str.split('|'), S = this.st(e);
+    S.phase = +ph || 0; S.stage = stage; S.vulnT = +vt || 0; S.hits = +hits || 0; S.need = +need || 0; S.why = why || '';
+  },
+  /** Etiqueta para la barra del jefe: fase, estado y por qué es vulnerable. */
+  hudTag(e, g) {
+    const D = this.def(e), S = this.st(e), ph = D.phases[S.phase] || {}, need = S.need != null && e.netId ? S.need : D.need ? D.need(e, S) : 0;
+    const extra = D.hud && g ? D.hud(e, S, g) : '';
+    if (S.stage === 'vuln') return ` · ¡DERRIBADO! Defensa −${Math.round((S.defCut || D.defCut || .4) * 100)} % · ${Math.ceil(S.vulnT || 0)} s${S.why ? ' · ' + S.why : ''}`;
+    if (S.stage === 'stun') return ` · aturdido${S.why ? ' · ' + S.why : ''}`;
+    return (ph.label ? ' · ' + ph.label : '') + (need ? ` · choques ${S.hits || 0}/${need}` : '') + extra;
+  },
+  /** Recompensa persistente: la primera victoria da el trofeo único; las siguientes, solo cuentan. */
+  grant(save, bossId, bag) {
+    const D = this.DEFS[bossId], lines = []; if (!D) return lines;
+    save.bosses = save.bosses && typeof save.bosses === 'object' ? save.bosses : {};
+    const rec = save.bosses[bossId] || (save.bosses[bossId] = { kills: 0 });
+    rec.kills = (rec.kills || 0) + 1;
+    if (rec.kills === 1 && D.reward && ITEMS[D.reward.item]) {
+      const it = ITEMS[D.reward.item];
+      if (bag && bag.add(D.reward.item, 1) >= 1) lines.push(`Trofeo único por vencer a ${D.name}: ${it.name}.`);
+      else { save.bank = (save.bank || 0) + it.price; lines.push(`Trofeo único: ${it.name} (inventario lleno: te pagan ${it.price} monedas).`); }
+      rec.trophy = true;
+    } else lines.push(`${D.name} vencido ${rec.kills} veces.`);
+    return lines;
+  },
+  sanitize(raw) {
+    const out = {}; if (!raw || typeof raw !== 'object') return out;
+    for (const [id, r] of Object.entries(raw)) if (this.DEFS[id] && r && typeof r === 'object') out[id] = { kills: Math.max(0, Math.min(1e6, Math.floor(+r.kills || 0))), trophy: !!r.trophy };
+    return out;
+  },
+  /** Telegráfico común: cada ataque dibuja el suyo; fase y estados especiales tienen el mismo lenguaje. */
+  telegraph(c, e, x, y, g) {
+    const D = BossKit.def(e); if (!D) return;
+    const S = BossKit.st(e);
+    if (D.drawAlways && e.alive) D.drawAlways(c, e, x, y, g);
+    if (e.state === 'dazed' || S.stage === 'vuln' || S.stage === 'stun') { BossArt.dazed(c, e, x, y, g, S.stage === 'vuln'); return; }
+    if (e.state === 'roar') { BossArt.roar(c, e, x, y, g); return; }
+    if (e.state !== 'windup') { if (D.drawActive) D.drawActive(c, e, x, y, g); return; }
+    const M = D.moves[e.pattern]; if (!M || !M.draw) return;
+    const k = U.clamp(1 - e.timer / (e.windupTime || 1), 0, 1), locked = e.timer <= (e.windupTime || 1) * (M.lock != null ? M.lock : .35);
+    c.save(); M.draw(c, e, x, y, g, k, locked); c.restore();
+  },
+};
+
+/** Piezas del escenario que comparten los jefes: rocas con colisión real (Boulder), caídas y desatascos. */
+const BossArena = {
+  /** Rocas sólidas que el jefe tiene justo delante en la dirección de su ataque. */
+  rockAhead(e, g, reach = 10) {
+    const r = e.radius + reach, ax = e.atk.x, ay = e.atk.y;
+    for (const b of g.boulders || []) {
+      if (!b.solid) continue;
+      for (const s of [0, -.6, .6]) if (b.touches(e.x + ax * r - ay * s * e.radius, e.y + ay * r + ax * s * e.radius, 8)) return b;
+    }
+    return null;
+  },
+  solidRocks(g) { return (g.boulders || []).filter(b => b.solid || b.fall > 0); },
+  /** Caída de rocas de 2×2 casillas lejos de los jugadores y entre sí (la misma lógica de la Reina Geoda). */
+  dropRocks(e, g, n, o = {}) { return Geoda.dropRocks(e, g, n, o.hp, o.fall, o.look, o.stagger != null ? o.stagger : .3); },
+  /** Rocas que aterrizan este paso: se vuelven sólidas, golpean lo que tengan debajo y apartan a quien quede dentro. */
+  tickRocks(e, g, dt, dmg = 14) {
+    for (const b of g.boulders || []) if (b.fall > 0) { b.fall -= dt; if (b.fall <= 0) Geoda.land(e, g, b, dmg); }
+  },
+  shatter(g, b) { b.hp = 0; b.setSolid(g.world, false); Effects.burst(g, b.cx, b.cy, '#5c6274', 34, 260, .8); g.boulders = g.boulders.filter(x => x !== b); },
+  unstick(a, g) { Geoda.unstick(a, g); },
+};
+
+/** Dibujo común de estados de jefe (aturdido, derribado, rugido). */
+const BossArt = {
+  dazed(c, e, x, y, g, down) {
+    const R = 46 + (down ? 10 : 0);
+    c.save(); c.globalAlpha = .55 + .25 * Math.sin(g.time * 8); c.strokeStyle = down ? '#ffe14d' : '#c8f4ff'; c.lineWidth = down ? 3 : 2;
+    c.setLineDash([8, 6]); c.lineDashOffset = -g.time * 30; c.beginPath(); c.ellipse(x, y, R, R * .4, 0, 0, Math.PI * 2); c.stroke(); c.restore();
+  },
+  roar(c, e, x, y, g) {
+    const k = (g.time * 1.6) % 1; c.save(); c.globalAlpha = (1 - k) * .6; c.strokeStyle = '#ff3b2f'; c.lineWidth = 4; c.beginPath(); c.ellipse(x, y, 40 + k * 180, (40 + k * 180) * .42, 0, 0, Math.PI * 2); c.stroke(); c.restore();
+  },
+  lane(c, x, y, ax, ay, L, w, k, locked, t) {
+    const a = Math.atan2(ay, ax);
+    c.translate(x, y); c.rotate(a);
+    c.globalAlpha = .16 + .3 * k; c.fillStyle = locked ? '#ff3b2f' : '#ef5b4b'; c.fillRect(0, -w, L * k, w * 2);
+    c.globalAlpha = locked ? .6 + .4 * Math.sin(t * 40) : .7; c.strokeStyle = locked ? '#ffd0c0' : '#ef5b4b'; c.lineWidth = locked ? 3 : 2; c.strokeRect(0, -w, L, w * 2);
+    for (let i = 1; i <= 3; i++) { const px = L * (i / 4); c.beginPath(); c.moveTo(px - 10, -10); c.lineTo(px, 0); c.lineTo(px - 10, 10); c.stroke(); }
+  },
+  circle(c, x, y, r, k, col = '#ef5b4b') {
+    c.globalAlpha = .12 + .3 * k; c.fillStyle = col; c.beginPath(); c.arc(x, y, r * k, 0, Math.PI * 2); c.fill();
+    c.globalAlpha = .85; c.strokeStyle = col; c.lineWidth = 2.5; c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.stroke();
+  },
+};
+
+/* --- Gromgar, el Quebrantamontañas (guardián de la Mina Olvidada): jefe de referencia de BossKit ------
+   Fase 1 (100-60 %): golpe, roca lanzada y carga. Si la carga choca con una pared, solo se detiene.
+   Furia (60 %): ruge y provoca un derrumbe: rocas de 2×2 con colisión real. Embiste a quien se aleja;
+   si la carga choca contra una ROCA queda aturdido (1,6 s) y la agrieta. Al tercer choque válido cae
+   al suelo: DERRIBADO, defensa −40 % durante 7 s. Si quedan pocas rocas, el techo suelta más.
+   Fase final (25 %): un pisotón destruye la mitad de las coberturas y añade la avalancha; con menos rocas
+   bastan 2 choques para derribarlo.
+   En grupo: algo más de vida, embiste al que esté más lejos (uno provoca, los demás golpean) y a veces
+   encadena una segunda carga contra otro jugador. */
+const GROMGAR = {
+  rage: .6, final: .25, rocks: [4, 5, 5, 6], minRocks: 2, rockHp: 3, hits: 3, hitsFinal: 2, stun: 1.6, down: 7, defCut: .4,
+  charge: { speed: 560, time: .78, dmg: 26, kb: 380 }, slam: { r: 96, dmg: 22 }, throw: { r: 46, dmg: 18, delay: .75 }, aval: { r: 44, dmg: 16, delay: 1.15 },
+  provoke: 150,   // a partir de esta distancia prefiere embestir (en furia, casi siempre)
+};
+BossKit.DEFS.gromgar = {
+  name: 'Gromgar', vulnVerb: 'ha caído al suelo',
+  defCut: GROMGAR.defCut, rockHp: GROMGAR.rockHp,
+  need(e, S) { return S.phase >= 1 ? (S.phase >= 2 ? GROMGAR.hitsFinal : GROMGAR.hits) : 0; },
+  keep: 74,
+  phases: [
+    { id: 'tanteo', label: '', moves: ['golpe', 'roca', 'carga'] },
+    { id: 'furia', at: GROMGAR.rage, label: '¡FURIA!', enrage: 1.15, cdMul: .85, trans: 1.6, moves: ['golpe', 'roca', 'carga'], pause: 2.4,
+      card: ['¡Gromgar se enfurece y provoca un derrumbe!', 'Ponte detrás de una roca y aléjate: embestirá contra ti.\nSi choca contra una roca queda aturdido; al tercer choque cae al suelo con la defensa −40 %.'],
+      enter(e, g) { const n = BossKit.party(g); BossArena.dropRocks(e, g, GROMGAR.rocks[n - 1], { hp: GROMGAR.rockHp }); } },
+    { id: 'final', at: GROMGAR.final, label: '¡FASE FINAL!', enrage: 1.05, cdMul: .8, teleMul: .92, trans: 1.8, moves: ['golpe', 'carga', 'avalancha'], pause: 2.6,
+      card: ['¡Gromgar hace temblar la mina!', 'Sus pisotones rompen la mitad de las rocas y caen piedras del techo.\nAhora bastan 2 choques para derribarlo: aprovecha las rocas que quedan.'],
+      enter(e, g, S) {
+        S.hits = 0;
+        const rocks = (g.boulders || []).filter(b => b.solid).sort((a, b) => Math.hypot(a.cx - e.x, a.cy - e.y) - Math.hypot(b.cx - e.x, b.cy - e.y));
+        const keep = Math.max(1, Math.ceil(rocks.length / 2));
+        rocks.slice(0, rocks.length - keep).forEach(b => BossArena.shatter(g, b));   // rompe las más cercanas a él
+        g.shake = Math.max(g.shake, 10);
+      },
+      after(e, g) { const solid = (g.boulders || []).filter(b => b.solid).length; if (solid < GROMGAR.minRocks) BossArena.dropRocks(e, g, GROMGAR.minRocks - solid, { hp: GROMGAR.rockHp }); } },
+  ],
+  tick(e, g, dt) { BossArena.tickRocks(e, g, dt, 14); },
+  /** Tras el derribo: el contador vuelve a cero y, si quedan pocas rocas, el techo suelta más (nunca se queda sin forma de derribarlo). */
+  onVulnEnd(e, g, S) {
+    S.hits = 0;
+    const solid = BossArena.solidRocks(g).length, want = S.phase >= 2 ? GROMGAR.minRocks : GROMGAR.rocks[BossKit.party(g) - 1] - 1;
+    if (solid < want) { BossArena.dropRocks(e, g, want - solid, { hp: GROMGAR.rockHp }); Effects.floater(g, e.x, e.y - e.height - 30, '¡Se desprende el techo!', '#c8c0b0', 12); }
+  },
+  /** Embestida: en furia la provoca quien esté más lejos (y a la vista). */
+  chargeTarget(e, g) {
+    const hs = BossKit.heroes(g); if (!hs.length) return null;
+    return hs.sort((a, b) => Math.hypot(b.x - e.x, b.y - e.y) - Math.hypot(a.x - e.x, a.y - e.y))[0];
+  },
+  moves: {
+    golpe: { id: 'golpe', tele: .95, cd: 1.5, rec: .7,
+      when: (e, g, S, P, d) => d < 150, weight: (e, g, S, P, d) => d < 110 ? 3 : 1,
+      start(e, g) {
+        const k = e.kind;
+        Combat.circle(g, 'enemy', e.x, e.y, GROMGAR.slam.r, { dmg: GROMGAR.slam.dmg, kb: 340, src: e, color: '#c9b79c' });
+        Effects.ring(g, e.x, e.y, 14, 104, '#c9b79c', .5, 9, 'ground'); Effects.burst(g, e.x, e.y, '#a89a84', 30, 200, .6); g.shake = Math.max(g.shake, 7);
+      },
+      draw(c, e, x, y, g, k) { BossArt.circle(c, x, y, GROMGAR.slam.r, k); } },
+    roca: { id: 'roca', tele: .9, cd: 1.6, rec: .5,
+      when: (e, g, S, P, d) => d >= 110, weight: (e, g, S) => S.phase >= 1 ? .6 : 1.4, lock: .25,
+      start(e, g) {
+        const tx = e.aimPt.x, ty = e.aimPt.y, o = GROMGAR.throw;
+        g.zones.push(new Zone({ x: tx, y: ty, r: o.r, delay: o.delay, life: 0, owner: e, src: e, team: 'enemy', color: '#c9b79c',
+          onStart: (g, z) => { if (!e.alive) return; Combat.circle(g, 'enemy', z.x, z.y, z.r, { dmg: o.dmg, kb: 200, src: e, color: '#a89a84' }); Effects.burst(g, z.x, z.y - 6, '#8a8070', 18, 160); Effects.ring(g, z.x, z.y, 6, z.r + 8, '#c8c0b0', .35, 5, 'ground'); g.shake = Math.max(g.shake, 4); },
+          render(c, z) { if (z.started) return; const kk = z.t / z.delay; BossArt.circle(c, z.x, z.y, z.r, kk, '#ef5b4b'); c.globalAlpha = 1; c.fillStyle = '#5c5448'; U.ellipse(c, z.x + (1 - kk) * -40, z.y - (1 - kk) * 220 - 10, 12, 10, '#5c5448'); } }));
+      },
+      draw(c, e, x, y, g, k) { const T = e.aimPt || e.target; if (T) BossArt.circle(c, T.x, T.y, GROMGAR.throw.r, k); } },
+    carga: { id: 'carga', cd: 1.3, rec: .6, act: GROMGAR.charge.time, actState: 'charging', lock: .4,
+      tele: (e, g, S) => S.chain ? .8 : S.phase >= 1 ? .9 : 1,
+      when: (e, g, S, P, d) => d >= 120 || S.phase >= 1,
+      weight: (e, g, S, P, d) => S.phase === 0 ? 1 : d >= GROMGAR.provoke ? 6 : 1.5,
+      target: (e, g) => BossKit.DEFS.gromgar.chargeTarget(e, g),
+      start(e, g, S) { S.hitSet = new Set(); S.from = { x: e.x, y: e.y, t: 0 }; S.slow = 0; g.shake = Math.max(g.shake, 3); },
+      tick(e, g, dt, S) {
+        const o = GROMGAR.charge;
+        // ¿Ha chocado? Bloqueado del todo o casi sin avanzar en su dirección (también si roza y resbala por una pared o roca)
+        const fwd = (e.x - S.from.x) * e.atk.x + (e.y - S.from.y) * e.atk.y; S.from = { x: e.x, y: e.y, t: S.from.t + dt };
+        if (S.from.t > .12 && fwd < o.speed * CONFIG.ENEMY_SPEED * dt * .3) S.slow++; else S.slow = 0;
+        Combat.circle(g, 'enemy', e.x, e.y, e.radius + 8, { dmg: o.dmg, kb: o.kb, dirx: e.atk.x, diry: e.atk.y, src: e, color: '#c9b79c' }, S.hitSet);
+        if (Math.random() < .6) g.fx.add({ x: e.x + (Math.random() - .5) * 30, y: e.y, vx: -e.atk.x * 60, vy: -14, life: .4, size: 4, color: 'rgba(200,190,170,.7)' });
+        if (e.blockedLast || S.slow >= 2) { BossKit.DEFS.gromgar.impact(e, g, S); return 'end'; }
+        return { x: e.atk.x, y: e.atk.y, mul: o.speed / e.kind.speed };
+      },
+      draw(c, e, x, y, g, k, locked) { BossArt.lane(c, x, y, e.atk.x, e.atk.y, GROMGAR.charge.speed * GROMGAR.charge.time, e.radius, k, locked, g.time); } },
+    avalancha: { id: 'avalancha', tele: 1, cd: 2, rec: .4,
+      weight: () => 1.2,
+      start(e, g) {
+        const o = GROMGAR.aval, hs = BossKit.heroes(g), n = 3 + (BossKit.party(g) - 1);
+        for (let i = 0; i < n; i++) {
+          const p = hs[i % Math.max(1, hs.length)] || e, x = p.x + (i < hs.length ? 0 : (Math.random() - .5) * 200), y = p.y + (i < hs.length ? 0 : (Math.random() - .5) * 200);
+          g.zones.push(new Zone({ x, y, r: o.r, delay: o.delay + i * .12, life: 0, owner: e, src: e, team: 'enemy', color: '#ef5b4b',
+            onStart: (g, z) => { if (!e.alive) return; Combat.circle(g, 'enemy', z.x, z.y, z.r, { dmg: o.dmg, kb: 160, src: e, color: '#a89a84' }); Effects.burst(g, z.x, z.y - 6, '#8a8070', 16, 150); g.shake = Math.max(g.shake, 3); },
+            render(c, z) { if (z.started) return; BossArt.circle(c, z.x, z.y, z.r, z.t / z.delay); } }));
+        }
+      },
+      draw(c, e, x, y, g, k) { c.globalAlpha = .5 + .3 * Math.sin(g.time * 20); c.strokeStyle = '#c8c0b0'; c.lineWidth = 3; c.beginPath(); c.arc(x, y - 60, 30 - 14 * k, 0, Math.PI * 2); c.stroke(); } },
+  },
+  /** Choque de la carga: contra una roca (en furia) cuenta; contra una pared, solo se detiene y se aparta. */
+  impact(e, g, S) {
+    const rock = BossArena.rockAhead(e, g);
+    g.shake = Math.max(g.shake, rock ? 9 : 4);
+    if (rock && S.phase >= 1) {
+      rock.hp--; rock.crack = 1; S.hits++;
+      const need = this.need(e, S);
+      Effects.burst(g, rock.cx, rock.cy - 10, '#9aa4b8', 26, 220, .6); Effects.ring(g, e.x + e.atk.x * 30, e.y + e.atk.y * 30, 6, 60, '#c8d4e8', .35, 5, 'ground');
+      Effects.floater(g, e.x, e.y - e.height - 30, `¡CRAC! ${Math.min(S.hits, need)}/${need}`, '#c8f4ff', 14);
+      if (rock.hp <= 0) BossArena.shatter(g, rock);
+      this.backOff(e, g);
+      if (g.onBossEvent) g.onBossEvent(e, 'bounce', { hits: S.hits, need });
+      if (S.hits >= need) BossKit.vulnerable(e, g, GROMGAR.down, `${need} choques contra las rocas`, GROMGAR.defCut);
+      else BossKit.stun(e, g, GROMGAR.stun, 'se ha estrellado contra una roca');
+      S.chain = 0;
+      return;
+    }
+    // pared u obstáculo que no cuenta: se aparta para no quedarse pegado
+    this.backOff(e, g);
+    Effects.burst(g, e.x + e.atk.x * 30, e.y + e.atk.y * 30, '#8a8070', 12, 140, .4);
+    if (S.phase >= 1 && !S.said.wall) { S.said.wall = 1; if (g.onBossEvent) g.onBossEvent(e, 'wall', {}); }
+    // En grupo, a veces encadena otra carga contra otro jugador (ataque extra, no más vida)
+    if (S.phase >= 1 && BossKit.party(g) >= 2 && !S.chain && Math.random() < .45) {
+      const others = BossKit.heroes(g).filter(p => !e.target || Math.hypot(p.x - e.target.x, p.y - e.target.y) > 60);
+      if (others.length) { S.chain = 1; BossKit.begin(e, g, this.moves.carga, S, this, others[(Math.random() * others.length) | 0]); return; }
+    }
+    S.chain = 0;
+  },
+  backOff(e, g) { BossKit.toward(e, g, e.x - e.atk.x * 34, e.y - e.atk.y * 34); e.vx = e.vy = 0; },
+  reward: { item: 'colmilloGromgar' },
+};
+
+/* --- Robletón, el Guardián de Espinas (Bosque Brumoso), sobre BossKit ------------------------------
+   Desde el principio hay tocones en su guarida (2×2, colisión real). Si su SALTO acaba junto a un tocón,
+   lo revienta y se le enredan las raíces: VULNERABLE 6 s, defensa −35 %. Ponte al lado de un tocón y
+   apártate cuando veas la sombra.
+   Savia (65 %): brotes de savia que le curan y le protegen (−40 % de daño) mientras vivan; destrúyelos.
+   Furia (30 %): vuelven a brotar, más raíces y saltos más rápidos; si quedan pocos tocones, brotan otros. */
+const ESPINAS = {
+  savia: .65, furia: .3, stumps: [4, 4, 5, 5], minStumps: 2, stumpHp: 2, plants: [2, 2, 3, 3], heal: .012, guard: .4, tangle: 6, defCut: .35, sapStun: 2.2,
+  claw: { r: 92, arc: 2.1, dmg: 20 }, roots: { n: 6, gap: 44, r: 28, delay: .9, dmg: 16 }, leap: { time: .62, r: 72, dmg: 24, reach: 46 },
+};
+BossKit.DEFS.espinas = {
+  name: 'Robletón', rockHp: ESPINAS.stumpHp, rockLook: 'stump', defCut: ESPINAS.defCut, keep: 70,
+  plants(g) { return g.actors.filter(a => a.alive && a.kind && a.kind.id === 'broteSavia'); },
+  nearStump(g, P) { return !!P && (g.boulders || []).some(b => b.solid && b.touches(P.x, P.y, 70)); },
+  guard(e, g) { return this.plants(g).length ? 1 - ESPINAS.guard : 1; },
+  hud(e, S, g) { const n = this.plants(g).length; return n ? ` · protegido por la savia (${n} brote${n > 1 ? 's' : ''})` : ''; },
+  init(e, g) { const n = BossKit.party(g); BossArena.dropRocks(e, g, ESPINAS.stumps[n - 1], { hp: ESPINAS.stumpHp, fall: .05, look: 'stump', stagger: 0 }); },
+  phases: [
+    { id: 'despertar', moves: ['zarpazo', 'raices', 'salto'] },
+    { id: 'savia', at: ESPINAS.savia, label: 'savia', trans: 1.4, pause: 2.4, moves: ['zarpazo', 'raices', 'salto'],
+      card: ['¡Brotan los brotes de savia!', 'Le curan y le protegen mientras vivan: destrúyelos.\nAcércate a un tocón: si su salto acaba en uno, se enreda y queda vulnerable.'],
+      enter(e, g) { BossKit.DEFS.espinas.sprout(e, g, ESPINAS.plants[BossKit.party(g) - 1]); } },
+    { id: 'furia', at: ESPINAS.furia, label: '¡FURIA!', enrage: 1.12, cdMul: .85, teleMul: .92, trans: 1.6, pause: 2.4, moves: ['zarpazo', 'raices', 'salto'],
+      card: ['¡Robletón enloquece de dolor!', 'Vuelven los brotes y las raíces salen en abanico.\nLos tocones siguen siendo su debilidad.'],
+      enter(e, g) { const D = BossKit.DEFS.espinas; D.sprout(e, g, Math.max(2, ESPINAS.plants[BossKit.party(g) - 1] - 1));
+        const left = BossArena.solidRocks(g).length; if (left < ESPINAS.minStumps) BossArena.dropRocks(e, g, ESPINAS.minStumps - left, { hp: ESPINAS.stumpHp, fall: .8, look: 'stump', dmg: 0 }); } },
+  ],
+  /** Brotes en los bordes de la sala, lejos de los jugadores. */
+  sprout(e, g, n) {
+    const r = g.floorRoom || null, W = g.world, made = [], hs = BossKit.heroes(g);
+    for (let k = 0; k < 120 && made.length < n; k++) {
+      const a = Math.random() * Math.PI * 2, d = 150 + Math.random() * 130, x = e.home.x + Math.cos(a) * d, y = e.home.y + Math.sin(a) * d;
+      if (!W.inBounds(Math.floor(x / 32), Math.floor(y / 32)) || W.isSolid(Math.floor(x / 32), Math.floor(y / 32))) continue;
+      if (hs.some(p => Math.hypot(p.x - x, p.y - y) < 90) || made.some(p => Math.hypot(p.x - x, p.y - y) < 90)) continue;
+      const p = new Enemy(makeKind('broteSavia'), x, y, { level: e.level }); if (!p.free(W, x, y)) continue;
+      p.aggro = true; p.summoner = e; g.actors.push(p); made.push(p);
+      Effects.burst(g, x, y - 8, '#9be36b', 18, 140, .5);
+    }
+    return made;
+  },
+  tick(e, g, dt, S) {
+    BossArena.tickRocks(e, g, dt, 0);
+    const n = this.plants(g).length;
+    if (n && e.alive && S.stage !== 'dead') {   // curación visible (hilos de savia) mientras vivan los brotes
+      e.hp = Math.min(e.maxHp, e.hp + e.maxHp * ESPINAS.heal * n * dt);
+      S.hadPlants = true;
+    } else if (S.hadPlants && !n && S.stage !== 'vuln' && S.stage !== 'trans') {   // se queda sin savia: aturdido un momento
+      S.hadPlants = false; BossKit.stun(e, g, ESPINAS.sapStun, 'se ha quedado sin savia');
+    }
+  },
+  onVulnEnd(e, g, S) {
+    const left = BossArena.solidRocks(g).length;
+    if (left < ESPINAS.minStumps) BossArena.dropRocks(e, g, ESPINAS.minStumps - left, { hp: ESPINAS.stumpHp, fall: .8, look: 'stump', dmg: 0 });
+  },
+  drawAlways(c, e, x, y, g) {   // hilos de savia de cada brote al guardián
+    for (const p of this.plants(g)) {
+      const k = (g.time * 1.5) % 1; c.save(); c.globalAlpha = .55; c.strokeStyle = '#9be36b'; c.lineWidth = 2; c.setLineDash([4, 6]); c.lineDashOffset = -g.time * 40;
+      c.beginPath(); c.moveTo(p.x, p.y - 14); c.quadraticCurveTo((p.x + x) / 2, Math.min(p.y, y) - 60, x, y - 40); c.stroke(); c.setLineDash([]);
+      const px = U.lerp(p.x, x, k), py = U.lerp(p.y - 14, y - 40, k) - Math.sin(k * Math.PI) * 50; U.ellipse(c, px, py, 3, 3, '#d8ffb0'); c.restore();
+    }
+  },
+  moves: {
+    zarpazo: { id: 'zarpazo', tele: .85, cd: 1.4, rec: .6, when: (e, g, S, P, d) => d < 130, weight: 3,
+      start(e, g) { const o = ESPINAS.claw; Combat.arc(g, 'enemy', e.x, e.y, Math.atan2(e.atk.y, e.atk.x), o.arc, o.r, { dmg: o.dmg, kb: 260, src: e, color: '#9be36b' }); Effects.burst(g, e.x + e.atk.x * 40, e.y + e.atk.y * 40, '#5f8f3a', 16, 160); },
+      draw(c, e, x, y, g, k) { const o = ESPINAS.claw, a = Math.atan2(e.atk.y, e.atk.x); c.globalAlpha = .14 + .3 * k; c.fillStyle = '#ef5b4b'; c.beginPath(); c.moveTo(x, y); c.arc(x, y, o.r, a - o.arc / 2, a + o.arc / 2); c.closePath(); c.fill(); c.globalAlpha = .85; c.strokeStyle = '#ef5b4b'; c.lineWidth = 2.5; c.beginPath(); c.arc(x, y, o.r, a - o.arc / 2, a + o.arc / 2); c.stroke(); } },
+    raices: { id: 'raices', tele: .9, cd: 1.6, rec: .5, lock: .3, weight: (e, g, S, P, d) => d >= 100 ? 2 : 1,
+      start(e, g, S) {
+        const o = ESPINAS.roots, fan = S.phase >= 2 ? [-.35, 0, .35] : [0], extra = BossKit.party(g) >= 2 && S.phase >= 1;
+        const dirs = fan.map(a => { const b = Math.atan2(e.atk.y, e.atk.x) + a; return { x: Math.cos(b), y: Math.sin(b) }; });
+        if (extra) { const others = BossKit.heroes(g).filter(p => !e.target || Math.hypot(p.x - e.target.x, p.y - e.target.y) > 80); if (others.length) { const p = others[0], l = Math.hypot(p.x - e.x, p.y - e.y) || 1; dirs.push({ x: (p.x - e.x) / l, y: (p.y - e.y) / l }); } }
+        for (const dv of dirs) for (let i = 0; i < o.n; i++) {
+          const x = e.x + dv.x * (50 + i * o.gap), y = e.y + dv.y * (50 + i * o.gap);
+          if (g.world.isSolid(Math.floor(x / 32), Math.floor(y / 32))) break;
+          g.zones.push(new Zone({ x, y, r: o.r, delay: o.delay + i * .09, life: 0, owner: e, src: e, team: 'enemy', color: '#9be36b',
+            onStart: (g, z) => { if (!e.alive) return; Combat.circle(g, 'enemy', z.x, z.y, z.r, { dmg: o.dmg, kb: 140, src: e, color: '#9be36b', slow: .5 }); Effects.burst(g, z.x, z.y - 10, '#5f8f3a', 10, 150, .4); },
+            render(c, z) { if (z.started) return; BossArt.circle(c, z.x, z.y, z.r, z.t / z.delay, '#c97a3a'); } }));
+        }
+      },
+      draw(c, e, x, y, g, k, locked) { BossArt.lane(c, x, y, e.atk.x, e.atk.y, 50 + ESPINAS.roots.n * ESPINAS.roots.gap, 18, k, locked, g.time); } },
+    salto: { id: 'salto', cd: 1.6, rec: .9, act: ESPINAS.leap.time, actState: 'leap', lock: .35,
+      tele: (e, g, S) => S && S.phase >= 2 ? 1.05 : 1.15,
+      // cebo: si su objetivo está junto a un tocón, salta casi siempre, también de cerca (así se le atrae de forma fiable)
+      when: (e, g, S, P, d) => d >= 90 || BossKit.DEFS.espinas.nearStump(g, P),
+      weight: (e, g, S, P, d) => BossKit.DEFS.espinas.nearStump(g, P) ? 8 : d >= 140 ? 3 : 1,
+      start(e, g, S) { e.leapFrom = { x: e.x, y: e.y }; e.timer = e.windupTime = ESPINAS.leap.time; S.land = { x: e.aimPt.x, y: e.aimPt.y }; e.target = S.land; },
+      tick(e, g, dt, S) { e.timer = Math.max(0, S.t); if (S.t <= 0) { BossKit.DEFS.espinas.land(e, g, S); return 'end'; } return STOP; },
+      draw(c, e, x, y, g, k) { const T = e.aimPt || e.target; if (!T) return; BossArt.circle(c, T.x, T.y, ESPINAS.leap.r, k); U.ellipse(c, T.x, T.y + 4, 34 * k, 13 * k, 'rgba(0,0,0,.4)'); } },
+  },
+  /** Aterrizaje: golpea alrededor; si cae junto a un tocón, lo revienta y queda enredado (vulnerable). */
+  land(e, g, S) {
+    const L = S.land, o = ESPINAS.leap;
+    e.x = e.px = L.x; e.y = e.py = L.y; e.state = 'recover';
+    const stump = (g.boulders || []).find(b => b.solid && b.touches(L.x, L.y, o.reach));
+    BossKit.toward(e, g, L.x, L.y);                       // nunca dentro de un tocón o un muro
+    Combat.circle(g, 'enemy', e.x, e.y, o.r, { dmg: o.dmg, kb: 300, src: e, color: '#9be36b' });
+    Effects.ring(g, e.x, e.y, 12, o.r + 10, '#c9b79c', .45, 8, 'ground'); g.shake = Math.max(g.shake, 7);
+    if (stump) {
+      stump.hp--; if (stump.hp <= 0) BossArena.shatter(g, stump); else stump.crack = 1;
+      Effects.burst(g, stump.cx, stump.cy - 10, '#8a6234', 26, 220, .6);
+      if (g.onBossEvent) g.onBossEvent(e, 'tangle', {});
+      BossKit.vulnerable(e, g, ESPINAS.tangle, 'se ha enredado en un tocón', ESPINAS.defCut);
+    }
+  },
+  reward: { item: 'coronaEspinas' },
+};
 function drawCrown(c, x, y, color = '#f2b84b') {
   c.fillStyle = color; c.beginPath();
   c.moveTo(x - 7, y); c.lineTo(x - 7, y - 6); c.lineTo(x - 3.5, y - 2.5); c.lineTo(x, y - 8); c.lineTo(x + 3.5, y - 2.5); c.lineTo(x + 7, y - 6); c.lineTo(x + 7, y); c.closePath(); c.fill();
@@ -3599,6 +4100,7 @@ class Enemy extends Actor {
     Effects.burst(g, this.x, this.y - this.height * .4, '#ffffff', this.kind.isBoss ? 40 : 16, this.kind.isBoss ? 220 : 150, .5);
     Effects.ring(g, this.x, this.y, 6, this.kind.isBoss ? 90 : 34, '#ffffff', .35, 3, 'ground');
     g.stats.defeated++;
+    if (this.kind.bk) BossKit.onDeath(this, g);           // sus zonas, disparos y rocas que caen se cancelan
     Sfx.play('enemyDown');
     g.onEnemyDown && g.onEnemyDown(this);
   }
@@ -3812,7 +4314,7 @@ BIOMES.marsh = biomeVariant('forest', {
 });
 BIOMES.mine = biomeVariant('cave', {
   id: 'mine', name: 'Mina', obstacles: ['crystals', 'rocks', 'rocks', 'pillar', 'pool'],
-  enemies: { chaser: 'chispin', ranged: 'farolillo', tank: 'ferron' }, boss: 'picoferro',
+  enemies: { chaser: 'chispin', ranged: 'farolillo', tank: 'ferron' }, boss: 'gromgar',
   loot: { berry: 20, crystal: 30, gems: 40, relic: 20 }, dropBerry: .12,
   mm: { floor: '#6a5a3e', corr: '#4a3e2e' },
   pal: {
@@ -3928,6 +4430,8 @@ const ITEMS = {
   escudoRoble: { name: 'Escudo de roble', cat: 'equipo', slot: 'accesorio', classes: ['guerrero'], rarity: 'pococomun', icon: 'shield', color: '#8e5c30', price: 150, mods: { flat: { def: 5 } }, desc: 'Un buen escudo de repuesto, reforzado con hierro.' },
   anilloMana: { name: 'Anillo de maná', cat: 'equipo', slot: 'accesorio', classes: ['mago'], rarity: 'rara', icon: 'ring', color: '#5aa8e8', price: 330, mods: { flat: { mp: 25 } }, desc: 'Guarda reservas de maná.', regenNote: true },
 
+  coronaEspinas: { name: 'Corona de Espinas', cat: 'equipo', slot: 'accesorio', rarity: 'epica', unique: true, icon: 'ring', color: '#9be36b', price: 500, mods: { flat: { atk: 4 }, pct: { def: .06 } }, desc: 'Trofeo único: una corona de raíces vivas del Guardián de Espinas. Aún huele a savia.' },
+  colmilloGromgar: { name: 'Colmillo de Gromgar', cat: 'equipo', slot: 'accesorio', rarity: 'epica', unique: true, icon: 'ring', color: '#e0a040', price: 600, mods: { flat: { def: 6, atk: 3 }, pct: { def: .05 } }, desc: 'Trofeo único: un trozo de la mandíbula de piedra del Quebrantamontañas. Aún vibra cuando algo choca.' },
   panueloRojo: { name: 'Pañuelo rojo', cat: 'equipo', slot: 'accesorio', rarity: 'comun', icon: 'scarf', color: '#e0473c', price: 60, mods: { flat: { atk: 4 } }, desc: 'Un pañuelo sencillo que anima a pelear.' },
   panueloSeda: { name: 'Pañuelo de seda', cat: 'equipo', slot: 'accesorio', rarity: 'pococomun', icon: 'scarf', color: '#7fe3e8', price: 140, mods: { pct: { spe: .08 } }, desc: 'Ligero como el aire.' },
   panueloCarmesi: { name: 'Pañuelo carmesí', cat: 'equipo', slot: 'accesorio', rarity: 'rara', icon: 'scarf', color: '#b8243a', price: 320, mods: { pct: { atk: .1, spa: .1 } }, desc: 'Teñido con pigmento de las ruinas.' },
@@ -4009,7 +4513,7 @@ const Loot = {
     let rar = this.pick(this.weights(src, dng.level), rnd);
     const order = ['legendaria', 'epica', 'rara', 'pococomun', 'comun'];
     for (let i = order.indexOf(rar); i < order.length; i++) {
-      const pool = Object.values(ITEMS).filter(it => it.rarity === order[i] && cats.includes(it.cat) && it.cat !== 'especial' && it.price > 0 && (!it.biomes || it.biomes.includes(dng.biome)));
+      const pool = Object.values(ITEMS).filter(it => it.rarity === order[i] && cats.includes(it.cat) && it.cat !== 'especial' && !it.unique && it.price > 0 && (!it.biomes || it.biomes.includes(dng.biome)));
       if (pool.length) return pool[Math.floor(rnd() * pool.length)].id;
     }
     return 'manzana';
@@ -4227,7 +4731,7 @@ const DUNGEONS = [
     monsterHouse: .05, shop: .1, hiddenStairs: .15, dark: .15, treasure: .15, wind: 300,
   },
   {
-    id: 'mina', name: 'Mina Olvidada', biome: 'mine', floors: 8, waypoint: 4, boss: 'picoferro', level: 11, unlock: 'cienaga', color: '#e8b04a',
+    id: 'mina', name: 'Mina Olvidada', biome: 'mine', floors: 8, waypoint: 4, boss: 'gromgar', level: 11, unlock: 'cienaga', color: '#e8b04a',
     desc: 'Túneles a oscuras, trampas por todas partes y criaturas eléctricas muy rápidas.',
     enemies: { rataMinera: 26, lagartoHollin: 24, limoOxido: 20, grajo: 16, hongoMina: 14 }, enemyBase: 3, enemyStep: 2,
     traps: [2, 4], trapPool: { purificadora: 2, pinchos: 3, veneno: 2, somnifera: 2, teletransporte: 3, rafaga: 2, hambre: 2, explosiva: 2, agujero: 2, invocacion: 1 },
@@ -4344,7 +4848,7 @@ const isInt = (v, min = 0, max = 1e9) => Number.isFinite(v) && v >= min && v <= 
 const toInt = (v, def, min = 0, max = 1e9) => Number.isFinite(+v) ? Math.min(max, Math.max(min, Math.floor(+v))) : def;
 
 const Save = {
-  fresh(speciesId) { return { v: SAVE_VERSION, species: speciesId, prog: Progress.fresh(speciesId), bank: 50, inv: Inventory.fromIds(['manzana', 'baya', 'baya', 'pocion', 'tonicoEnergia', 'orbeEscape'], 32), equip: freshEquip(), team: [], points: 0, cleared: [], jobs: [], board: [], boardSeed: 1 + Math.floor(Math.random() * 1e6), runs: 0, delivered: 0, activeRun: null, arrived: false }; },
+  fresh(speciesId) { return { v: SAVE_VERSION, species: speciesId, prog: Progress.fresh(speciesId), bank: 50, inv: Inventory.fromIds(['manzana', 'baya', 'baya', 'pocion', 'tonicoEnergia', 'orbeEscape'], 32), equip: freshEquip(), team: [], points: 0, cleared: [], jobs: [], board: [], boardSeed: 1 + Math.floor(Math.random() * 1e6), runs: 0, delivered: 0, activeRun: null, arrived: false, bosses: {} }; },
   /** Con la cuenta online activa (Game.account) el perfil vive en el servidor: no se escribe en este navegador. */
   readOnly: false,
   /** Valida y repara una partida. Devuelve { ok, data, fixes } — `data` es un objeto nuevo y plano. */
@@ -4374,6 +4878,7 @@ const Save = {
     out.bank = toInt(raw.bank, 0); if (raw.bank !== out.bank) fixes.push('monedas corregidas');
     out.points = toInt(raw.points, 0);
     out.cleared = Array.isArray(raw.cleared) ? [...new Set(raw.cleared.filter(id => dungeonById(id)))] : [];
+    out.bosses = BossKit.sanitize(raw.bosses);   // progreso de jefes: victorias y trofeo único
     for (const k of ['runs', 'delivered', 'sold', 'bought', 'rests']) out[k] = toInt(raw[k], 0);
     // ¿Ya vio la llegada a la aldea (carretilla y alcalde)? Las partidas de antes de esta escena que ya han jugado, sí.
     out.arrived = raw.arrived === true || (raw.arrived !== false && (out.runs > 0 || out.cleared.length > 0 || out.prog.level > 1));
@@ -8839,10 +9344,11 @@ const UI = {
     this.set('bossh', this.el('bossbar'), 'hidden', !boss);
     if (boss) {
       const w = (boss.hp / boss.maxHp * 100).toFixed(1) + '%';
-      const geo = boss.kind.script === 'geoda', st = geo ? (boss.geodaStage || 0) : 0;
-      const tag = boss.state === 'dazed' ? ' · ¡ATURDIDA! Defensa −30 %' : boss.state === 'leap' ? ' · ¡SALTA!' : boss.enraged ? (geo ? ' · ¡FURIOSA!' : ' · ¡ENFURECIDO!') : !geo && boss.hp < boss.maxHp * .5 ? ' · fase 2' : '';
+      const geo = boss.kind.script === 'geoda', st = geo ? (boss.geodaStage || 0) : 0, bk = !!boss.kind.bk;
+      const tag = bk ? BossKit.hudTag(boss, g) : boss.state === 'dazed' ? ' · ¡ATURDIDA! Defensa −30 %' : boss.state === 'leap' ? ' · ¡SALTA!' : boss.enraged ? (geo ? ' · ¡FURIOSA!' : ' · ¡ENFURECIDO!') : !geo && boss.hp < boss.maxHp * .5 ? ' · fase 2' : '';
       this.set('bossn', this.el('boss-name'), 'text', `${boss.kind.name} · Nv ${boss.level}` + tag + (geo && st >= 2 && boss.state !== 'dazed' ? ` · choques ${boss.rockHits || 0}/${GEODA.hits}` : ''));
-      this.set('bossm', this.el('boss-m1'), 'left', geo ? '60%' : '50%'); this.set('bossm2', this.el('boss-m2'), 'left', '30%');
+      const ph = bk ? BossKit.def(boss).phases.filter(q => q.at != null).map(q => q.at) : null;   // marcas en los umbrales de fase
+      this.set('bossm', this.el('boss-m1'), 'left', ph ? Math.round((ph[0] || .5) * 100) + '%' : geo ? '60%' : '50%'); this.set('bossm2', this.el('boss-m2'), 'left', ph ? Math.round((ph[1] || ph[0] || .3) * 100) + '%' : '30%');
       this.set('bossw', this.el('boss-fill'), 'width', w); this.set('bosst', this.el('boss-trail'), 'width', w);
       const rage = !!boss.enraged; if (this.cache.rage !== rage) { this.cache.rage = rage; this.el('bossbar').classList.toggle('rage', rage); }
     }
@@ -9573,7 +10079,7 @@ const Game = {
       s.bank += rewardGems; s.points += rewardPts;
       for (const id of r.jobsDone) { const j0 = (r.jobInfo || {})[id]; if (j0) this.gainExp(j0.reward.exp || 30); }
       if (r.jobsDone.length) lines.push(`Los encargos te dan ${r.jobsDone.reduce((t, id) => t + (((r.jobInfo || {})[id] || {}).reward || { exp: 30 }).exp || 30, 0)} EXP extra.`);
-      if (result === 'clear') { const bonus = 80 + 60 * DUNGEONS.indexOf(r.dng); this.gainExp(bonus); lines.push(`Recompensa por vencer al guardián: ${bonus} EXP.`); }
+      if (result === 'clear') { const bonus = 80 + 60 * DUNGEONS.indexOf(r.dng); this.gainExp(bonus); lines.push(`Recompensa por vencer al guardián: ${bonus} EXP.`); if (!r.bossGranted) { r.bossGranted = true; lines.push(...BossKit.grant(s, r.dng.boss, p.bag)); } }
       if (result === 'clear' && !s.cleared.includes(r.dng.id)) {
         s.cleared.push(r.dng.id); s.points += 50; lines.push(`¡Primera vez que completas ${r.dng.name}! +50 puntos de rango.`);
         if (r.dng.id === 'bosque') lines.push('El mercader Tobías ha montado su puesto en la aldea: ya puedes comprar, vender y fabricar.');
@@ -9853,6 +10359,16 @@ const Game = {
   /** Avisos del combate de la Reina Geoda (rebotes, aturdimiento, salto). */
   onBossEvent(e, what, info) { if (!this.net) this.bossNote(e, what, info); },
   bossNote(e, what, info) {
+    if (e.kind.bk) {   // jefes de BossKit: cada aviso explica qué ha pasado y qué hacer
+      const D = BossKit.def(e), need = (info && info.need) || (D.need ? D.need(e, BossKit.st(e)) : 0);
+      if (what === 'vuln') UI.toast(`¡${e.kind.name} ${D.vulnVerb || 'es vulnerable'}! (${(info && info.why) || ''}) Defensa −${Math.round((D.defCut || .4) * 100)} %: ¡atacad ahora!`, '#ffe14d');
+      else if (what === 'tangle') UI.toast('¡Ha caído sobre un tocón y se le enredan las raíces!', '#9be36b');
+      else if (what === 'stun') { if (info && info.why && !/roca/.test(info.why)) UI.toast(`${e.kind.name} aturdido: ${info.why}`, '#c8f4ff'); }
+      else if (what === 'bounce') UI.toast(`¡Se ha estrellado contra una roca! ${info.hits}/${need}${info.hits < need ? ' · aturdido un momento' : ''}`, '#c8f4ff');
+      else if (what === 'wall') UI.toast('Contra la pared solo se detiene: tiene que chocar contra una ROCA', '#d8c79a');
+      else if (what === 'recover') UI.toast(`${e.kind.name} se levanta`, '#ffb3a8');
+      return;
+    }
     if (what === 'daze') UI.toast(`¡${e.kind.name} está aturdida! Defensa −30 % durante ${GEODA.daze} s: ¡ahora!`, '#ffe14d');
     else if (what === 'leap') UI.toast(this.net ? `¡${e.kind.name} salta! Aplastará a quien esté bajo su sombra` : `¡${e.kind.name} salta sobre ti! Te aplastará de un golpe`, '#ff6b5b');
     else if (what === 'bounce' && info && info.hits < GEODA.hits) UI.toast(`¡Se ha estrellado contra la roca! (${info.hits}/${GEODA.hits})`, '#c8f4ff');
@@ -9861,16 +10377,18 @@ const Game = {
    *  stage: 0 furia normal (30 %) · 1 primer grito de la Reina Geoda (60 %) · 2 segundo grito y derrumbe (30 %). */
   playRage(e, stage = 0) {
     if (!e) return;
-    const T = {
+    const ph = e.kind.bk ? (BossKit.def(e).phases[stage] || {}) : null;
+    const T = ph ? ph.card || [] : {
       0: [`¡${e.kind.name} se enfurece!`, 'Daño +20 % · recupera sus ataques un 20 % antes'],
       1: [`¡${e.kind.name} lanza un grito!`, 'Se enfurece: daño +20 %, ataques un 20 % más rápidos y una CARGA nueva.\nEsquívala con la evasión justo cuando la franja parpadea.'],
       2: [`¡Otro grito! ¡El techo se derrumba!`, 'Ponte detrás de las rocas: si su carga choca contra ellas 3 veces, quedará aturdida.\nSi no la vences mientras está aturdida, saltará sobre ti.'],
     }[stage] || [];
+    const dur = ph ? ph.pause || BOSS_RAGE.pause : BOSS_RAGE.pauses[stage] || BOSS_RAGE.pause;
     UI.floorCard(T[0], T[1]);
     Sfx.play('boss'); this.shake = Math.max(this.shake, stage ? 12 : 9);
-    if (stage) this.floaters.push({ x: e.x, y: e.y - e.height * 2 - 20, vx: 0, text: stage === 2 ? '¡¡GRRAAAAH!!' : '¡GRRAAAH!', color: '#ffb3a8', size: 18, t: 0, life: BOSS_RAGE.pauses[stage] || BOSS_RAGE.pause });
+    if (stage) this.floaters.push({ x: e.x, y: e.y - e.height * 2 - 20, vx: 0, text: stage === 2 ? '¡¡GRRAAAAH!!' : '¡GRRAAAH!', color: '#ffb3a8', size: 18, t: 0, life: dur });
     let ring = 0;
-    this.cine = { t: 0, dur: BOSS_RAGE.pauses[stage] || BOSS_RAGE.pause, focus: e, kind: 'rage', boss: e, tick: (dt, g) => {
+    this.cine = { t: 0, dur, focus: e, kind: 'rage', boss: e, tick: (dt, g) => {
       e.rageT = (e.rageT || 0) + dt; ring -= dt;
       if (ring <= 0) { ring = stage ? .22 : .32; Effects.ring(g, e.x, e.y, 10, stage ? 200 : 120, '#ff3b2f', .45, 6, 'ground'); g.shake = Math.max(g.shake, stage ? 6 : 4); }
       if (stage === 2 && Math.random() < .5) g.fx.add({ x: e.x + (Math.random() - .5) * 420, y: e.y - 180 - Math.random() * 60, vx: 0, vy: 120 + Math.random() * 160, life: .9, size: 2 + Math.random() * 3, color: Math.random() < .5 ? '#8a8070' : '#5c6274', grav: 300 });
@@ -11842,12 +12360,12 @@ class NetPlay {
       if (s.hp < e.hp) { const dmg = e.hp - s.hp; Effects.damage(g, e, dmg, '#ffffff', Math.min(19, 11 + dmg / e.maxHp * 22)); e.flash = .12; e.showBar = 3; }
       e.push(s); e.hp = s.hp; e.maxHp = s.maxHp; e.level = s.level; e.aggro = s.aggro;
       if (e.state !== s.state) { if (s.state === 'leap') e.leapFrom = { x: e.x, y: e.y }; e.state = s.state; e.timer = s.timer; e.windupTime = s.wind || 1; }
-      e.pattern = s.pattern || e.pattern; if (s.ax || s.ay) e.atk = { x: s.ax, y: s.ay }; if (s.gx || s.gy) e.target = { x: s.gx, y: s.gy };   // aviso del ataque: dirección, punto y patrón del servidor
+      e.pattern = s.pattern || e.pattern; if (s.ax || s.ay) e.atk = { x: s.ax, y: s.ay }; if (s.gx || s.gy) { e.target = { x: s.gx, y: s.gy }; e.aimPt = e.target; }   // aviso del ataque: dirección, punto y patrón del servidor
     }
     for (const [id, e] of this.enemies) if (!eSeen.has(id)) { this.enemies.delete(id); if (e.alive) e.die(g); }
     // Guardián: el estado lo da el servidor (PS, fase y patrón), igual para todos
     this.boss = st.boss && st.boss.id ? st.boss : null;
-    if (this.boss) { const b = this.enemies.get(this.boss.id); if (b) { b.netPhase = this.boss.phase; b.enraged = !!this.boss.rage; b.geodaStage = this.boss.stage || 0; b.rockHits = this.boss.hits || 0; f.boss = b; } }
+    if (this.boss) { const b = this.enemies.get(this.boss.id); if (b) { b.netPhase = this.boss.phase; b.enraged = !!this.boss.rage; b.geodaStage = this.boss.stage || 0; b.rockHits = this.boss.hits || 0; if (b.kind.bk) BossKit.apply(b, this.boss.bk); f.boss = b; } }
     this.syncRocks(this.boss ? this.boss.rocks || '' : '');
     // Puertas de la cámara del tesoro
     for (const [key, d] of Object.entries(st.doors || {})) if (d.open) this.openDoor(key, true);
@@ -11889,7 +12407,7 @@ class NetPlay {
     for (const part of str ? str.split(',') : []) {
       const [id, tx, ty, hp, fall] = part.split(':').map(Number); seen.add(id);
       let b = g.boulders.find(r => r.id === id);
-      if (!b) { b = new Boulder(id, tx, ty, fall); b.fallT = Math.max(fall, GEODA.fall); g.boulders.push(b); if (fall <= 0) b.setSolid(g.world, true); }
+      if (!b) { const be = this.boss && this.enemies.get(this.boss.id), bd = be && BossKit.def(be); b = new Boulder(id, tx, ty, fall, bd && bd.rockHp || GEODA.rockHp, bd && bd.rockLook || 'rock'); b.hp = hp; b.fallT = Math.max(fall, GEODA.fall); g.boulders.push(b); if (fall <= 0) b.setSolid(g.world, true); }
       if (b.fall > 0 && fall <= 0) { b.fall = 0; b.setSolid(g.world, true); Effects.burst(g, b.cx, b.cy, '#8a8070', 22, 200, .6); g.shake = Math.max(g.shake, 6); if (g.player) Geoda.unstick(g.player, g); }
       else if (fall > 0) b.fall = fall;
       if (hp < b.hp) { b.hp = hp; Effects.burst(g, b.cx, b.cy - 10, '#9aa4b8', 26, 220, .6); }
@@ -11960,7 +12478,7 @@ class NetPlay {
       }
       case 'bossPhase': UI.toast('¡El guardián cambia de táctica! Sus ataques son más rápidos', '#ef5b4b'); g.shake = Math.max(g.shake, 6); break;
       case 'bossRage': { const b = this.enemies.get(ev.id); if (b) { b.enraged = true; g.playRage(b, ev.stage || 0); } break; }
-      case 'bossEvent': { const b = this.enemies.get(ev.id); if (b) g.bossNote(b, ev.what, { hits: ev.hits }); break; }
+      case 'bossEvent': { const b = this.enemies.get(ev.id); if (b) g.bossNote(b, ev.what, { hits: ev.hits, need: ev.need, why: ev.why }); break; }
       case 'host': UI.toast(ev.id === this.me ? 'Ahora eres el anfitrión del grupo' : `${this.nameOf(ev.id)} es ahora el anfitrión`, '#a6e3ff'); break;
       case 'held': if (ev.id !== this.me) UI.toast(`${this.nameOf(ev.id)} ha perdido la conexión: se le guarda el sitio ${ev.seconds} s`, '#f2b84b'); break;
       case 'shutdown': UI.toast('El servidor se está reiniciando: se ha guardado lo conseguido', '#f2b84b'); break;

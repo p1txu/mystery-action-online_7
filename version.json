@@ -1,14 +1,14 @@
 {
-  "build": 39,
-  "version": "0.39",
-  "date": "2026-10-27",
+  "build": 40,
+  "version": "0.40",
+  "date": "2026-11-08",
   "notes": [
-    "Bosque Brumoso renovado (capítulo 1): las salas tienen propósito. Puzles, cámaras secretas, trampas, emboscadas, salas de élite, claros de descanso, altares y textos que cuentan lo que pasó en el bosque.",
-    "Mecanismos nuevos: placas de tiempo, palancas que levantan puentes de troncos, raíces que se rompen a golpes, paredes agrietadas con cámaras secretas, raíces punzantes y setas de esporas que también hieren a los enemigos.",
-    "Los premios de los puzles están en nichos junto a la sala: el camino a la escalera nunca depende de un mecanismo y todo se puede resolver jugando solo.",
-    "Placas de peso para el grupo: con dos jugadores se abren pisando las dos a la vez; en solitario hay otra vía (romper unas raíces y usar una palanca).",
-    "Minijefe en el penúltimo piso: el Zarzal Madre, con el triple de vida. Su cofre raro aparece al vencerlo.",
-    "En cooperativo los mecanismos los mueve el servidor y todos veis lo mismo.",
-    "Cada piso se comprueba al generarlo: un resolutor recorre palancas, roturas y placas y confirma que todo se alcanza y que nada se queda bloqueado para siempre."
+    "Nuevo guardián de la Mina Olvidada: Gromgar, el Quebrantamontañas. Golpea, lanza rocas y embiste; avisa siempre antes de cada ataque.",
+    "Al 60 % de vida se enfurece y provoca un derrumbe: las rocas son coberturas de verdad. Ponte detrás de una y aléjate: si su carga choca contra una roca queda aturdido, y al tercer choque cae al suelo con la defensa −40 % durante 7 segundos.",
+    "Fase final al 25 %: rompe la mitad de las rocas, caen piedras del techo y bastan dos choques para derribarlo.",
+    "En grupo embiste al que está más lejos (uno provoca y los demás golpean) y a veces encadena otra carga; la vida extra es menor que en los demás guardianes.",
+    "Trofeo único la primera vez que lo vences: Colmillo de Gromgar (accesorio épico). Las victorias quedan guardadas en tu perfil.",
+    "Robletón, el Guardián de Espinas, renovado: tocones en su guarida (si su salto cae junto a uno se enreda y queda vulnerable), raíces en línea y brotes de savia que le curan y protegen hasta que los destruyes.",
+    "Base común para todos los jefes: fases, avisos, ventanas de vulnerabilidad, resistencias, escalado y recompensas. Los demás guardianes irán pasando a ella."
   ]
 }

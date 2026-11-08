@@ -249,7 +249,7 @@ export class ExpeditionRoom extends Room {
     syncMap(st.doors, v.doors, d => d.key, DoorState, ['open']);
     if (v.boss) {
       if (!st.boss || st.boss.id !== v.boss.id) st.boss = new BossState(v.boss);
-      else for (const k of ['alive', 'hp', 'maxHp', 'phase', 'state', 'pattern', 'rage', 'stage', 'hits', 'rocks']) if (st.boss[k] !== v.boss[k]) st.boss[k] = v.boss[k];
+      else for (const k of ['alive', 'hp', 'maxHp', 'phase', 'state', 'pattern', 'rage', 'stage', 'hits', 'rocks', 'bk']) if (st.boss[k] !== v.boss[k]) st.boss[k] = v.boss[k];
     } else if (st.boss) st.boss = undefined;
   }
 

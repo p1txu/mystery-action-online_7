@@ -59,6 +59,25 @@ const control = {
     r.flushEvents(); r.sync(); return { id: X.boss ? X.boss.netId : null, pause: X.pauseT || 0, floor: X.floorInfo.n }; },
   /** Rocas de la Reina Geoda según el servidor. */
   rocks() { const X = playing().exp; return { rocks: (X.g.boulders || []).map(b => ({ id: b.id, tx: b.tx, ty: b.ty, hp: b.hp, solid: b.solid })), boss: { state: X.boss.state, hits: X.boss.rockHits || 0, stage: X.boss.geodaStage || 0, rage: !!X.boss.enraged } }; },
+  /** Jefes de BossKit: fase, estado, choques, motivo y rocas según el servidor. */
+  bk() { const X = playing().exp, b = X.boss, S = X.E.BossKit.st(b); return { alive: b.alive, hp: b.hp, maxHp: b.maxHp, phase: S.phase, stage: S.stage, hits: S.hits, why: S.why, state: b.state, pattern: b.pattern || '', vuln: b.vuln || 1, rocks: (X.g.boulders || []).filter(o => o.solid).map(o => ({ id: o.id, tx: o.tx, ty: o.ty, hp: o.hp })).sort((a, c) => a.id - c.id), zones: X.g.zones.filter(z => z.owner === b).length }; },
+  /** Gromgar delante de una roca, `name` detrás (el compañero pegado al jefe) y la carga ya avisada contra `name`. */
+  bkChargeAtRock({ name }) { const X = playing().exp, b = X.boss, K = X.E.BossKit, m = [...X.members.values()].find(x => x.name === name);
+    X.g.zones.length = 0; X.g.projectiles.length = 0;
+    for (const rk of X.g.boulders.filter(o => o.solid)) for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const bx = rk.cx - dx * 120, by = rk.cy - dy * 120, px = rk.cx + dx * 96, py = rk.cy + dy * 96;
+      if (!b.free(X.world, bx, by) || !m.player.free(X.world, px, py)) continue;
+      b.x = b.px = bx; b.y = b.py = by; m.player.placeAt(px, py);
+      for (const o of X.members.values()) if (o !== m) { o.player.placeAt(bx - dx * 44, by - dy * 44); X.E.BossArena.unstick(o.player, X.g); }
+      K.begin(b, X.g, K.DEFS.gromgar.moves.carga, K.st(b), K.DEFS.gromgar, m.player);
+      return { rock: rk.id, rockHp: rk.hp, hp: m.player.hp };
+    }
+    return { rock: null };
+  },
+  /** Mata al jefe con un golpe de `name` (para comprobar que nada suyo sigue atacando). */
+  bkKill({ name }) { const X = playing().exp, b = X.boss, m = [...X.members.values()].find(x => x.name === name); X.E.Combat.hit(X.g, b, { team: 'player', fixed: 1e8, src: m.player }); return { alive: b.alive }; },
+  /** Pone a Gromgar a lanzar la avalancha (piedras avisadas en el suelo). */
+  bkAvalanche({ name }) { const X = playing().exp, b = X.boss, K = X.E.BossKit, m = [...X.members.values()].find(x => x.name === name); K.begin(b, X.g, K.DEFS.gromgar.moves.avalancha, K.st(b), K.DEFS.gromgar, m.player); return {}; },
   /** Pone al guardián delante de una roca y al jugador `name` detrás, y ordena la Carga. */
   dashAtRock({ name }) { const X = playing().exp, b = X.boss, m = [...X.members.values()].find(x => x.name === name);
     X.g.zones.length = 0; X.g.projectiles.length = 0;

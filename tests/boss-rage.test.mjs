@@ -6,7 +6,7 @@ import { parseInput } from '../shared/protocol.js';
 import { E, freshSave, seeded, STEP } from './helpers.mjs';
 
 const bossFloor = (sp = 'guerrero') => {
-  const x = new Expedition({ dungeonId: 'bosque', seed: 11, members: [{ id: 'a', name: 'A', profile: freshSave(sp) }], random: seeded(4) });
+  const x = new Expedition({ dungeonId: 'cienaga', seed: 11, members: [{ id: 'a', name: 'A', profile: freshSave(sp) }], random: seeded(4) });
   x.loadStep(x.seq.length - 1); x.drainEvents();
   const p = x.members.get('a').player; p.maxHp = p.hp = 99999;
   return { x, p, b: x.boss };
@@ -47,7 +47,7 @@ test('furia al 30 %: una sola vez, pausa la simulación para todos y la reanuda;
 });
 
 test('en cooperativo el ajuste de PS al salir alguien no quita la furia', () => {
-  const x = new Expedition({ dungeonId: 'bosque', seed: 11, members: [{ id: 'a', name: 'A', profile: freshSave() }, { id: 'b', name: 'B', profile: freshSave('mago') }], random: seeded(4) });
+  const x = new Expedition({ dungeonId: 'cienaga', seed: 11, members: [{ id: 'a', name: 'A', profile: freshSave() }, { id: 'b', name: 'B', profile: freshSave('mago') }], random: seeded(4) });
   x.loadStep(x.seq.length - 1);
   const b = x.boss; b.aggro = true; b.hp = Math.floor(b.maxHp * .2); x.step(STEP);
   const enraged = b.dmgMul; x.removeMember('b');

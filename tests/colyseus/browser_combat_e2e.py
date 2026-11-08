@@ -192,7 +192,7 @@ async def main():
             await live[2].screenshot(path=os.path.join(shots, 'combat_boons.png'))
 
             # --- Guardián: mismo estado para todos y aviso de fase 2
-            boss = st.ctl('boss')
+            boss = st.ctl('dungeon', id='cienaga', step='boss')   # guardián clásico (fase 2 al 50 %, furia al 30 %); los de BossKit tienen su prueba
             await asyncio.gather(*[p.wait_for_function(f"MysteryAction.floorRT && MysteryAction.floorRT.boss && MysteryAction.floorRT.boss.netId === {json.dumps(boss['id'])}", timeout=10000) for p in live])
             st.ctl('bossHurt', frac=.45)
             await asyncio.gather(*[p.wait_for_function("MysteryAction.floorRT.boss.netPhase === 2", timeout=6000) for p in live])

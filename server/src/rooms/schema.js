@@ -29,7 +29,7 @@ export const ZoneState = schema({ x: t.float32(), y: t.float32(), r: t.float32()
 export const DoorState = schema({ open: t.boolean() }, 'DoorState');
 /** Guardián del piso: lo mismo para todos (PS, fase 1/2 y el patrón que está preparando). */
 export const BossState = schema({ id: t.string(), alive: t.boolean(), hp: t.uint16(), maxHp: t.uint16(), phase: t.uint8(), state: t.string(), pattern: t.string(), rage: t.boolean(),
-  stage: t.uint8(), hits: t.uint8(), rocks: t.string() }, 'BossState');   // stage/hits/rocks: combate de la Reina Geoda
+  stage: t.uint8(), hits: t.uint8(), rocks: t.string(), bk: t.string() }, 'BossState');   // bk: jefes de BossKit (fase|estado|vulnerable|choques|necesarios|motivo)   // stage/hits/rocks: combate de la Reina Geoda
 
 export const ExpeditionState = schema({
   phase: t.string().default('lobby'),       // lobby | playing | ended

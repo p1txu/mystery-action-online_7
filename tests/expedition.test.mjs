@@ -400,7 +400,7 @@ test('ataques de los enemigos: aviso sincronizado (dirección y punto) y un even
 });
 
 test('jefe: mismo estado para todos (PS, fase y patrón) y aviso de fase 2 una sola vez', () => {
-  const x = make({ seed: 11 }); x.loadStep(x.seq.length - 1); x.drainEvents();
+  const x = make({ seed: 11, dungeonId: 'cienaga' }); x.loadStep(x.seq.length - 1); x.drainEvents();   // guardián clásico (fase 2 al 50 %)
   for (const m of x.members.values()) { m.player.maxHp = m.player.hp = 99999; }
   const b = x.boss; assert.ok(b && b.kind.isBoss);
   let v = x.view().boss;

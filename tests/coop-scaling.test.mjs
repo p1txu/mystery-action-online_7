@@ -48,7 +48,7 @@ test('más jugadores ⇒ más enemigos en el piso, con más PS y más daño', ()
 });
 
 test('el guardián escala con bossHp; si alguien sale del grupo, los enemigos se reajustan conservando su proporción', () => {
-  const x = make(4, 11); x.loadStep(x.seq.length - 1); x.drainEvents();
+  const x = new Expedition({ dungeonId: 'cienaga', seed: 11, members: party(4), random: seeded(3) }); x.loadStep(x.seq.length - 1); x.drainEvents();   // guardián clásico (los de BossKit escalan con BossKit.COOP_HP)
   const b = x.boss; assert.equal(b.maxHp, Math.round(b.netBaseMaxHp * coopScaling(4).bossHp));
   b.hp = Math.round(b.maxHp / 2);
   x.removeMember('p3');

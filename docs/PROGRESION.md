@@ -12,7 +12,7 @@
 | Bosque Brumoso | 5 | 3–5 | Robletón (7) | — |
 | Gruta de Cuarzo | 6 | 5–7 | Reina Geoda (9) | Bosque |
 | Ciénaga Sombría (nueva) | 7 | 8–11 | Ciénago (13) | Gruta |
-| Mina Olvidada (nueva) | 8 | 11–14 | Picoferro (16) | Ciénaga |
+| Mina Olvidada (nueva) | 8 | 11–14 | Gromgar, el Quebrantamontañas (16) | Ciénaga |
 | Cráter Ceniciento | 10 | 14–18 | Magmatrón (20) | Mina |
 
 Las partidas antiguas que ya habían completado una mazmorra la conservan abierta (`dungeonOpen`).

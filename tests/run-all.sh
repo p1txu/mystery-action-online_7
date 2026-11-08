@@ -28,6 +28,7 @@ if command -v python3 >/dev/null && python3 -c "import playwright" 2>/dev/null; 
   python3 tests/e2e/rules_parity.py tests/.tmp/prototype.html
   python3 tests/e2e/escorts.py tests/.tmp/prototype.html                              # mercader Tobías escondido junto al jefe, cartero Lino por la ruta y huida lenta, Gruta ×3 PS, velocidades
   python3 tests/e2e/world_art.py tests/.tmp/prototype.html                            # aldea y mazmorras pintadas: colisiones = dibujo, caminos libres, profundidad, biomas, cofres
+  python3 tests/e2e/boss_gromgar.py tests/.tmp/prototype.html                          # Gromgar sin red: avisos, furia, aturdido, derribado, muerte limpia, trofeo una vez
   python3 tests/e2e/dungeon_ch1.py tests/.tmp/prototype.html                          # mazmorra del capítulo 1 jugada: palancas, puentes, placas de tiempo, paredes falsas, emboscada, minijefe, textos; mismo piso en navegador y Node
   python3 tests/e2e/hero_sprites.py tests/.tmp/prototype.html                          # héroes en pixel art: 920 fotogramas, sin cortes, pies anclados, 8 direcciones, paleta
   SHOT_DIR=tests/.tmp python3 tests/e2e/netplay_e2e.py tests/.tmp/prototype.html
@@ -35,6 +36,7 @@ if command -v python3 >/dev/null && python3 -c "import playwright" 2>/dev/null; 
   SHOT_DIR=tests/.tmp python3 tests/colyseus/browser_account_e2e.py
   SHOT_DIR=tests/.tmp python3 tests/colyseus/browser_combat_e2e.py
   SHOT_DIR=tests/.tmp python3 tests/colyseus/browser_drop_e2e.py                     # dejar un objeto en el suelo para un compañero
+  SHOT_DIR=tests/.tmp python3 tests/colyseus/browser_gromgar_e2e.py                  # Gromgar en cooperativo con 280 ms de latencia: furia, rocas iguales, choques, derribado, muerte en mitad de un ataque
   SHOT_DIR=tests/.tmp python3 tests/colyseus/browser_geoda_e2e.py                    # Gruta en cooperativo: Pico Cartero y Reina Geoda (rocas, aturdida, salto)
   SHOT_DIR=tests/.tmp python3 tests/colyseus/browser_revive_e2e.py                   # caer y reanimar: la partida del caído no se cierra; Ana lo reanima
   SHOT_DIR=tests/.tmp python3 tests/colyseus/browser_social_e2e.py                   # siempre online: amigos, grupo, aldea compartida, chat y mazmorra en grupo (3 navegadores)

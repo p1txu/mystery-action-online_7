@@ -119,8 +119,8 @@ test('si sigue viva al acabar el aturdimiento salta y derriba de un golpe (aunqu
   assert.ok(ev.includes('leap') && ev.includes('land'));
 });
 
-test('los demás guardianes conservan la furia del 30 % (sin rocas)', () => {
-  const x = new Expedition({ dungeonId: 'bosque', seed: 11, members: [{ id: 'a', name: 'A', profile: freshSave() }], random: seeded(4) });
+test('los demás guardianes conservan la furia del 30 % (sin rocas)', () => {   // (el Bosque y la Mina usan ya BossKit: tests/bosses.test.mjs)
+  const x = new Expedition({ dungeonId: 'cienaga', seed: 11, members: [{ id: 'a', name: 'A', profile: freshSave() }], random: seeded(4) });
   x.loadStep(x.seq.length - 1); x.drainEvents(); const b = x.boss; b.aggro = true;
   b.hp = Math.floor(b.maxHp * .59); x.step(STEP); assert.ok(!b.enraged);
   b.hp = Math.floor(b.maxHp * .29); x.step(STEP); assert.equal(b.enraged, true);

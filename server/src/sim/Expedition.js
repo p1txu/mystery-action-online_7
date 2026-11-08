@@ -85,7 +85,7 @@ export class Expedition {
 
   /* ---------- Dificultad según el número de jugadores (COOP_SCALING) ---------- */
   setScaling(n) {
-    this.coop = coopScaling(n); this.coopN = Math.max(1, Math.min(MAX_PLAYERS, n));
+    this.coop = coopScaling(n); this.coopN = Math.max(1, Math.min(MAX_PLAYERS, n)); if (this.g) this.g.partyN = this.coopN;
     for (const a of this.g ? this.g.actors : []) if (a.netId && a.alive && a instanceof this.E.Enemy) this.scaleEnemy(a);
   }
   coopInfo() { return { players: this.coopN, hp: this.coop.hp, bossHp: this.coop.bossHp, dmg: this.coop.dmg, count: this.coop.count, text: coopSummary(this.coopN) }; }
@@ -93,9 +93,10 @@ export class Expedition {
   scaleEnemy(e) {
     if (e.netBaseMaxHp == null) { e.netBaseMaxHp = e.maxHp; e.netBaseDmg = e.dmgMul; }
     const c = this.coop, ratio = e.maxHp > 0 ? e.hp / e.maxHp : 1;
-    e.maxHp = Math.max(1, Math.round(e.netBaseMaxHp * (e.kind.isBoss ? c.bossHp : c.hp)));
+    const bk = e.kind.bk ? this.E.BossKit : null, n = this.coopN || 1;   // jefes de BossKit: vida moderada, el grupo recibe más ataques
+    e.maxHp = Math.max(1, Math.round(e.netBaseMaxHp * (bk ? bk.COOP_HP[n - 1] : e.kind.isBoss ? c.bossHp : c.hp)));
     e.hp = Math.max(1, Math.min(e.maxHp, Math.round(ratio * e.maxHp)));
-    e.dmgMul = e.netBaseDmg * c.dmg * (e.enraged ? E_RAGE_DMG(this) : 1);
+    e.dmgMul = e.netBaseDmg * (bk ? bk.COOP_DMG[n - 1] * (bk.st(e).dmgK || 1) : c.dmg * (e.enraged ? E_RAGE_DMG(this) : 1));
   }
   /** ¿Sale élite? La probabilidad base del motor más el extra del grupo. */
   rollElite(base) { return !!base || (this.coop.elite > 0 && this.random() < this.coop.elite); }
@@ -113,9 +114,10 @@ export class Expedition {
     this.floor = { kind, floorNo: st.floorNo, genNo, size, windLimit: Math.round(this.dng.wind * E.FloorGen.size(size).wind), time: 0, wind: 0, spawnT: 40, mh: false, warp: null };
     this.g = createHeadlessGame(E, this.world, { onPlayerDown: p => this.onPlayerDown(p), onEnemyDown: e => this.onEnemyDown(e) });
     // Furia del guardián: la simulación se detiene para TODOS mientras se ve la animación
-    this.g.onBossRage = (e, stage = 0) => { this.pauseT = E.BOSS_RAGE.pauses[stage] || E.BOSS_RAGE.pause; this.emit('bossRage', { id: e.netId, stage }); };
+    this.g.onBossRage = (e, stage = 0) => { const ph = e.kind.bk ? E.BossKit.def(e).phases[stage] : null; this.pauseT = ph ? ph.pause || E.BOSS_RAGE.pause : E.BOSS_RAGE.pauses[stage] || E.BOSS_RAGE.pause; this.emit('bossRage', { id: e.netId, stage }); };
+    this.g.partyN = this.coopN;   // los jefes de BossKit adaptan patrones y rocas al tamaño del grupo
     // Reina Geoda: choques contra las rocas, aturdimiento, salto y aterrizaje (solo avisos: el estado va en bossView)
-    this.g.onBossEvent = (e, what, info) => this.emit('bossEvent', { id: e.netId, what, hits: (info && info.hits) || 0 });
+    this.g.onBossEvent = (e, what, info) => this.emit('bossEvent', { id: e.netId, what, hits: (info && info.hits) || 0, need: (info && info.need) || 0, why: (info && info.why) || '' });
     // Enemigos del piso (como FloorRT.spawnInitial; los forajidos y vecinos de misiones no van online)
     const lvl = E.enemyLevel(this.dng, st.floorNo);
     for (const s of this.L.enemies) {
@@ -411,7 +413,7 @@ export class Expedition {
     // rocks: «id:tx:ty:ps:caída» de cada roca de la Reina Geoda (caída > 0 = aún cayendo)
     const rocks = (this.g.boulders || []).map(r => `${r.id}:${r.tx}:${r.ty}:${r.hp}:${Math.max(0, Math.round(r.fall * 10) / 10)}`).join(',');
     return { id: b.netId, alive: b.alive, hp: Math.max(0, Math.ceil(b.hp)), maxHp: b.maxHp, phase: b.hp < b.maxHp * .5 ? 2 : 1, rage: !!b.enraged, state: b.state || '', pattern: b.state === 'windup' || b.state === 'charging' ? (b.pattern || '') : '',
-      stage: b.geodaStage || 0, hits: b.rockHits || 0, rocks };
+      stage: b.kind.bk ? this.E.BossKit.st(b).phase : b.geodaStage || 0, hits: b.kind.bk ? this.E.BossKit.st(b).hits : b.rockHits || 0, rocks, bk: b.kind.bk ? this.E.BossKit.view(b) : '' };
   }
   spawnWanderer(awake) {
     const E = this.E, enemies = this.g.actors.filter(a => a.team === 'enemy' && a.alive).length;
@@ -564,6 +566,7 @@ export class Expedition {
       else this.quest(m, 'expedition', { floor: m.rewards.maxFloor });
       if (result === 'clear') {
         const bonus = 80 + 60 * E.DUNGEONS.indexOf(this.dng); this.gainExp(m, bonus); lines.push(`Recompensa por vencer al guardián: ${bonus} EXP.`);
+        if (!m.bossGranted) { m.bossGranted = true; lines.push(...E.BossKit.grant(s, this.dng.boss, p.bag)); }   // trofeo único y progreso, una vez
         if (!s.cleared.includes(this.dng.id)) { s.cleared.push(this.dng.id); s.points += 50; lines.push(`¡Primera vez que completas ${this.dng.name}! +50 puntos de rango.`); }
       }
     } else {
@@ -599,7 +602,7 @@ export class Expedition {
     for (const a of this.g.actors) {
       if (!a.netId || !a.alive || !(a instanceof this.E.Enemy)) continue;
       enemies.push({ id: a.netId, kind: a.netKind, x: r1(a.x), y: r1(a.y), fx: r1(a.facing.x), fy: r1(a.facing.y), hp: Math.ceil(a.hp), maxHp: a.maxHp, level: a.level, elite: !!a.elite, state: a.state, timer: r1(a.timer || 0), wind: r1(a.windupTime || 1), aggro: !!a.aggro,
-        pattern: a.pattern || '', ax: r1(a.atk && Number.isFinite(a.atk.x) ? a.atk.x : 0), ay: r1(a.atk && Number.isFinite(a.atk.y) ? a.atk.y : 0), gx: r1(a.target ? a.target.x : 0), gy: r1(a.target ? a.target.y : 0) });
+        pattern: a.pattern || '', ax: r1(a.atk && Number.isFinite(a.atk.x) ? a.atk.x : 0), ay: r1(a.atk && Number.isFinite(a.atk.y) ? a.atk.y : 0), gx: r1(a.aimPt ? a.aimPt.x : a.target ? a.target.x : 0), gy: r1(a.aimPt ? a.aimPt.y : a.target ? a.target.y : 0) });
     }
     for (const pr of this.g.projectiles) if (!pr.netId) pr.netId = 's' + (this.nextId++);
     for (const z of this.g.zones) if (!z.netId) z.netId = 'z' + (this.nextId++);
