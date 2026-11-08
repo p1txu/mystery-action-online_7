@@ -14,7 +14,8 @@ def check(n, ok, info=''):
     R.append(bool(ok)); print(('PASS ' if ok else 'FAIL ') + n, json.dumps(info, ensure_ascii=False)[:420] if info != '' else '', flush=True)
 VIEW = """(() => { const G = MysteryAction, n = G.net; return { state: G.state, screen: UI.current, active: !!(n && n.active), alive: !!(G.player && G.player.alive),
   floor: G.floorRT ? G.floorRT.label : null, result: !document.getElementById('result').hidden, defeat: !document.getElementById('defeat').hidden,
-  remotes: n ? [...n.remotes.values()].map(r => ({ name: r.nameTag, alive: r.alive, revive: r.netRevive })) : [] }; })()"""
+  remotes: n ? [...n.remotes.values()].map(r => ({ name: r.nameTag, alive: r.alive, revive: r.netRevive, bleed: r.netBleed })) : [],
+  banner: (() => { const el = document.getElementById('net-down'); return el && !el.hidden ? el.textContent : ''; })() }; })()"""
 
 async def main():
     shots = os.environ.get('SHOT_DIR', '.')
@@ -66,6 +67,11 @@ async def main():
             await B.wait_for_timeout(6000)
             vb = await B.evaluate(VIEW); srv = st.ctl('state')
             beto = next(p for p in srv['players'] if p['name'] == 'Beto')
+            import re
+            bm = re.search(r'\((\d+) s\)', vb['banner'] or '')
+            check('Beto ve cuánto aguanta sin ayuda (cuenta atrás de 45 s que va bajando)', bm and 30 <= int(bm.group(1)) <= 40, vb['banner'])
+            va = await A.evaluate(VIEW)
+            check('Ana ve la misma cuenta atrás sobre Beto', any(x['name'] == 'Beto' and 30 <= (x['bleed'] or 0) <= 40 for x in va['remotes']), va['remotes'])
             check('8 s después sigue en la partida (conectado en el servidor y en el navegador)', vb['state'] == 'play' and vb['active'] and not vb['result'] and beto.get('connected', True) and srv['clients'] == 2, {'view': vb, 'clients': srv['clients']})
 
             # --- Ana lo reanima
@@ -78,6 +84,8 @@ async def main():
             check('tras 2,5 s a su lado el servidor reanima a Beto (35 % de PS)', not m2['downed'] and m2['hp'] > 0, m2)
             await B.wait_for_function("MysteryAction.player && MysteryAction.player.alive", timeout=4000)
             await B.screenshot(path=os.path.join(shots, 'revive_reanimado.png'))
+            vb = await B.evaluate(VIEW)
+            check('al volver desaparece el aviso de caído', vb['banner'] == '', vb['banner'])
             p0 = st.ctl('member', name='Beto')
             await B.click('#view'); await B.keyboard.down('ArrowDown'); await B.wait_for_timeout(700); await B.keyboard.up('ArrowDown'); await B.wait_for_timeout(300)
             p1 = st.ctl('member', name='Beto')

@@ -142,8 +142,11 @@ test('servidor: un cofre se abre una sola vez aunque lleguen dos jugadores; el a
   for (const id of ['a', 'b']) { const p = x.members.get(id).player; p.placeAt(ch.x, ch.y + 4); }
   const items0 = x.items.size; run(x, .3); run(x, .3);
   const ev = x.drainEvents().filter(e => e.type === 'chest');
-  assert.equal(ev.length, 1); assert.ok(ev[0].loot && (ev[0].loot.gems > 0 || ev[0].loot.items.length));
-  assert.ok(x.items.size > items0 || ev[0].loot.items.length === 0, 'el botín aparece en el suelo, para el grupo');
+  // Botín individual (0.41): se abre una vez, pero cada integrante recibe SU tirada y SU aviso
+  assert.equal(ev.length, 2); assert.deepEqual(ev.map(e => e.to).sort(), ['a', 'b']);
+  for (const e of ev) assert.ok(e.loot && (e.loot.gems > 0 || e.loot.items.length));
+  assert.ok(x.items.size > items0, 'el botín aparece en el suelo');
+  for (const it of x.items.values()) if (it.key.startsWith('d')) assert.ok(['a', 'b'].includes(it.owner), 'cada objeto tiene dueño');
   run(x, 1); assert.equal(x.drainEvents().filter(e => e.type === 'chest').length, 0, 'no se repite');
 });
 

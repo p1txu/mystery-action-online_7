@@ -113,12 +113,20 @@ const control = {
   finish({ result = 'return' } = {}) { const X = playing().exp; X.finish(result); return { ok: true }; },
   /** Hub social: grupos y quién ve a quién (lo que decide el servidor). */
   hub() { const H = app.hub; if (!H) return { ready: false }; return { ready: true, online: [...H.conns.values()].filter(c => c.online).map(c => ({ name: c.account.name, where: H.presenceOf(c.account.id).where, pos: c.pos })), parties: [...H.parties.values()].map(p => ({ leader: H.conns.get(p.leader)?.account.name, members: p.members.map(m => H.conns.get(m)?.account.name || m) })) }; },
+  /** Prepara el perfil de un jugador conectado al hub (mazmorras superadas y punto de control) en la base de datos. */
+  async seed({ name, cleared, resume }) {
+    const c = [...app.hub.conns.values()].find(x => x.account && x.account.name === name); if (!c) throw new Error('No conectado: ' + name);
+    const r = await app.store.mutateProfile(c.account.id, save => { if (cleared) save.cleared = cleared; if (resume !== undefined) save.resume = resume ? { dungeon: resume, at: Date.now() } : null; return { save }; }, { origin: 'test' });
+    return { version: r.version };
+  },
+  async profile({ name }) { const c = [...app.hub.conns.values()].find(x => x.account && x.account.name === name); const p = await app.store.getProfile(c.account.id); return { resume: p.save.resume || null, cleared: p.save.cleared, rewards: (await app.store.listRewards(c.account.id)).length }; },
+  lobby() { const r = [...app.registry.rooms.values()].find(q => q.state.phase === 'lobby' && q.members.size > 1); return r ? { resume: r.state.resume, dungeon: r.state.dungeon, players: [...r.state.players.values()].map(p => ({ name: p.name, companion: p.companion, checkpoint: p.checkpoint })) } : null; },
   freeze({ on }) { const r = playing(); r.frozen = !!on; if (on) r.sync(); return { frozen: r.frozen }; },
 };
 createServer(async (req, res) => {
   if (req.url.startsWith('/__test/')) {
     const u = new URL(req.url, 'http://x'), op = u.pathname.slice(8), args = JSON.parse(u.searchParams.get('a') || '{}');
-    try { const out = control[op](args); res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify(out)); }
+    try { const out = await control[op](args); res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify(out)); }
     catch (e) { res.writeHead(500, { 'content-type': 'application/json' }); res.end(JSON.stringify({ error: String(e.stack || e) })); }
     return;
   }

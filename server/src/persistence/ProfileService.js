@@ -70,6 +70,16 @@ export class ProfileService {
       throw e;
     }
   }
+  /**
+   * Punto de control de una expedición en curso: solo escribe `save.resume` (nada de botín ni EXP:
+   * eso llega con el resultado). Así, si el servidor cae sin poder cerrar la sala, el grupo puede
+   * continuar desde el punto de control. Devuelve la versión nueva del perfil.
+   */
+  async checkpoint(accountId, resume, expectedVersion) {
+    const fn = save => { const out = JSON.parse(JSON.stringify(save)); out.resume = resume ? { dungeon: resume.dungeon, at: resume.at } : null; const clean = this.E.Save.sanitize(out); if (!clean.ok) throw new Error('Punto de control no válido'); return { save: clean.data }; };
+    try { return await this.store.mutateProfile(accountId, fn, { origin: 'checkpoint', expectedVersion }); }
+    catch (e) { if (!(e instanceof VersionConflict)) throw e; log.warn('profile.changed_during_expedition', { account: shortId(accountId), at: 'checkpoint', version: e.current }); return this.store.mutateProfile(accountId, fn, { origin: 'checkpoint' }); }
+  }
   async fail(accountId, error, conflict = false) { const p = await this.get(accountId); return { error, conflict, save: p && p.save, version: p && p.version }; }
   /**
    * Recompensa individual de una expedición. Idempotente: (expeditionId, cuenta) solo se aplica una vez.

@@ -1,4 +1,4 @@
-// GENERADO por tools/split-prototype.mjs a partir de prototype/mystery-action.html (sha256 ff47138f3ff5fba0).
+// GENERADO por tools/split-prototype.mjs a partir de prototype/mystery-action.html (sha256 f6c33b12051f4e40).
 // No lo edites a mano: cambia el prototipo y vuelve a ejecutar «npm run split».
 /* eslint-disable */
 /**
@@ -2946,6 +2946,8 @@ function bossTelegraph(c, e, x, y, g) {
    vulnerabilidad con su motivo, resistencias, escalado por jugadores, anti-atasco, limpieza al morir,
    vista para la red y recompensas persistentes. Lo propio de cada jefe va en BossKit.DEFS[id]. */
 const BOSS_MIN_TELE = .6;   // ningún ataque avisa menos que esto (s)
+const RESUME_TTL = 7 * 864e5;   // un punto de control en línea dura 7 días
+const TARGET_SPREAD = .3;   // en grupo: cada enemigo que ya persigue a un héroe lo hace un 30 % «más lejano» para los demás
 const BossKit = {
   DEFS: {},
   /** Escalado moderado por jugadores (1-4): poca vida extra; el grupo recibe ataques y oportunidades nuevas. */
@@ -3470,10 +3472,12 @@ class Enemy extends Actor {
     const P = g.player;
     if (this.team !== 'enemy' || !g.allies || !g.allies.length) return P;
     const cur = this.target;
-    let best = P && P.alive ? P : null, bd = best ? Math.hypot(P.x - this.x, P.y - this.y) * (cur === P ? .8 : 1) : Infinity;
+    // En grupo (servidor) se reparten: cuantos más enemigos persiguen ya a alguien, menos atractivo resulta para los demás.
+    const L = g.targetLoad, load = a => L ? 1 + TARGET_SPREAD * Math.max(0, (L.get(a) || 0) - (a === cur ? 1 : 0)) : 1;   // sin contarse a sí mismo
+    let best = P && P.alive ? P : null, bd = best ? Math.hypot(P.x - this.x, P.y - this.y) * (cur === P ? .8 : 1) * load(P) : Infinity;
     for (const a of g.allies) {
       if (!a.alive) continue;
-      let d = Math.hypot(a.x - this.x, a.y - this.y);
+      let d = Math.hypot(a.x - this.x, a.y - this.y) * load(a);
       if (a.taunt && d < 150) d *= .35;
       if (a === cur) d *= .8;              // no cambia de objetivo a cada momento
       if (d < bd) { bd = d; best = a; }
@@ -4240,6 +4244,8 @@ const Save = {
     out.points = toInt(raw.points, 0);
     out.cleared = Array.isArray(raw.cleared) ? [...new Set(raw.cleared.filter(id => dungeonById(id)))] : [];
     out.bosses = BossKit.sanitize(raw.bosses);   // progreso de jefes: victorias y trofeo único
+    // Punto de control de una expedición en línea interrumpida (lo escribe solo el servidor; caduca a los 7 días)
+    { const r = raw.resume, d = r && typeof r === 'object' && dungeonById(r.dungeon); out.resume = d && d.waypoint > 0 && Number.isFinite(r.at) && r.at > 0 && Date.now() - r.at < RESUME_TTL ? { dungeon: d.id, at: Math.floor(r.at) } : null; }
     for (const k of ['runs', 'delivered', 'sold', 'bought', 'rests']) out[k] = toInt(raw[k], 0);
     // ¿Ya vio la llegada a la aldea (carretilla y alcalde)? Las partidas de antes de esta escena que ya han jugado, sí.
     out.arrived = raw.arrived === true || (raw.arrived !== false && (out.runs > 0 || out.cleared.length > 0 || out.prog.level > 1));
@@ -5523,4 +5529,4 @@ const Quests = {
 
   return { CONFIG, U, T, SOLID, TILE_NAMES, World, Particles, CLASSES, CLASS_STATS, ELITE, eliteChance, floorEnemies, FAMILIES, Deco, Terrain, ALLY_ABILITY, canEquip, OLD_EQUIP_SLOTS, FRACTION_STATS, fmtStat, DMG, classMoves, groundTarget, SPECIES, EVOLVED, FORMS, Progress, EVOLUTIONS, EVO_ITEM_MIN_LEVEL, Combat, Effects, Projectile, Zone, BLOCKS_SHOT, TYPES, TYPE_CHART, typeEff, calcStats, MAX_LEVEL, expNeed, expYield, MOVES, BossKit, BossArena, GROMGAR, BOSS_MIN_TELE, DungeonPlan, Prefabs, MechSolver, Mechs, LORE, SOLVER_TILES_PER_S, BOONS, Boons, BOSS_RAGE, GEODA, Geoda, Boulder, Actor, Player, Enemy, STOP, ENEMIES, ENEMY_VARIANTS, makeKind, BOSSES, makeBossKind, BIOMES, RARITIES, CATEGORIES, EQUIP_SLOTS, ITEMS, QUICK, RARITY_ORDER, STAT_NAMES, BASE_SHOP, SHOP_TIERS, shopStock, sellPrice, RECIPES, newUid, LOOT, Loot, Inventory, finalStats, freshEquip, equipRegen, TRAPS, DUNGEONS, dungeonById, dungeonOpen, COURIER_INTRO, enemyLevel, RANKS, rankOf, weighted, Jobs, ECONOMY, SAVE_VERSION, checksum, Save, FloorGen, hashStr, RECRUIT, ORDERS, gridPath, Companion, LEGACY_JOBS, isLegacyJob, Quests };
 }
-export const SOURCE_HASH = 'ff47138f3ff5fba0';
+export const SOURCE_HASH = 'f6c33b12051f4e40';

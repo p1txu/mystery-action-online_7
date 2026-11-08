@@ -1,4 +1,4 @@
-// GENERADO por tools/split-prototype.mjs a partir de prototype/mystery-action.html (sha256 ff47138f3ff5fba0).
+// GENERADO por tools/split-prototype.mjs a partir de prototype/mystery-action.html (sha256 f6c33b12051f4e40).
 // No lo edites a mano: cambia el prototipo y vuelve a ejecutar «npm run split».
 
 'use strict';
@@ -2968,6 +2968,8 @@ function bossTelegraph(c, e, x, y, g) {
    vulnerabilidad con su motivo, resistencias, escalado por jugadores, anti-atasco, limpieza al morir,
    vista para la red y recompensas persistentes. Lo propio de cada jefe va en BossKit.DEFS[id]. */
 const BOSS_MIN_TELE = .6;   // ningún ataque avisa menos que esto (s)
+const RESUME_TTL = 7 * 864e5;   // un punto de control en línea dura 7 días
+const TARGET_SPREAD = .3;   // en grupo: cada enemigo que ya persigue a un héroe lo hace un 30 % «más lejano» para los demás
 const BossKit = {
   DEFS: {},
   /** Escalado moderado por jugadores (1-4): poca vida extra; el grupo recibe ataques y oportunidades nuevas. */
@@ -3492,10 +3494,12 @@ class Enemy extends Actor {
     const P = g.player;
     if (this.team !== 'enemy' || !g.allies || !g.allies.length) return P;
     const cur = this.target;
-    let best = P && P.alive ? P : null, bd = best ? Math.hypot(P.x - this.x, P.y - this.y) * (cur === P ? .8 : 1) : Infinity;
+    // En grupo (servidor) se reparten: cuantos más enemigos persiguen ya a alguien, menos atractivo resulta para los demás.
+    const L = g.targetLoad, load = a => L ? 1 + TARGET_SPREAD * Math.max(0, (L.get(a) || 0) - (a === cur ? 1 : 0)) : 1;   // sin contarse a sí mismo
+    let best = P && P.alive ? P : null, bd = best ? Math.hypot(P.x - this.x, P.y - this.y) * (cur === P ? .8 : 1) * load(P) : Infinity;
     for (const a of g.allies) {
       if (!a.alive) continue;
-      let d = Math.hypot(a.x - this.x, a.y - this.y);
+      let d = Math.hypot(a.x - this.x, a.y - this.y) * load(a);
       if (a.taunt && d < 150) d *= .35;
       if (a === cur) d *= .8;              // no cambia de objetivo a cada momento
       if (d < bd) { bd = d; best = a; }
@@ -4262,6 +4266,8 @@ const Save = {
     out.points = toInt(raw.points, 0);
     out.cleared = Array.isArray(raw.cleared) ? [...new Set(raw.cleared.filter(id => dungeonById(id)))] : [];
     out.bosses = BossKit.sanitize(raw.bosses);   // progreso de jefes: victorias y trofeo único
+    // Punto de control de una expedición en línea interrumpida (lo escribe solo el servidor; caduca a los 7 días)
+    { const r = raw.resume, d = r && typeof r === 'object' && dungeonById(r.dungeon); out.resume = d && d.waypoint > 0 && Number.isFinite(r.at) && r.at > 0 && Date.now() - r.at < RESUME_TTL ? { dungeon: d.id, at: Math.floor(r.at) } : null; }
     for (const k of ['runs', 'delivered', 'sold', 'bought', 'rests']) out[k] = toInt(raw[k], 0);
     // ¿Ya vio la llegada a la aldea (carretilla y alcalde)? Las partidas de antes de esta escena que ya han jugado, sí.
     out.arrived = raw.arrived === true || (raw.arrived !== false && (out.runs > 0 || out.cleared.length > 0 || out.prog.level > 1));
@@ -11532,7 +11538,7 @@ class RemotePlayer extends Player {
     c.save(); if (this.netConnected === false) c.globalAlpha = .45;
     super.draw(c, g, 1); c.restore();
     const left = this.netHold ? Math.max(0, Math.ceil((this.netHold - Date.now()) / 1000)) : 0;
-    const lbl = this.nameTag + (this.netConnected !== false ? '' : ' · sin conexión' + (left ? ` (${left} s)` : '')) + (!this.alive ? ' · caído' : '');
+    const lbl = this.nameTag + (this.netConnected !== false ? '' : ' · sin conexión' + (left ? ` (${left} s)` : '')) + (!this.alive ? (this.netBleed < 0 ? ' · fuera hasta el próximo piso' : ' · caído' + (this.netBleed > 0 ? ` (${Math.ceil(this.netBleed)} s)` : '')) : '');
     g.renderer.label(lbl, this.x, this.y - this.height * CONFIG.CREATURE_SCALE - 6, this.alive ? '#e0c27a' : '#ef8b7b', 7.5);
     if (!this.alive && this.netRevive > 0) { c.fillStyle = 'rgba(10,8,6,.85)'; c.fillRect(this.x - 15, this.y + 8, 30, 4); c.fillStyle = '#9be36b'; c.fillRect(this.x - 14, this.y + 9, 28 * this.netRevive, 2); }
   }
@@ -11698,6 +11704,16 @@ class NetPlay {
     if (this.lastState) this.applyState(this.lastState);
   }
   /** Estado completo recibido (forma JSON del esquema: mapas por id). */
+  /** Aviso propio mientras estás caído: cuánto aguantas sin ayuda y cuánto falta para que te reanimen. */
+  downBanner(me) {
+    let el = document.getElementById('net-down');
+    if (!me.downed) { if (el) el.hidden = true; return; }
+    if (!el) { el = document.createElement('div'); el.id = 'net-down'; el.style.cssText = 'position:fixed;left:50%;top:22%;transform:translateX(-50%);padding:8px 14px;background:rgba(20,12,10,.82);border:1px solid #ef8b7b;border-radius:8px;color:#f3dcc8;font:600 14px system-ui;z-index:30;text-align:center;pointer-events:none'; document.body.appendChild(el); }
+    el.hidden = false;
+    el.textContent = me.bleed < 0 ? 'Fuera de combate: vuelves al llegar al siguiente piso.'
+      : me.revive > 0 ? `Te están reanimando… ${Math.round(me.revive * 100)} %`
+      : `Caído: un compañero puede reanimarte (${Math.ceil(me.bleed || 0)} s)` + (me.revives ? ` · reanimado ${me.revives} ${me.revives > 1 ? 'veces' : 'vez'} en este piso` : '');
+  }
   applyState(st) {
     this.lastState = st;
     const g = this.g, f = g.floorRT, p = g.player;
@@ -11722,7 +11738,7 @@ class NetPlay {
       if (Array.isArray(me.moves) && me.moves.join() !== p.moves.join()) { p.moves = me.moves.slice(0, 4); UI.buildRun(g); }
       if (me.downed && p.alive) { p.alive = false; p.dash = null; p.windup = null; UI.toast('Has caído. Un compañero puede reanimarte quedándose a tu lado.', '#ef8b7b'); }
       else if (!me.downed && !p.alive) { p.alive = true; p.iframes = 1; }
-      this.myRevive = me.revive;
+      this.myRevive = me.revive; this.downBanner(me);
     }
     // Otros jugadores
     const seen = new Set();
@@ -11731,7 +11747,7 @@ class NetPlay {
       let r = this.remotes.get(id);
       if (!r) { r = new RemotePlayer(id, s); this.remotes.set(id, r); g.actors.push(r); }
       if (r.hp > s.hp && s.hp >= 0) Effects.damage(g, r, r.hp - s.hp, '#ffb3a8', 11);
-      r.push(s); r.hp = s.hp; r.maxHp = s.maxHp; r.alive = !s.downed; r.netConnected = s.connected; r.netHold = s.holdUntil || 0; r.netRevive = s.revive; r.level = s.level; r.nameTag = s.name;
+      r.push(s); r.hp = s.hp; r.maxHp = s.maxHp; r.alive = !s.downed; r.netConnected = s.connected; r.netHold = s.holdUntil || 0; r.netRevive = s.revive; r.netBleed = s.bleed || 0; r.level = s.level; r.nameTag = s.name;
     }
     for (const [id, r] of this.remotes) if (!seen.has(id)) { this.remotes.delete(id); g.actors = g.actors.filter(a => a !== r); }
     // Enemigos
@@ -11753,7 +11769,8 @@ class NetPlay {
     // Puertas de la cámara del tesoro
     for (const [key, d] of Object.entries(st.doors || {})) if (d.open) this.openDoor(key, true);
     // Objetos del suelo y del piso
-    const items = Object.entries(st.items || {}).map(([key, it]) => ({ key, id: it.id, amount: it.amount, tx: it.tx, ty: it.ty, x: (it.tx + .5) * 32, y: (it.ty + .5) * 32, taken: false }));
+    // Botín individual: cada uno ve (y recoge) lo suyo y lo que es de todos; lo de los demás no se dibuja
+    const items = Object.entries(st.items || {}).filter(([, it]) => !it.owner || it.owner === this.me).map(([key, it]) => ({ key, id: it.id, amount: it.amount, tx: it.tx, ty: it.ty, x: (it.tx + .5) * 32, y: (it.ty + .5) * 32, taken: false }));
     if (items.map(i => i.key + i.amount).join() !== f.items.map(i => i.key + i.amount).join()) { f.items = items; f.dirty = true; }
     for (const [key, o] of Object.entries(st.objects || {})) {
       let obj = f.objects.find(x => x.netKey === key);
@@ -11842,6 +11859,9 @@ class NetPlay {
       case 'courierNoise': if (this.floorInfo && f && g.run && !g.run.courier) CourierIntro.start(g, false); break;
       case 'down': UI.toast(ev.id === this.me ? 'Has caído' : `${this.nameOf(ev.id)} ha caído: quédate a su lado para reanimarlo`, '#ef8b7b'); Sfx.play('hurt'); break;
       case 'revived': UI.toast(ev.id === this.me ? `${this.nameOf(ev.by)} te ha reanimado` : `${this.nameOf(ev.id)} vuelve a la lucha`, '#9be36b'); break;
+      case 'resumed': UI.toast(`Continuáis desde el punto de control de ${ev.dungeon}`, '#9be36b'); break;
+      case 'checkpoint': UI.toast('Punto de control guardado: si el servidor se cae, podréis continuar desde aquí', '#9be36b'); break;
+      case 'bleedout': UI.toast(ev.id === this.me ? 'Has quedado fuera de combate: vuelves en el siguiente piso.' : `${this.nameOf(ev.id)} queda fuera de combate hasta el siguiente piso`, '#ef8b7b'); break;
       case 'dropped': break;   // el aviso con los segundos que se le guarda el sitio llega como «held»
       case 'reconnected': if (ev.id !== this.me) UI.toast(`${this.nameOf(ev.id)} ha vuelto`, '#9be36b'); break;
       case 'left': if (ev.id !== this.me) UI.toast(`${this.nameOf(ev.id)} ha abandonado la expedición`, '#f2b84b'); break;
@@ -11863,6 +11883,7 @@ class NetPlay {
       case 'bossRage': { const b = this.enemies.get(ev.id); if (b) { b.enraged = true; g.playRage(b, ev.stage || 0); } break; }
       case 'bossEvent': { const b = this.enemies.get(ev.id); if (b) g.bossNote(b, ev.what, { hits: ev.hits, need: ev.need, why: ev.why }); break; }
       case 'host': UI.toast(ev.id === this.me ? 'Ahora eres el anfitrión del grupo' : `${this.nameOf(ev.id)} es ahora el anfitrión`, '#a6e3ff'); break;
+      case 'companions': UI.toast(`${ev.names.join(', ')} va${ev.names.length > 1 ? 'n' : ''} como acompañante${ev.names.length > 1 ? 's' : ''}: ${ev.dungeon} no contará como superada para ${ev.names.length > 1 ? 'ellos' : 'él'} hasta que la desbloquee${ev.names.length > 1 ? 'n' : ''}`, '#d8c79a'); break;
       case 'held': if (ev.id !== this.me) UI.toast(`${this.nameOf(ev.id)} ha perdido la conexión: se le guarda el sitio ${ev.seconds} s`, '#f2b84b'); break;
       case 'shutdown': UI.toast('El servidor se está reiniciando: se ha guardado lo conseguido', '#f2b84b'); break;
       case 'quest': if (mine) UI.toast(`¡Misión completada! ${ev.title}. Entrégala en el gremio.`, '#7dffa0'); break;

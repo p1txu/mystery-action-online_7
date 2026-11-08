@@ -11,6 +11,8 @@ export const PlayerState = schema({
   hp: t.uint16(), maxHp: t.uint16(), exp: t.uint32(), energy: t.uint8(), belly: t.uint8(), gems: t.uint32(),
   downed: t.boolean(), revive: t.float32(), connected: t.boolean(), dash: t.boolean(), iframes: t.boolean(),
   ack: t.uint32(), basic: t.float32(), dodge: t.uint8(), holdUntil: t.float64(),   // holdUntil: hasta cuándo se le guarda el sitio (ms, 0 = conectado)
+  companion: t.boolean(), bleed: t.float32(), revives: t.uint8(), checkpoint: t.string(),   // checkpoint: mazmorra de su punto de control ('' = ninguno)
+    // acompañante (región sin desbloquear) · segundos de desangrado · reanimaciones en el piso
   cds: t.array('number'), moves: t.array('string'),
 }, 'PlayerState');
 
@@ -21,7 +23,7 @@ export const EnemyState = schema({
   pattern: t.string(), ax: t.float32(), ay: t.float32(), gx: t.float32(), gy: t.float32(),   // aviso de ataque: patrón, dirección y punto objetivo
 }, 'EnemyState');
 
-export const ItemState = schema({ id: t.string(), amount: t.uint16(), tx: t.uint16(), ty: t.uint16() }, 'ItemState');
+export const ItemState = schema({ id: t.string(), amount: t.uint16(), tx: t.uint16(), ty: t.uint16(), owner: t.string() }, 'ItemState');   // owner: botín individual (sessionId del dueño; vacío = de todos)
 export const ObjectState = schema({ type: t.string(), tier: t.string(), tx: t.uint16(), ty: t.uint16(), opened: t.boolean() }, 'ObjectState');
 export const ShotState = schema({ x: t.float32(), y: t.float32(), vx: t.float32(), vy: t.float32(), r: t.float32(), kind: t.string(), color: t.string(), team: t.string(), owner: t.string() }, 'ShotState');
 export const ZoneState = schema({ x: t.float32(), y: t.float32(), r: t.float32(), team: t.string(), color: t.string(), life: t.float32(), t: t.float32() }, 'ZoneState');
@@ -38,4 +40,5 @@ export const ExpeditionState = schema({
   shots: t.map(ShotState), zones: t.map(ZoneState), doors: t.map(DoorState), boss: BossState,
   mech: t.string(),                         // mecanismos del piso (Mechs.serialize): «id:bits[:extra]»
   hostRule: t.string(), reconnectSeconds: t.uint16(),
+  resume: t.boolean(),                      // continuar desde el punto de control (lo activa el anfitrión si todos lo tienen)
 }, 'ExpeditionState');

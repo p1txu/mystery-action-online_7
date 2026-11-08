@@ -386,7 +386,7 @@ export class Lobby {
     const L = this.session.lobbyView(), st = this.session.status;
     const slots = L.players.map(p => `<li class="${p.host || p.ready ? 'ok' : ''}${p.connected ? '' : ' off'}" data-player="${esc(p.name)}">
         <canvas class="on-face" width="44" height="44" data-species="${esc(p.species)}" aria-hidden="true"></canvas>
-        <div><b>${esc(p.name)}</b>${p.me ? ' <em>(tú)</em>' : ''}<small>${esc((FORMS[p.species] || {}).name || p.species)} · Nv ${p.level}</small></div>
+        <div><b>${esc(p.name)}</b>${p.me ? ' <em>(tú)</em>' : ''}<small>${esc((FORMS[p.species] || {}).name || p.species)} · Nv ${p.level}${p.companion ? ' · <span class="on-companion" title="No ha desbloqueado esta mazmorra: gana EXP, botín y trofeo, pero no cuenta como superada para él">acompañante</span>' : ''}</small></div>
         <span>${p.host ? 'anfitrión' : p.ready ? 'listo' : 'esperando'}${p.connected ? '' : ' · reconectando' + (p.holdUntil ? ` (${Math.max(0, Math.ceil((p.holdUntil - Date.now()) / 1000))} s)` : '')}</span>
         ${L.host && !p.me && p.connected ? `<button class="btn-link on-give" data-give="${esc(p.id)}" title="Pasarle el liderazgo">ceder liderazgo</button>` : ''}</li>`).join('')
       + Array.from({ length: Math.max(0, L.max - L.players.length) }, () => '<li class="free">Plaza libre</li>').join('');
@@ -394,12 +394,14 @@ export class Lobby {
     const reconnectSel = L.reconnectChoices.length ? `<label>Si alguien pierde la conexión, esperar <select id="on-grec">${L.reconnectChoices.map(v => `<option value="${v}"${v === L.reconnectSeconds ? ' selected' : ''}>${v < 60 ? v + ' s' : v / 60 + ' min'}</option>`).join('')}</select></label>` : '';
     const hostCtl = L.host ? `<label>Mazmorra <select id="on-gdng">${DUNGEONS.map(d => `<option value="${d.id}"${d.id === L.dungeon ? ' selected' : ''}>${esc(d.name)}</option>`).join('')}</select></label>
         ${reconnectSel}
+        ${L.canResume ? `<label class="on-check" style="display:flex;flex-direction:row;align-items:center;gap:6px;align-self:flex-end;padding-bottom:10px" title="La última expedición a esta mazmorra se interrumpió después del punto de control"><input type="checkbox" id="on-gres"${L.resume ? ' checked' : ''}> Continuar desde el punto de control</label>` : ''}
         <button id="on-start" class="btn-main"${L.canStart && st === 'lobby' ? '' : ' disabled'}>Iniciar expedición</button>` : `<button id="on-ready" class="btn-main"${st === 'lobby' ? '' : ' disabled'}>${L.me && L.me.ready ? 'No estoy listo' : 'Estoy listo'}</button>`;
     return `<div class="on-code"><span>Código de invitación</span><b id="on-code-val">${esc(L.code || '······')}</b><button id="on-copy" class="btn-link">copiar</button><button id="on-invite" class="btn-link">copiar enlace de invitación</button></div>
       <p class="hint-line">Compártelo con tus amigos: entran con «Unirse a partida». El anfitrión elige las opciones e inicia; la sala la mantiene el servidor, no tu navegador. ${L.players.length} de ${L.max} · Destino: <b>${esc(dng.name || '')}</b></p>
       ${this.host ? this.renderHost() : /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(location.hostname) ? '<p class="hint-line" id="on-lanhint">Esta dirección solo funciona en tu casa. Para que entren amigos desde fuera, quien juega en el ordenador que hace de servidor pulsa <b>«Crear enlace para amigos»</b> y comparte el enlace https.</p>' : ''}
       <ul class="on-players">${slots}</ul>
       <div class="on-row">${hostCtl}<button id="on-leave" class="btn-ghost">Abandonar grupo</button></div>
+      ${L.canResume ? `<p class="hint-line" id="on-resume-line">${L.resume ? 'Continuaréis desde el punto de control de ' + esc(dng.name || '') + ' (la expedición anterior se interrumpió).' : 'Empezaréis desde el primer piso (el anfitrión ha desactivado «continuar»).'}</p>` : ''}
       <p class="hint-line" id="on-coop">Dificultad · ${esc(coopSummary(L.players.length))}. Se ajusta sola si alguien sale del grupo.</p>
       <p class="hint-line" id="on-hostrule">${esc(HOST_RULE_TEXT)} Si alguien pierde la conexión se le guarda el sitio ${L.reconnectSeconds || ''} s.</p>
       ${L.host && !L.canStart ? '<p class="hint-line">Podrás iniciar cuando todos estén listos y conectados.</p>' : ''}${!L.host && L.me && L.me.ready ? '<p class="hint-line">Esperando a que el anfitrión inicie la expedición…</p>' : ''}`;
@@ -436,6 +438,7 @@ export class Lobby {
     const sel = this.el.querySelector('#on-gdng'); if (sel) sel.onchange = () => this.session.chooseDungeon(sel.value);
     this.el.querySelectorAll('.on-give').forEach(b => b.onclick = () => this.session.giveHost(b.dataset.give));
     const rec = this.el.querySelector('#on-grec'); if (rec) rec.onchange = () => this.session.setOptions({ reconnect: +rec.value });
+    const res = this.el.querySelector('#on-gres'); if (res) res.onchange = () => this.session.setOptions({ resume: res.checked });
     on('on-invite', async () => {
       let pub = this.hostUrl;
       if (this.host && !pub) { this.say('Creando el enlace para amigos… (unos segundos)', 'warn'); pub = await this.hostReady(); if (!pub) return this.say(this.host && this.host.error ? this.host.error : 'No se pudo crear el enlace para amigos.', 'bad'); }

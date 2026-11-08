@@ -20,6 +20,10 @@ import { log, shortId } from '../log.js';
 
 const RULES = createEngineCore();
 
+/** Mazmorra del punto de control vigente de un perfil ('' si no tiene o ha caducado). */
+function checkpointOf(save) { const r = save && save.resume; return r && RULES.dungeonById(r.dungeon) && Date.now() - r.at < RESUME_TTL_MS ? r.dungeon : ''; }
+const RESUME_TTL_MS = 7 * 864e5;
+
 export class ExpeditionRoom extends Room {
   /** Servicios inyectados desde app.js: { identity, profiles, registry, reconnectSeconds }. */
   static services = null;
@@ -125,7 +129,21 @@ export class ExpeditionRoom extends Room {
     this.state.players.set(client.sessionId, new PlayerState({ name: account.name, species: save.species, level: save.prog.level, host, ready: !!this.party, connected: true, hp: 1, maxHp: 1, joinedAt: Date.now() }));
     client.send(S.WELCOME, { sessionId: client.sessionId, code: this.code, host, save, reconnectSeconds: this.reconnectSeconds, reconnectChoices: this.reconnectChoices, hostRule: HOST_RULE });
     this.log.info('room.join', { session: client.sessionId, account: shortId(account.id), host, players: this.members.size });
+    this.markCompanions();
     if (this.party) this.partyStart(false);
+  }
+  /** Quién iría como acompañante a la mazmorra elegida (no la tiene desbloqueada): se ve en la sala de espera. */
+  markCompanions() {
+    const dng = RULES.dungeonById(this.state.dungeon);
+    for (const [id, m] of this.members) { const p = this.state.players.get(id); if (p) { p.companion = !!dng && !RULES.dungeonOpen(m.save, dng); p.checkpoint = checkpointOf(m.save); } }
+    // Continuar desde el punto de control: activado por defecto cuando TODOS lo tienen (el anfitrión puede desactivarlo);
+    // si entra alguien sin él, se empieza desde el principio.
+    this.state.resume = this.canResume() && !this.resumeOff;
+  }
+  /** ¿Pueden continuar desde el punto de control? Solo si TODOS lo tienen para la mazmorra elegida. */
+  canResume(dungeon = this.state.dungeon) {
+    const ms = [...this.members.values()];
+    return ms.length > 0 && ms.every(m => checkpointOf(m.save) === dungeon);
   }
   /** Grupo persistente: empieza cuando han entrado todos (o, al agotarse la espera, con los que hayan entrado). */
   partyStart(timeout) {
@@ -152,7 +170,13 @@ export class ExpeditionRoom extends Room {
     if (msg.dungeon !== undefined) {
       const d = RULES.dungeonById(msg.dungeon);
       if (!d) return client.send(S.REJECT, { what: 'options', why: 'Mazmorra desconocida' });
-      if (d.id !== this.state.dungeon) { this.state.dungeon = d.id; changed = true; }
+      if (d.id !== this.state.dungeon) { this.state.dungeon = d.id; this.resumeOff = false; changed = true; }
+    }
+    if (msg.resume !== undefined) {
+      const want = msg.resume === true;
+      if (want && !this.canResume(this.state.dungeon)) return client.send(S.REJECT, { what: 'options', why: 'Para continuar, todos deben tener el punto de control de esta mazmorra' });
+      this.resumeOff = !want;
+      if (want !== this.state.resume) { this.state.resume = want; changed = true; }
     }
     if (msg.reconnect !== undefined) {
       if (!this.reconnectChoices.includes(msg.reconnect)) return client.send(S.REJECT, { what: 'options', why: 'Tiempo de reconexión no permitido' });
@@ -160,6 +184,7 @@ export class ExpeditionRoom extends Room {
     }
     if (changed) {
       for (const q of this.state.players.values()) if (!q.host) q.ready = false;
+      this.markCompanions();
       this.log.info('room.options', { dungeon: this.state.dungeon, reconnect: this.reconnectSeconds });
     }
   }
@@ -180,10 +205,11 @@ export class ExpeditionRoom extends Room {
     if (notReady.length) return client.send(S.REJECT, { what: 'start', why: `Falta que ${notReady.map(([, p]) => p.name).join(', ')} marque «Estoy listo»` });
     const offline = [...this.state.players.values()].filter(p => !p.connected);
     if (offline.length) return client.send(S.REJECT, { what: 'start', why: `${offline.map(p => p.name).join(', ')} está reconectando; espera un momento` });
-    // Cada jugador debe tener desbloqueada la mazmorra en su propio perfil
-    const locked = [...this.members.values()].filter(m => !RULES.dungeonOpen(m.save, dng));
-    if (locked.length) return client.send(S.REJECT, { what: 'start', why: `${locked.map(m => m.name).join(', ')} aún no ha desbloqueado ${dng.name}` });
-    this.state.dungeon = dng.id;
+    // Regiones: el anfitrión debe tenerla desbloqueada; quien no la tenga va como ACOMPAÑANTE
+    // (EXP, botín y trofeo sí; la mazmorra no cuenta como superada ni desbloquea la siguiente).
+    const hostM = this.members.get(client.sessionId);
+    if (!hostM || !RULES.dungeonOpen(hostM.save, dng)) return client.send(S.REJECT, { what: 'start', why: `Tú aún no has desbloqueado ${dng.name}` });
+    if (this.state.dungeon !== dng.id) { this.state.dungeon = dng.id; this.resumeOff = false; this.markCompanions(); }
     this.starting = true;
     this.beginExpedition(dng).catch(e => { this.log.error('room.start_failed', e); this.starting = false; client.send(S.REJECT, { what: 'start', why: 'No se pudo cargar algún perfil; inténtalo de nuevo' }); });
   }
@@ -196,8 +222,13 @@ export class ExpeditionRoom extends Room {
       m.save = rec.save; m.version = rec.version;
     }
     if (this.state.phase !== 'lobby') return;
-    this.exp = new Expedition({ dungeonId: dng.id, seed: (Math.random() * 2 ** 31) >>> 0,
-      members: [...this.members.entries()].map(([id, m]) => ({ id, accountId: m.accountId, name: m.name, profile: m.save })) });
+    // Continuar desde el punto de control: se vuelve a comprobar con los perfiles recién leídos
+    const resume = !!this.state.resume && this.canResume(dng.id);
+    const companions = [...this.members.values()].filter(m => !RULES.dungeonOpen(m.save, dng)).map(m => m.name);
+    this.exp = new Expedition({ dungeonId: dng.id, seed: (Math.random() * 2 ** 31) >>> 0, resume,
+      members: [...this.members.entries()].map(([id, m]) => ({ id, accountId: m.accountId, name: m.name, profile: m.save, companion: !RULES.dungeonOpen(m.save, dng) })) });
+    if (companions.length) this.broadcast(S.EVENT, { type: 'companions', names: companions, dungeon: dng.name });
+    if (resume) this.broadcast(S.EVENT, { type: 'resumed', dungeon: dng.name });
     this.state.phase = 'playing'; this.starting = false;
     ExpeditionRoom.services.registry.close(this.code);
     this.lock();
@@ -225,6 +256,7 @@ export class ExpeditionRoom extends Room {
   flushEvents() {
     for (const ev of this.exp.drainEvents()) {
       if (ev.type === 'floor') { this.broadcast(S.FLOOR, ev.info); continue; }
+      if (ev.type === 'checkpoint') this.saveCheckpoint(ev);
       const to = ev.to && this.clients.find(c => c.sessionId === ev.to);
       if (ev.to) { if (to) to.send(S.EVENT, ev); } else this.broadcast(S.EVENT, ev);
     }
@@ -236,13 +268,13 @@ export class ExpeditionRoom extends Room {
     st.floorN = v.floor.n; st.time = v.time; st.wind = v.wind; if (st.mech !== v.mech) st.mech = v.mech || '';
     for (const p of v.players) {
       const s = st.players.get(p.id); if (!s) continue;
-      for (const k of ['x', 'y', 'vx', 'vy', 'fx', 'fy', 'hp', 'maxHp', 'exp', 'energy', 'belly', 'gems', 'downed', 'revive', 'connected', 'dash', 'iframes', 'ack', 'basic', 'dodge', 'level']) if (s[k] !== p[k]) s[k] = p[k];
+      for (const k of ['x', 'y', 'vx', 'vy', 'fx', 'fy', 'hp', 'maxHp', 'exp', 'energy', 'belly', 'gems', 'downed', 'revive', 'connected', 'dash', 'iframes', 'ack', 'basic', 'dodge', 'level', 'bleed', 'revives']) if (s[k] !== p[k]) s[k] = p[k];
       const hold = this.held.get(p.id), until = hold ? hold.until : 0; if (s.holdUntil !== until) s.holdUntil = until;
       p.cds.forEach((c, i) => { if (s.cds[i] !== c) s.cds[i] = c; });
       if (s.moves.join() !== p.moves.join()) { s.moves.clear(); p.moves.forEach(m => s.moves.push(m)); }
     }
     syncMap(st.enemies, v.enemies, e => e.id, EnemyState, ['kind', 'x', 'y', 'fx', 'fy', 'hp', 'maxHp', 'level', 'elite', 'aggro', 'state', 'timer', 'wind', 'pattern', 'ax', 'ay', 'gx', 'gy']);
-    syncMap(st.items, v.items, i => i.key, ItemState, ['id', 'amount', 'tx', 'ty']);
+    syncMap(st.items, v.items, i => i.key, ItemState, ['id', 'amount', 'tx', 'ty', 'owner']);
     syncMap(st.objects, v.objects, o => o.key, ObjectState, ['type', 'tier', 'tx', 'ty', 'opened']);
     syncMap(st.shots, v.shots, s => s.id, ShotState, ['x', 'y', 'vx', 'vy', 'r', 'kind', 'color', 'team', 'owner']);
     syncMap(st.zones, v.zones, z => z.id, ZoneState, ['x', 'y', 'r', 'team', 'color', 'life', 't']);
@@ -253,6 +285,19 @@ export class ExpeditionRoom extends Room {
     } else if (st.boss) st.boss = undefined;
   }
 
+  /** Guarda el punto de control en el perfil de cada integrante (en orden; el resultado final espera a que acabe). */
+  saveCheckpoint(ev) {
+    const { profiles } = ExpeditionRoom.services;
+    this.ckpt = (this.ckpt || Promise.resolve()).then(async () => {
+      for (const id of ev.members) {
+        const m = this.members.get(id); if (!m || this.committed.has(m.accountId)) continue;
+        try { const r = await profiles.checkpoint(m.accountId, { dungeon: ev.dungeon, at: ev.at }, m.version); m.version = r.version; }
+        catch (e) { this.log.error('room.checkpoint_failed', { account: shortId(m.accountId), error: e.message }); }
+      }
+      this.log.info('room.checkpoint', { dungeon: ev.dungeon, players: ev.members.length });
+    });
+    return this.ckpt;
+  }
   /** Final de la expedición: una sola vez; quien llame después espera al mismo guardado. */
   end() { if (!this.endP) this.endP = this.settleAll(); return this.endP; }
   async settleAll() {
@@ -275,6 +320,7 @@ export class ExpeditionRoom extends Room {
     const m = this.members.get(id), { profiles, registry } = ExpeditionRoom.services;
     if (!r || !m || this.committed.has(m.accountId)) return;
     this.committed.add(m.accountId);
+    if (this.ckpt) await this.ckpt;   // el punto de control (si lo hay) se escribe antes que el resultado
     let saved = null;
     if (r.profile) {
       saved = await profiles.applyResult({ expeditionId: r.expeditionId, accountId: m.accountId, result: r.result, summary: r.summary, save: r.profile, expectedVersion: m.version });

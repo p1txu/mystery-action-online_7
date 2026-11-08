@@ -255,9 +255,11 @@ export class HubRoom extends Room {
     const nm = m => (this.conns.get(m) || {}).account?.name || p.names.get(m) || '¿?';
     if (off.length) return this.notice(id, `${off.map(nm).join(', ')} no está conectado. Espera o sácalo del grupo.`);
     if (busy.length) return this.notice(id, `${busy.map(nm).join(', ')} está en otra expedición.`);
-    const locked = [];
-    for (const m of p.members) { const rec = await profiles.get(m); if (!rec || !RULES.dungeonOpen(rec.save, dng)) locked.push(nm(m)); }
-    if (locked.length) return this.notice(id, `${locked.join(', ')} aún no ha desbloqueado ${dng.name}.`);
+    // El líder debe tener la región desbloqueada; quien no la tenga va como acompañante (ver ExpeditionRoom.start)
+    const lead = await profiles.get(id), missing = [];
+    if (!lead || !RULES.dungeonOpen(lead.save, dng)) return this.notice(id, `Aún no has desbloqueado ${dng.name}.`);
+    for (const m of p.members) { const rec = await profiles.get(m); if (!rec) missing.push(nm(m)); }
+    if (missing.length) return this.notice(id, `${missing.join(', ')} no tiene perfil en el servidor.`);
     p.going = true;
     try {
       const key = randomBytes(12).toString('base64url');

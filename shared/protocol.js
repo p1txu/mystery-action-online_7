@@ -47,11 +47,12 @@ export const HOST_GRACE_SECONDS = 10;
  * El tamaño del mapa según el grupo está en FloorGen.SIZES (prototipo), porque lo usa el generador.
  */
 export const COOP_SCALING = Object.freeze({
-  // Casi los mismos enemigos que en solitario (como mucho +20 % con 4) pero bastante más duros: más PS y más daño.
+  // Casi los mismos enemigos que en solitario (como mucho +20 % con 4). Menos «esponja» que antes (0.41): algo más de PS y de daño,
+  // y lo demás lo ponen los enemigos de élite, los errantes, el reparto de objetivos y los ataques de grupo de los jefes.
   1: Object.freeze({ hp: 1, bossHp: 1, dmg: 1, count: 1, elite: 0, wander: 0, spawn: 1 }),
-  2: Object.freeze({ hp: 1.7, bossHp: 1.9, dmg: 1.15, count: 1.1, elite: .05, wander: 1, spawn: 1.05 }),
-  3: Object.freeze({ hp: 2.3, bossHp: 2.7, dmg: 1.25, count: 1.15, elite: .08, wander: 2, spawn: 1.1 }),
-  4: Object.freeze({ hp: 2.9, bossHp: 3.5, dmg: 1.35, count: 1.2, elite: .12, wander: 3, spawn: 1.15 }),
+  2: Object.freeze({ hp: 1.5, bossHp: 1.7, dmg: 1.12, count: 1.1, elite: .07, wander: 1, spawn: 1.05 }),
+  3: Object.freeze({ hp: 1.95, bossHp: 2.4, dmg: 1.2, count: 1.15, elite: .11, wander: 2, spawn: 1.1 }),
+  4: Object.freeze({ hp: 2.4, bossHp: 3, dmg: 1.28, count: 1.2, elite: .15, wander: 3, spawn: 1.15 }),
 });
 export function coopScaling(n) { return COOP_SCALING[Math.max(1, Math.min(MAX_PLAYERS, n | 0))]; }
 /** Texto corto para el jugador: «2 jugadores: enemigos +35 %, PS ×1,45, daño +6 %». */

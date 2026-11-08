@@ -60,11 +60,11 @@ La decide el servidor al cargar cada piso (`COOP_SCALING` en `shared/protocol.js
 | Jugadores | Enemigos por piso | PS de cada enemigo | PS del guardián | Daño enemigo | Élite extra | Errantes extra a la vez | Errantes más frecuentes |
 |---|---|---|---|---|---|---|---|
 | 1 | ×1 | ×1 | ×1 | ×1 | +0 % | 0 | ×1 |
-| 2 | ×1,1 | ×1,7 | ×1,9 | +15 % | +5 % | 1 | ×1,05 |
-| 3 | ×1,15 | ×2,3 | ×2,7 | +25 % | +8 % | 2 | ×1,1 |
-| 4 | ×1,2 | ×2,9 | ×3,5 | +35 % | +12 % | 3 | ×1,15 |
+| 2 | ×1,1 | ×1,5 | ×1,7 | +12 % | +7 % | 1 | ×1,05 |
+| 3 | ×1,15 | ×1,95 | ×2,4 | +20 % | +11 % | 2 | ×1,1 |
+| 4 | ×1,2 | ×2,4 | ×3 | +28 % | +15 % | 3 | ×1,15 |
 
-Criterio (desde la versión 0.25): **casi los mismos enemigos que en solitario, pero más duros**. El mapa más grande del cooperativo ya no añade enemigos por sí mismo. Medido en 40 pisos por mazmorra con 4 jugadores: unos 5 enemigos por piso en el Bosque (4,3 en solitario), con unos 160 PS de media (55 en solitario).
+Criterio (desde la versión 0.25): **casi los mismos enemigos que en solitario, pero más duros**. El mapa más grande del cooperativo ya no añade enemigos por sí mismo. Desde la 0.41, menos vida extra (antes ×1,7 / ×2,3 / ×2,9) y más élites, y **los enemigos se reparten** entre los jugadores: cada uno que ya acosa a un héroe (a menos de 200 px) lo hace un 30 % «más lejano» para los demás. Reglas de la campaña en grupo (botín individual, acompañantes, reanimar, punto de control): [CAMPANA_COOP.md](CAMPANA_COOP.md).
 
 - **Enemigos extra:** copias de los del piso (misma especie) cerca de su sitio y nunca a menos de 8 casillas de la entrada. El nido de monstruos también suelta más.
 - **El mapa también crece** con el grupo (apartado siguiente), pero sin más enemigos por ello. El cliente lo genera igual con la semilla y el número de jugadores que le envía el servidor.

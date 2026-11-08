@@ -137,7 +137,9 @@ test('botín: se recoge solo cerca, las monedas son de quien las coge y un cofre
   x.objects.push(chest); const before = x.items.size;
   run(x, .5); run(x, .5);
   assert.ok(chest.opened); assert.ok(x.items.size > before);
-  assert.equal(x.drainEvents().filter(e => e.type === 'chest').length, 1);
+  const ev = x.drainEvents().filter(e => e.type === 'chest');
+  assert.equal(ev.length, x.members.size, 'una tirada (y un aviso) por integrante');
+  run(x, 1); assert.equal(x.drainEvents().filter(e => e.type === 'chest').length, 0, 'no se vuelve a abrir');
 });
 
 test('objetos: el servidor comprueba que lo llevas y que tiene efecto', () => {

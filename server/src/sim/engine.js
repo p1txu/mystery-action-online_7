@@ -4,6 +4,7 @@
  * No dibuja nada; los efectos visuales se descartan en cada paso.
  */
 import { createEngineCore } from '../../../shared/engine-core.generated.js';
+const CROWD_R = 200;   // px: enemigos que cuentan como «encima» de un héroe para repartir objetivos
 
 /** Crea un núcleo aislado y lo adapta a varios jugadores humanos. */
 export function createServerEngine() {
@@ -67,6 +68,10 @@ export function stepWorld(E, g, dt, humans, inputFor) {
   const awake = humans.filter(h => h.alive && !h.dormant);
   if (awake.length) {
     g.player = awake[0]; g.allies = awake.slice(1);
+    // Reparto de objetivos: cuántos enemigos acosan ya a cada héroe (cerca de él, a menos de CROWD_R) —
+    // Enemy.pickTarget lo usa en grupo. Los que le persiguen desde lejos no cuentan.
+    if (awake.length > 1) { const L = g.targetLoad = new Map(); for (const a of g.actors) { const t = a.target; if (a.alive && a.team === 'enemy' && t && t.alive && Math.hypot(a.x - t.x, a.y - t.y) < CROWD_R) L.set(t, (L.get(t) || 0) + 1); } }
+    else g.targetLoad = null;
     for (const a of g.actors) if (!(a instanceof E.Player)) a.update(dt, g);
   }
   separate(g);

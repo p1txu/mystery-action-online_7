@@ -157,11 +157,12 @@ export class Session {
   }
   lobbyView() {
     const st = this.state || {}, me = this.welcome && this.welcome.sessionId;
-    const players = Object.entries(st.players || {}).map(([id, p]) => ({ id, me: id === me, name: p.name, species: p.species, level: p.level, ready: p.ready, host: p.host, connected: p.connected, joinedAt: p.joinedAt, holdUntil: p.holdUntil || 0 })).sort((a, b) => a.joinedAt - b.joinedAt);
+    const players = Object.entries(st.players || {}).map(([id, p]) => ({ id, me: id === me, name: p.name, species: p.species, level: p.level, ready: p.ready, host: p.host, connected: p.connected, companion: !!p.companion, checkpoint: p.checkpoint || '', joinedAt: p.joinedAt, holdUntil: p.holdUntil || 0 })).sort((a, b) => a.joinedAt - b.joinedAt);
     const others = players.filter(p => !p.host);
     return { code: (this.welcome && this.welcome.code) || st.code, dungeon: st.dungeon, phase: st.phase, max: st.max || 4, players,
       host: !!players.find(p => p.me && p.host), me: players.find(p => p.me) || null,
       canStart: players.every(p => p.connected) && others.every(p => p.ready), reconnectSeconds: st.reconnectSeconds || (this.welcome && this.welcome.reconnectSeconds) || 0,
-      reconnectChoices: (this.welcome && this.welcome.reconnectChoices) || [] };
+      reconnectChoices: (this.welcome && this.welcome.reconnectChoices) || [],
+      resume: !!st.resume, canResume: players.length > 0 && players.every(p => p.checkpoint && p.checkpoint === st.dungeon) };
   }
 }

@@ -1,14 +1,13 @@
 {
-  "build": 40,
-  "version": "0.40",
+  "build": 41,
+  "version": "0.41",
   "date": "2026-11-08",
   "notes": [
-    "Nuevo guardián de la Mina Olvidada: Gromgar, el Quebrantamontañas. Golpea, lanza rocas y embiste; avisa siempre antes de cada ataque.",
-    "Al 60 % de vida se enfurece y provoca un derrumbe: las rocas son coberturas de verdad. Ponte detrás de una y aléjate: si su carga choca contra una roca queda aturdido, y al tercer choque cae al suelo con la defensa −40 % durante 7 segundos.",
-    "Fase final al 25 %: rompe la mitad de las rocas, caen piedras del techo y bastan dos choques para derribarlo.",
-    "En grupo embiste al que está más lejos (uno provoca y los demás golpean) y a veces encadena otra carga; la vida extra es menor que en los demás guardianes.",
-    "Trofeo único la primera vez que lo vences: Colmillo de Gromgar (accesorio épico). Las victorias quedan guardadas en tu perfil.",
-    "Robletón, el Guardián de Espinas, renovado: tocones en su guarida (si su salto cae junto a uno se enreda y queda vulnerable), raíces en línea y brotes de savia que le curan y protegen hasta que los destruyes.",
-    "Base común para todos los jefes: fases, avisos, ventanas de vulnerabilidad, resistencias, escalado y recompensas. Los demás guardianes irán pasando a ella."
+    "Botín individual en grupo: cada cofre y cada enemigo dan a cada jugador su propia parte. Solo ves y recoges lo tuyo; nadie te quita nada. Lo que sueltas tú es para quien lo coja.",
+    "Acompañantes: puedes ir con tu grupo a una mazmorra que aún no has desbloqueado. Ganas EXP, botín y trofeo, pero no cuenta como superada hasta que la completes tú. La sala de espera lo indica.",
+    "Reanimar tiene reglas: 2,5 s la primera vez en cada piso y algo más cada vez. Si nadie te ayuda en 45 s quedas fuera de combate hasta el piso siguiente. Ves tu cuenta atrás y tus compañeros la ven sobre ti.",
+    "Grupo menos «esponja»: los enemigos tienen menos vida extra (×1,5 / ×1,95 / ×2,4) y hay más élites. Además se reparten entre los jugadores en vez de ir todos a por el mismo.",
+    "Punto de control en línea: al llegar se guarda en tu perfil. Si el servidor se cae, la sala ofrece continuar desde allí cuando todos lo tenéis. Se gasta al terminar la expedición.",
+    "Los trofeos únicos de los jefes no se pueden soltar, así que no se duplican ni se pasan."
   ]
 }

@@ -29,6 +29,10 @@ const E_RAGE_DMG = x => x.E.BOSS_RAGE.dmg;
 export const ASSIST_R = 10 * 32, ASSIST_SHARE = .5;
 const DROP_LOCK = 2, MAX_FLOOR_ITEMS = 80;   // objetos soltados: quien suelta no lo recoge en 2 s; tope de objetos en el suelo
 const DOOR_R = 56, PICK_R = 18, CHEST_R = 24, STAIRS_R = 18, GATHER_R = 56, REVIVE_R = 40, REVIVE_TIME = 2.5, CAMPFIRE_R = 80;
+/** Reanimación: cada reanimación en el mismo piso tarda más (+1,5 s, hasta 7 s); quien lleva BLEED_TIME s caído
+ *  sin ayuda queda fuera de combate hasta el siguiente piso; el reanimado vuelve con el 35 % de PS y sin energía. */
+export const REVIVE_RULES = Object.freeze({ base: REVIVE_TIME, step: 1.5, max: 7, bleed: 45, hp: .35 });
+const reviveTime = n => Math.min(REVIVE_RULES.max, REVIVE_RULES.base + REVIVE_RULES.step * n);
 
 export class Expedition {
   /**
@@ -39,7 +43,7 @@ export class Expedition {
    * @param {() => number} [o.random]
    * @param {string} [o.expeditionId]   identificador único (clave de las recompensas en la base de datos)
    */
-  constructor({ dungeonId, seed, members, random = Math.random, expeditionId = randomUUID() }) {
+  constructor({ dungeonId, seed, members, random = Math.random, expeditionId = randomUUID(), resume = false }) {
     const E = this.E = createServerEngine();
     this.dng = E.dungeonById(dungeonId);
     if (!this.dng) throw new Error('Mazmorra desconocida: ' + dungeonId);
@@ -54,10 +58,13 @@ export class Expedition {
     // Generador propio para los dones: no altera la secuencia aleatoria del resto de la simulación
     let bs = (this.seed ^ 0xB00B5) >>> 0; this.boonRandom = () => { bs = (bs + 0x6D2B79F5) >>> 0; let t = bs; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
     this.setScaling(this.partySize);
-    this.loadStep(0);
+    // Continuar desde el punto de control (la sala ya ha comprobado que todos lo tienen)
+    const wp = this.seq.findIndex(x => x.kind === 'waypoint');
+    this.resumed = !!resume && wp > 0;
+    this.loadStep(this.resumed ? wp : 0);
   }
 
-  addMember({ id, accountId = id, name, profile }) {
+  addMember({ id, accountId = id, name, profile, companion = false }) {
     const E = this.E, clean = E.Save.sanitize(structuredClone(profile));     // copia propia: nunca se comparte
     if (!clean.ok) throw new Error('Perfil no válido: ' + clean.fixes[0]);
     const save = clean.data, sp = E.FORMS[save.species];
@@ -65,7 +72,7 @@ export class Expedition {
     p.bag = new E.Inventory(save.inv, () => E.rankOf(save.points).bag);
     p.netId = id;
     const rewards = { gems: 0, exp: 0, loot: [], defeated: 0, assists: 0, damage: 0, floors: 0, maxFloor: 0, quests: [], rooms: new Set() };
-    this.members.set(id, { id, accountId, name: String(name || sp.name).slice(0, 20), profile: save, save, player: p, rewards, run: rewards, queue: [], ack: 0, nextSeq: 0, lastAct: -1, stats: { casts: 0, rejected: 0, duplicates: 0 }, connected: true, downed: false, revive: 0, left: false, boonOffers: [] });
+    this.members.set(id, { id, accountId, companion: !!companion, name: String(name || sp.name).slice(0, 20), profile: save, save, player: p, rewards, run: rewards, queue: [], ack: 0, nextSeq: 0, lastAct: -1, stats: { casts: 0, rejected: 0, duplicates: 0 }, connected: true, downed: false, revive: 0, left: false, boonOffers: [] });
   }
   /** Lo compartido por todo el grupo (no pertenece a ningún perfil). */
   shared() {
@@ -155,15 +162,20 @@ export class Expedition {
       if (m.left) continue;
       const p = m.player, [ox, oy] = off[k++ % 4];
       p.placeAt(p.free(this.world, sx + ox, sy + oy) ? sx + ox : sx, p.free(this.world, sx + ox, sy + oy) ? sy + oy : sy);
-      if (m.downed) { m.downed = false; p.alive = true; p.hp = Math.max(1, Math.round(p.maxHp * .25)); }
+      if (m.downed) { m.downed = false; m.out = false; p.alive = true; p.hp = Math.max(1, Math.round(p.maxHp * .25)); }
       if (kind === 'boss') { p.hp = Math.round(p.hp + (p.maxHp - p.hp) * .5); p.energy = Math.max(p.energy, p.maxEnergy * .5); }
-      m.queue.length = 0; m.atStairs = false; m.revive = 0;
+      m.queue.length = 0; m.atStairs = false; m.revive = 0; m.revives = 0; m.bleed = 0;
       this.g.actors.push(p);
     }
     this.boss = this.boss && this.g.actors.includes(this.boss) ? this.boss : null;
     const label = kind === 'normal' ? `${this.dng.name} · P${st.floorNo}` : kind === 'waypoint' ? `${this.dng.name} · Punto de control` : `${this.dng.name} · Guarida`;
     this.floorInfo = { seed: this.seed, dungeon: this.dng.id, floorNo: st.floorNo, genNo, kind, step: i, total: this.seq.length, label, w: gen.world.w, h: gen.world.h, n: ++this.floorCount, size, coop: this.coopInfo() };
     this.emit('floor', { info: this.floorInfo });
+    if (kind === 'waypoint') {   // punto de control: si la expedición se interrumpe, el grupo podrá continuar desde aquí
+      const resume = { dungeon: this.dng.id, at: Date.now() };
+      for (const m of this.members.values()) if (!m.left) m.save.resume = { ...resume };
+      this.emit('checkpoint', { dungeon: this.dng.id, at: resume.at, members: [...this.members.values()].filter(m => !m.left).map(m => m.id) });
+    }
     // El cartero Lino (vecino de las misiones): ruidos extraños en el piso 2 de la Gruta si alguien aún no lo conoce.
     // La escena (y su pausa) es para todo el grupo; el vecino es solo visual en cada cliente.
     const CI = E.COURIER_INTRO;
@@ -299,6 +311,7 @@ export class Expedition {
     const m = this.members.get(id), E = this.E; if (!m || m.left || this.ended) return false;
     const p = m.player;
     if (!p.alive || typeof itemId !== 'string' || !E.ITEMS[itemId] || !p.bag.has(itemId)) return this.emit('reject', { to: id, what: 'drop', why: 'no' }), false;
+    if (E.ITEMS[itemId].unique) return this.emit('reject', { to: id, what: 'drop', why: 'único' }), false;   // trofeos únicos: ligados a quien los ganó (no se pasan ni se duplican)
     if (this.items.size >= MAX_FLOOR_ITEMS) return this.emit('reject', { to: id, what: 'drop', why: 'lleno' }), false;
     p.bag.take(itemId, 1);
     const it = this.scatter(p.x, p.y, itemId, 1);
@@ -351,12 +364,18 @@ export class Expedition {
       if (room && !m.rewards.rooms.has(room.id)) { m.rewards.rooms.add(room.id); if (f.kind === 'normal') this.quest(m, 'room', {}); }
       if (!f.mh && this.L.mhRoom >= 0 && room && room.id === this.L.mhRoom) this.triggerMonsterHouse(room, p);
     }
-    // Reanimar: un compañero junto al caído durante REVIVE_TIME segundos
+    // Reanimar: un compañero junto al caído (REVIVE_RULES). Si nadie llega a tiempo, fuera de combate hasta el piso siguiente.
     for (const m of live) {
-      if (!m.downed) continue;
+      if (!m.downed || m.out) continue;
       const helper = awake.find(o => o !== m && Math.hypot(o.player.x - m.player.x, o.player.y - m.player.y) < REVIVE_R);
+      const need = reviveTime(m.revives || 0);
       m.revive = helper ? m.revive + dt : Math.max(0, m.revive - dt * .5);
-      if (m.revive >= REVIVE_TIME) { m.downed = false; m.revive = 0; const p = m.player; p.alive = true; p.hp = Math.max(1, Math.round(p.maxHp * .35)); p.iframes = 1.5; this.emit('revived', { id: m.id, by: helper.id }); }
+      if (!helper && m.connected) m.bleed = Math.max(0, m.bleed - dt);          // mientras le ayudan (o está desconectado) no se desangra
+      if (m.revive >= need) {
+        m.downed = false; m.revive = 0; m.revives = (m.revives || 0) + 1; m.bleed = 0; const p = m.player;
+        p.alive = true; p.hp = Math.max(1, Math.round(p.maxHp * REVIVE_RULES.hp)); p.energy = 0; p.iframes = 1.5;
+        this.emit('revived', { id: m.id, by: helper.id, next: reviveTime(m.revives) });
+      } else if (m.bleed <= 0) { m.out = true; m.revive = 0; this.emit('bleedout', { id: m.id }); }
     }
     // Derrota del grupo: todos los conectados caídos (si no queda nadie conectado, se espera)
     const connected = live.filter(m => m.connected);
@@ -442,8 +461,11 @@ export class Expedition {
   }
 
   /* ---------- Botín y recompensas ---------- */
+  /** Botín individual: cada objeto de cofre o enemigo tiene dueño y solo él lo recoge (y lo ve). Lo que suelta un jugador o hay en el piso es de todos. */
+  canTake(m, it) { return !it.owner || it.owner === m.id; }
   pickUp(m, it) {
     const p = m.player;
+    if (!this.canTake(m, it)) return;
     if (it.id === 'gems') { this.items.delete(it.key); m.run.gems += it.amount; m.run.loot.push({ id: 'gems', qty: it.amount }); this.emit('pickup', { by: m.id, id: 'gems', n: it.amount, x: it.x, y: it.y }); return; }
     if (!this.E.ITEMS[it.id]) { this.items.delete(it.key); return; }
     const n = p.bag.add(it.id, it.amount);
@@ -453,14 +475,19 @@ export class Expedition {
     this.quest(m, 'item', { id: it.id, n });
     this.emit('pickup', { by: m.id, id: it.id, n, x: it.x, y: it.y });
   }
+  /** Integrantes que reciben su parte del botín: los que siguen en la expedición (también un desconectado: puede volver). */
+  get looters() { return [...this.members.values()].filter(q => !q.left); }
   openChest(m, o) {
     if (o.opened) return; o.opened = true;               // marcado antes de tirar el botín: nunca se abre dos veces
-    const res = this.E.Loot.roll(o.tier, this.dng, this.random);
-    if (res.gems) this.scatter(o.x, o.y, 'gems', res.gems);
-    for (const x of res.items) this.scatter(o.x, o.y, x.id, x.qty);
-    this.emit('chest', { by: m.id, key: o.key, tier: o.tier, loot: { gems: res.gems, items: res.items.map(x => ({ id: x.id, qty: x.qty })) } });   // para mostrar a todos qué había
+    // Botín individual: una tirada por integrante, con dueño. Nadie le quita nada a nadie.
+    for (const q of this.looters) {
+      const res = this.E.Loot.roll(o.tier, this.dng, this.random);
+      if (res.gems) this.scatter(o.x, o.y, 'gems', res.gems, q.id);
+      for (const x of res.items) this.scatter(o.x, o.y, x.id, x.qty, q.id);
+      this.emit('chest', { to: q.id, by: m.id, key: o.key, tier: o.tier, loot: { gems: res.gems, items: res.items.map(x => ({ id: x.id, qty: x.qty })) } });   // a cada uno, SU parte
+    }
   }
-  scatter(x, y, id, amount) {
+  scatter(x, y, id, amount, owner = null) {
     const W = this.L.w, cx = Math.floor(x / TS), cy = Math.floor(y / TS), SOLID = this.E.SOLID, T = this.E.T;
     const busy = (tx, ty) => [...this.items.values()].some(it => it.tx === tx && it.ty === ty) || this.objects.some(o => o.tx === tx && o.ty === ty && o.type !== 'chest');
     let spot = null;
@@ -473,6 +500,7 @@ export class Expedition {
     spot = spot || { tx: cx, ty: cy };
     const key = 'd' + (this.nextId++);
     const it = { key, id, amount, x: (spot.tx + .5) * TS, y: (spot.ty + .5) * TS, tx: spot.tx, ty: spot.ty };
+    if (owner) it.owner = owner;
     this.items.set(key, it); return it;
   }
   onEnemyDown(e) {
@@ -498,9 +526,11 @@ export class Expedition {
       const ch = { key: 'bossChest', type: 'chest', tier: 'cofreJefe', tx: free ? cx : r.cx + 2, ty: free ? ty : r.cy, opened: false };
       ch.x = (ch.tx + .5) * TS; ch.y = (ch.ty + .5) * TS; this.objects.push(ch);
     } else if (!e.summoner) {
-      const res = E.Loot.roll(e.elite ? 'elite' : 'enemigo', this.dng, this.random);
-      if (res.gems) this.scatter(e.x, e.y, 'gems', res.gems);
-      for (const x of res.items) this.scatter(e.x, e.y, x.id, x.qty);
+      for (const q of this.looters) {                    // botín individual: cada uno tira por su cuenta
+        const res = E.Loot.roll(e.elite ? 'elite' : 'enemigo', this.dng, this.random);
+        if (res.gems) this.scatter(e.x, e.y, 'gems', res.gems, q.id);
+        for (const x of res.items) this.scatter(e.x, e.y, x.id, x.qty, q.id);
+      }
     }
   }
   /** Experiencia al perfil de ESE jugador (mismas reglas que en solitario: rules.gainExp). */
@@ -516,8 +546,8 @@ export class Expedition {
   }
   onPlayerDown(p) {
     const m = p && this.members.get(p.netId); if (!m || m.downed) return;
-    m.downed = true; m.revive = 0;
-    this.emit('down', { id: m.id });
+    m.downed = true; m.revive = 0; m.bleed = REVIVE_RULES.bleed; m.out = false;
+    this.emit('down', { id: m.id, bleed: REVIVE_RULES.bleed, need: reviveTime(m.revives || 0) });
   }
 
   /* ---------- Conexión ---------- */
@@ -535,6 +565,7 @@ export class Expedition {
     const m = this.members.get(id); if (!m || m.left) return null;
     const out = this.ended ? null : this.settle(m, reason);
     m.left = true; m.player.alive = false; m.player.dormant = true;
+    for (const it of this.items.values()) if (it.owner === id) it.owner = null;   // lo que era suyo queda para los demás
     this.g.actors = this.g.actors.filter(a => a !== m.player);
     this.emit('left', { id });
     if (!this.ended && ![...this.members.values()].some(x => !x.left)) this.ended = { result: 'abandon', results: new Map() };
@@ -567,7 +598,9 @@ export class Expedition {
       if (result === 'clear') {
         const bonus = 80 + 60 * E.DUNGEONS.indexOf(this.dng); this.gainExp(m, bonus); lines.push(`Recompensa por vencer al guardián: ${bonus} EXP.`);
         if (!m.bossGranted) { m.bossGranted = true; lines.push(...E.BossKit.grant(s, this.dng.boss, p.bag)); }   // trofeo único y progreso, una vez
-        if (!s.cleared.includes(this.dng.id)) { s.cleared.push(this.dng.id); s.points += 50; lines.push(`¡Primera vez que completas ${this.dng.name}! +50 puntos de rango.`); }
+        // Acompañante (no tenía la región desbloqueada): se lleva EXP, botín y trofeo, pero no se salta la campaña
+        if (m.companion && !E.dungeonOpen(s, this.dng)) lines.push(`Has ido como acompañante: ${this.dng.name} contará como superada cuando la desbloquees tú.`);
+        else if (!s.cleared.includes(this.dng.id)) { s.cleared.push(this.dng.id); s.points += 50; lines.push(`¡Primera vez que completas ${this.dng.name}! +50 puntos de rango.`); }
       }
     } else {
       const n = Math.floor(p.bag.stacks.length / 2);
@@ -575,6 +608,9 @@ export class Expedition {
       lines.push(`Has perdido ${m.run.gems} monedas y ${lostItems} objeto${lostItems === 1 ? '' : 's'} del inventario.`);
       lines.push(`Conservas tu nivel (${s.prog.level}), la experiencia y los movimientos aprendidos.`);
     }
+    // Punto de control: se conserva solo si la expedición se interrumpe (reinicio o fallo del servidor);
+    // cualquier otro final de ESTA mazmorra lo gasta. El de otra mazmorra no se toca.
+    if (result !== 'interrupted' && s.resume && s.resume.dungeon === this.dng.id) s.resume = null;
     p.bag.take('llave', p.bag.count('llave'));
     s.inv = p.bag.stacks.map(x => ({ uid: x.uid, id: x.id, qty: x.qty }));
     s.equip = p.equip; s.runs = (s.runs || 0) + 1; s.activeRun = null;
@@ -595,7 +631,7 @@ export class Expedition {
       if (m.left) continue;
       const p = m.player;
       players.push({ id: m.id, name: m.name, species: m.save.species, level: p.level, x: r1(p.x), y: r1(p.y), vx: r1(p.vx), vy: r1(p.vy), fx: r1(p.facing.x), fy: r1(p.facing.y),
-        hp: Math.ceil(p.hp), maxHp: p.maxHp, exp: m.save.prog.exp, energy: Math.floor(p.energy), belly: Math.ceil(p.belly), downed: m.downed, revive: r1(m.revive / REVIVE_TIME), connected: m.connected, ack: m.ack,
+        hp: Math.ceil(p.hp), maxHp: p.maxHp, exp: m.save.prog.exp, energy: Math.floor(p.energy), belly: Math.ceil(p.belly), downed: m.downed, revive: m.out ? 0 : r1(m.revive / reviveTime(m.revives || 0)), bleed: m.downed ? (m.out ? -1 : r1(m.bleed || 0)) : 0, revives: m.revives || 0, connected: m.connected, ack: m.ack,
         cds: p.cds.map(c => r1(c)), basic: r1(p.basicCd), dodge: p.dodgeCharges, dash: !!p.dash, moves: p.moves.slice(), gems: m.run.gems, iframes: p.iframes > 0 });
     }
     const enemies = [];
@@ -609,7 +645,7 @@ export class Expedition {
     const shots = this.g.projectiles.map(pr => ({ id: pr.netId, x: r1(pr.x), y: r1(pr.y), vx: r1(pr.vx), vy: r1(pr.vy), r: pr.r, kind: pr.kind, color: pr.color, team: pr.team, owner: pr.src && pr.src.netId || (pr.hit && pr.hit.src && pr.hit.src.netId) || '' }));
     const zones = this.g.zones.map(z => ({ id: z.netId, x: r1(z.x), y: r1(z.y), r: z.r || 0, team: z.team || '', color: z.color || '', life: z.life || 0, t: r1(z.t || 0) }));
     return { floor: this.floorInfo, time: r1(this.floor.time), wind: this.floor.wind, players, enemies, shots, zones,
-      items: [...this.items.values()].map(it => ({ key: it.key, id: it.id, amount: it.amount, tx: it.tx, ty: it.ty })),
+      items: [...this.items.values()].map(it => ({ key: it.key, id: it.id, amount: it.amount, tx: it.tx, ty: it.ty, owner: it.owner || '' })),
       objects: this.objects.filter(o => !(o.hiddenUntil && !o.revealed)).map(o => ({ key: o.key, type: o.type, tx: o.tx, ty: o.ty, opened: !!o.opened, tier: o.tier || '' })),
       doors: this.doors.map(d => ({ key: d.key, open: d.open })), boss: this.bossView(), mech: this.mechs ? this.mechs.serialize() : '' };
   }

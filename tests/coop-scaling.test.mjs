@@ -17,7 +17,7 @@ test('tabla: con 1 jugador todo vale 1 y cada jugador más lo pone más difícil
   assert.deepEqual(Object.values(coopScaling(1)), [1, 1, 1, 1, 0, 0, 1]);
   for (let n = 2; n <= MAX_PLAYERS; n++) for (const k of Object.keys(COOP_SCALING[1])) assert.ok(COOP_SCALING[n][k] > COOP_SCALING[n - 1][k], `${k} crece con ${n}`);
   assert.equal(coopScaling(0), coopScaling(1)); assert.equal(coopScaling(9), coopScaling(4));
-  assert.match(coopSummary(4), /4 jugadores: enemigos \+20 %, PS ×2,9/);
+  assert.match(coopSummary(4), /4 jugadores: enemigos \+20 %, PS ×2,4/);
   for (let n = 2; n <= MAX_PLAYERS; n++) assert.ok(COOP_SCALING[n].count <= 1.2, 'casi los mismos enemigos que en solitario');
   assert.equal(coopSummary(1), '1 jugador: dificultad normal');
 });
