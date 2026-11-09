@@ -13,6 +13,12 @@
  *                                               → { applied, version, reward }  · IDEMPOTENTE: la misma pareja
  *                                               (expedición, cuenta) solo se aplica una vez; repetir devuelve la guardada
  *   getReward(expeditionId, accountId) · listRewards(accountId, limit)
+ *   mutateProfile(…, { opId })                  con opId: la misma operación repetida devuelve { duplicate: true, … } sin aplicarse otra vez
+ *   Expediciones (0.42, estado en puntos seguros; ver server/src/persistence/ExpeditionService.js):
+ *   saveExpedition({ id, dungeon, status, seq, members, state }) → { saved }  (solo si `seq` es mayor que la guardada)
+ *   getExpedition(id) → { id, dungeon, status, seq, state, createdAt, updatedAt } | null
+ *   pendingExpeditions(accountId) → [expedición sin `state`]  · las de esa cuenta aún sin fila en `rewards`
+ *   unsettledExpeditions(status) → [id]  · con algún integrante sin resultado guardado
  *   logEvent(accountId, kind, data, version)    registro de auditoría de cambios del perfil
  *   hasEvent(accountId, kind)                   → bool   (p. ej. si ya importó su partida local)
  *   Amigos (ver server/src/social/SocialService.js):
@@ -39,7 +45,7 @@ const now = () => new Date().toISOString();
 
 /** Implementación en memoria: SOLO para pruebas (no persiste nada). */
 export class MemoryProfileStore {
-  constructor() { this.accounts = new Map(); this.profiles = new Map(); this.rewards = new Map(); this.events = []; this.codes = new Map(); this.friends = new Map(); this.blocks = new Set(); }
+  constructor() { this.expeditions = new Map(); this.ops = new Map(); this.accounts = new Map(); this.profiles = new Map(); this.rewards = new Map(); this.events = []; this.codes = new Map(); this.friends = new Map(); this.blocks = new Set(); }
   async createAccount(a) {
     if (this.accounts.has(a.id)) throw new Error('La cuenta ya existe');
     if (a.username && await this.getAccountByUsername(a.username)) throw new DuplicateUsername();
@@ -59,14 +65,27 @@ export class MemoryProfileStore {
     if (expectedVersion != null && expectedVersion !== v) throw new VersionConflict(v);
     this.profiles.set(id, { save: clone(save), version: v + 1, updatedAt: now(), origin }); return { version: v + 1 };
   }
-  async mutateProfile(id, fn, { origin = 'online', expectedVersion } = {}) {
+  async mutateProfile(id, fn, { origin = 'online', expectedVersion, opId } = {}) {
     const cur = this.profiles.get(id); if (!cur) throw new Error('Sin perfil');
+    const done = opId && this.ops.get(id + '|' + opId);
+    if (done) return { duplicate: true, save: clone(cur.save), version: cur.version, info: clone(done.info) };
     if (expectedVersion != null && expectedVersion !== cur.version) throw new VersionConflict(cur.version);
     const out = fn(clone(cur.save));               // síncrono: nadie más escribe entre medias
     const v = cur.version + 1;
     this.profiles.set(id, { save: clone(out.save), version: v, updatedAt: now(), origin });
+    if (opId) this.ops.set(id + '|' + opId, { version: v, info: clone(out.info ?? {}) });
     return Object.assign({}, out, { version: v });
   }
+  async saveExpedition({ id, dungeon, status, seq, members = [], state }) {
+    const cur = this.expeditions.get(id);
+    if (cur && cur.seq >= seq) return { saved: false };
+    const e = cur || { id, dungeon, members: new Set(), createdAt: now() };
+    Object.assign(e, { status, seq, state: clone(state), updatedAt: now() }); for (const a of members) e.members.add(a);
+    this.expeditions.set(id, e); return { saved: true };
+  }
+  async getExpedition(id) { const e = this.expeditions.get(id); return e ? { id: e.id, dungeon: e.dungeon, status: e.status, seq: e.seq, state: clone(e.state), createdAt: e.createdAt, updatedAt: e.updatedAt } : null; }
+  async pendingExpeditions(a) { return [...this.expeditions.values()].filter(e => e.members.has(a) && !this.rewards.has(e.id + '|' + a)).sort((x, y) => y.updatedAt.localeCompare(x.updatedAt)).map(e => ({ id: e.id, dungeon: e.dungeon, status: e.status, seq: e.seq, state: null, createdAt: e.createdAt, updatedAt: e.updatedAt })); }
+  async unsettledExpeditions(status = 'ended') { return [...this.expeditions.values()].filter(e => e.status === status && [...e.members].some(a => !this.rewards.has(e.id + '|' + a))).map(e => e.id); }
   async applyReward({ expeditionId, accountId, result, summary, save, expectedVersion }) {
     const key = expeditionId + '|' + accountId, prev = this.rewards.get(key);
     if (prev) return { applied: false, version: prev.profileVersion, reward: clone(prev) };

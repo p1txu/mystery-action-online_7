@@ -8,8 +8,7 @@
  *    conexión en plena pelea, el jefe sigue, y Beto vuelve a SU sitio desde otro dispositivo;
  *  - recompensas: una sola vez por jugador aunque la sala intente cerrar dos veces y aunque se reintente el
  *    guardado con la misma expedición; el trofeo único, una vez; Beto, como acompañante, no se salta la campaña;
- *  - punto de control: se escribe en la base de datos al llegar; el servidor se cae sin poder cerrar la sala
- *    (sin guardar el resultado) y, tras reiniciar, el grupo continúa desde el punto de control;
+ *  - (expediciones interrumpidas y su reanudación: tests/colyseus/recovery.test.mjs);
  *  - solitario: la misma sala con una plaza sigue funcionando igual.
  * Lo que es preparación (no lo haría un jugador) está marcado: saltar al piso del jefe y rematarlo.
  */
@@ -155,63 +154,6 @@ test('fase 1: dos jugadores y un jefe — sala con código, acompañante, Gromga
   assert.ok(rb[1].lines.some(l => /acompañante/.test(l)));
   assert.equal(pb.species, 'mago'); assert.equal(pa.species, 'guerrero', 'cada uno su perfil');
   for (const p of [ana, beto2]) await p.room.leave().catch(() => {});
-});
-
-test('punto de control: se guarda al llegar; el servidor cae sin cerrar la sala y el grupo continúa desde allí', { timeout: 90000 }, async () => {
-  const cris = await player('cris', veteran('guerrero')), dani = await player('dani', veteran('arquero'));
-  const code = await openRoom(cris, 'gruta');
-  listen(dani, await dani.client.joinById(cris.room.roomId, opts(dani, { code })));
-  dani.room.send(C.READY, { ready: true }); await until(() => st(cris).players[dani.room.sessionId]?.ready, 3000, 'listo');
-  assert.equal(st(cris).resume, false, 'sin punto de control: se empieza desde el principio');
-  cris.room.send(C.START, {});
-  await until(() => got(cris, S.FLOOR) && got(dani, S.FLOOR), 6000, 'primer piso');
-  const room = server(cris), X = room.exp;
-  const v0 = (await app.store.getProfile(cris.id)).version;
-  // Preparación: llegar al punto de control (como al bajar las escaleras)
-  const wp = X.seq.findIndex(s => s.kind === 'waypoint');
-  while (X.stepIdx < wp) X.nextStep();
-  room.flushEvents();
-  await until(() => ev(cris, 'checkpoint').length && ev(dani, 'checkpoint').length, 3000, 'aviso de punto de control');
-  await room.ckpt;
-  for (const p of [cris, dani]) { const s = (await app.store.getProfile(p.id)).save; assert.equal(s.resume && s.resume.dungeon, 'gruta', p.name + ': punto de control en la base de datos'); }
-  assert.equal((await app.store.getProfile(cris.id)).version, v0 + 1, 'solo el punto de control (una escritura)');
-  // --- El servidor cae DE GOLPE: no llega a guardar el resultado (se anula el cierre ordenado)
-  room.commit = async () => {};      // como un apagón: la sala no llega a escribir ningún resultado
-  for (const p of [cris, dani]) p.room.reconnection.maxRetries = 0;
-  await app.close();
-  await boot();
-  for (const p of [cris, dani]) { assert.equal((await app.store.listRewards(p.id)).length, 0, 'no hubo resultado'); await relogin(p); }
-  // --- Nueva sala: los dos tienen el punto de control, así que se ofrece (y viene activado)
-  const code2 = await openRoom(cris, 'gruta');
-  listen(dani, await dani.client.joinById(cris.room.roomId, opts(dani, { code: code2 })));
-  await until(() => st(cris).resume === true && Object.values(st(cris).players).every(q => q.checkpoint === 'gruta'), 3000, 'continuar disponible');
-  // La anfitriona puede desactivarlo y volver a activarlo; un invitado no
-  cris.room.send(C.OPTIONS, { resume: false }); await until(() => st(dani).resume === false, 3000, 'desactivado');
-  dani.room.send(C.OPTIONS, { resume: true }); await until(() => got(dani, S.REJECT, m => m.what === 'options'), 3000, 'invitado rechazado');
-  cris.room.send(C.OPTIONS, { resume: true }); await until(() => st(dani).resume === true, 3000, 'activado');
-  dani.room.send(C.READY, { ready: true }); await until(() => st(cris).players[dani.room.sessionId]?.ready, 3000, 'listo');
-  cris.room.send(C.START, {});
-  const f = await until(() => got(cris, S.FLOOR) && got(dani, S.FLOOR), 6000, 'piso');
-  assert.equal(f[1].kind, 'waypoint', 'empieza en el punto de control');
-  assert.ok(ev(dani, 'resumed').length, 'aviso de que se continúa');
-  const X2 = server(cris).exp; assert.equal(X2.resumed, true);
-  // Termina (vuelven a la aldea): el punto de control se gasta y la recompensa se guarda una vez
-  X2.finish('return');
-  await Promise.all([cris, dani].map(p => until(() => got(p, S.RESULT), 6000, 'resultado')));
-  for (const p of [cris, dani]) { const s = (await app.store.getProfile(p.id)).save; assert.equal(s.resume, null, p.name + ': gastado'); assert.equal((await app.store.listRewards(p.id)).length, 1); }
-  for (const p of [cris, dani]) await p.room.leave().catch(() => {});
-});
-
-test('un tercero sin el punto de control: no se ofrece continuar (se empieza desde el principio)', { timeout: 30000 }, async () => {
-  const at = Date.now();
-  const eva = await player('eva', Object.assign(veteran('mago'), { resume: { dungeon: 'gruta', at } })), fer = await player('fer', veteran('guerrero'));
-  const code = await openRoom(eva, 'gruta');
-  await until(() => st(eva).resume === true, 3000, 'sola, con su punto de control');
-  listen(fer, await fer.client.joinById(eva.room.roomId, opts(fer, { code })));
-  await until(() => st(eva).resume === false, 3000, 'al entrar Fer se desactiva');
-  eva.room.send(C.OPTIONS, { resume: true });
-  await until(() => got(eva, S.REJECT, m => m.what === 'options' && /todos/.test(m.why)), 3000, 'no se puede forzar');
-  for (const p of [eva, fer]) await p.room.leave().catch(() => {});
 });
 
 test('solitario: la sala de una plaza funciona igual (entra, juega, recompensa una vez) y nadie más puede entrar', { timeout: 30000 }, async () => {

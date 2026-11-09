@@ -20,8 +20,8 @@ Este documento recoge la revisión del multijugador que ya existía, sus límite
 | Quien no tenía la región desbloqueada no podía entrar | Un amigo nuevo no podía acompañar al grupo | **Acompañantes** (apartado 3) |
 | Reanimar no tenía límites | Se reanimaba sin coste, sin fin | **Reglas de reanimación** (apartado 6) |
 | El grupo se hacía «esponja»: con 4 jugadores, enemigos con casi ×3 de vida | Combates largos sin más interés | **Escalado menos esponja y reparto de objetivos** (apartado 5) |
-| Si el servidor caía, la expedición se perdía | Había que repetirla entera | **Punto de control** (apartado 7) |
-| Un solo proceso: las salas viven en la memoria del servidor (el ordenador del anfitrión) | Si ese ordenador se apaga, la pelea en curso se pierde; solo queda lo guardado | Se acepta. El punto de control limita la pérdida. Repartir salas entre varios servidores necesitaría Redis (presencia y conductor de Colyseus) y no se ha hecho. |
+| Si el servidor caía, la expedición se perdía | Había que repetirla entera | **Expedición que se puede continuar** (apartado 7; desde la 0.42, [PERSISTENCIA.md](PERSISTENCIA.md)) |
+| Un solo proceso: las salas viven en la memoria del servidor (el ordenador del anfitrión) | Si ese ordenador se apaga, se pierde lo ocurrido desde el último punto seguro | Se acepta. Los puntos seguros limitan la pérdida. Repartir salas entre varios servidores necesitaría Redis (presencia y conductor de Colyseus) y no se ha hecho. |
 | Misiones de historia | No existen en el código (solo en la biblia). Las misiones del tablón con escolta, rescate o forajido no están en línea (`jobs = []` en la expedición en línea) | **Sin cambio**. Se documenta abajo cómo encajarán. |
 
 ## 2. Salas y expediciones
@@ -104,21 +104,15 @@ Este documento recoge la revisión del multijugador que ya existía, sus límite
 
 El caído ve un aviso con su cuenta atrás. Los demás la ven sobre él.
 
-## 7. Expedición interrumpida: punto de control
+## 7. Expedición interrumpida
 
-- **Al llegar al punto de control** de una mazmorra (Gruta, Ciénaga, Mina, Cráter; el Bosque no tiene):
-  - el servidor escribe en el perfil de cada integrante `resume = { dungeon, at }`. Solo eso, sin botín ni EXP;
-  - todos reciben el aviso «Punto de control guardado».
-- **Si la expedición se interrumpe** (reinicio o caída del servidor):
-  - con cierre ordenado: se guarda lo conseguido y se conserva el punto de control;
-  - con apagón: no se guarda el resultado, pero el punto de control ya está en la base de datos.
-- **Continuar:**
-  - si **todos** los de la sala tienen el punto de control de esa mazmorra (vigente 7 días), la sala lo ofrece **activado**;
-  - el anfitrión puede desactivarlo, y nadie más puede cambiarlo;
-  - si entra alguien sin él, se desactiva solo;
-  - al empezar, el grupo aparece en el punto de control.
-- **Se gasta** con cualquier otro final de **esa** mazmorra (victoria, vuelta a la aldea, derrota o retirada de ese jugador). El punto de control de otra mazmorra no se toca.
-- **Grupos persistentes y solitario:** si todos lo tienen, se continúa automáticamente.
+Desde la 0.42 lo gestiona el **estado de expedición**, descrito en [PERSISTENCIA.md](PERSISTENCIA.md):
+- se guarda en cada punto seguro (cada piso, jefe o minijefe vencido, objetivo cumplido y cierre ordenado);
+- si el servidor cae, el grupo continúa **la misma** expedición desde el último punto seguro;
+- mientras tanto, la aldea de cada uno espera;
+- se puede cerrar quedándose con lo conseguido, y caduca a los 7 días.
+
+Sustituye al punto de control de la 0.41, que solo guardaba la mazmorra y empezaba una expedición nueva en el punto de control.
 
 ## 8. Misiones de historia (pendiente)
 
@@ -131,14 +125,14 @@ La biblia define misiones principales y secundarias, pero el código aún no las
 
 ## 9. Pruebas (reales, no simuladas)
 
-- `tests/campaign.test.mjs` (11 pruebas, simulación real del servidor):
+- `tests/campaign.test.mjs` (10 pruebas, simulación real del servidor):
   - botín individual de cofres y enemigos, y que lo de quien se va pasa a ser de todos;
   - soltar objetos normales sí y trofeos no;
   - acompañante;
   - reanimar con tiempos crecientes, desangrado y fuera de combate, y desconectado sin desangrarse;
   - derrota del grupo y solitario igual que antes;
   - reparto de objetivos y escalado;
-  - punto de control (guardar, conservar, gastar, otra mazmorra, mazmorra sin él) y su validación al cargar.
+  - validación al cargar del punto de control antiguo (0.41).
 - `tests/colyseus/campaign.test.mjs` (Colyseus real, clientes SDK, SQLite en disco):
   - **Fase 1, dos jugadores y un jefe:**
     - intrusos sin código, con código falso o de otra sala;
@@ -149,17 +143,11 @@ La biblia define misiones principales y secundarias, pero el código aún no las
     - corte de Beto en plena pelea (el jefe sigue) y vuelta desde otro dispositivo al mismo asiento, con el jefe como está;
     - recompensas una vez aunque la sala cierre dos veces y se reintente el guardado;
     - trofeo una vez y acompañante sin saltarse la campaña.
-  - **Punto de control:**
-    - se escribe al llegar;
-    - el servidor se apaga sin guardar ningún resultado y vuelve a arrancar;
-    - la sala lo ofrece y el anfitrión lo cambia (el invitado no);
-    - el grupo empieza en el punto de control;
-    - al volver se gasta.
-  - Un tercero sin punto de control lo desactiva.
   - El solitario sigue igual.
+  - Expediciones interrumpidas: `tests/colyseus/recovery.test.mjs` (ver [PERSISTENCIA.md](PERSISTENCIA.md)).
 - `tests/colyseus/browser_campaign_e2e.py` (dos navegadores):
   - etiqueta de acompañante;
-  - casilla «Continuar desde el punto de control» y texto para el invitado;
-  - empezar en el punto de control;
-  - gastado al volver.
+  - expedición suspendida, aviso al volver y casilla «Continuar la expedición interrumpida» con su texto para el invitado;
+  - los dos continúan la misma expedición en el piso 2;
+  - resultado no confirmado mientras falla la base de datos, y confirmado cuando vuelve.
 - `tests/colyseus/browser_revive_e2e.py`: ahora comprueba también la cuenta atrás del caído (en su pantalla y sobre él en la de su compañera).

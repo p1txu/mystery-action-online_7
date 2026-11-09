@@ -11,7 +11,7 @@ export const PlayerState = schema({
   hp: t.uint16(), maxHp: t.uint16(), exp: t.uint32(), energy: t.uint8(), belly: t.uint8(), gems: t.uint32(),
   downed: t.boolean(), revive: t.float32(), connected: t.boolean(), dash: t.boolean(), iframes: t.boolean(),
   ack: t.uint32(), basic: t.float32(), dodge: t.uint8(), holdUntil: t.float64(),   // holdUntil: hasta cuándo se le guarda el sitio (ms, 0 = conectado)
-  companion: t.boolean(), bleed: t.float32(), revives: t.uint8(), checkpoint: t.string(),   // checkpoint: mazmorra de su punto de control ('' = ninguno)
+  companion: t.boolean(), bleed: t.float32(), revives: t.uint8(), checkpoint: t.string(), pending: t.string(), pendingLabel: t.string(),   // expedición interrumpida: mazmorra, id y dónde se quedó ('' = ninguna)
     // acompañante (región sin desbloquear) · segundos de desangrado · reanimaciones en el piso
   cds: t.array('number'), moves: t.array('string'),
 }, 'PlayerState');

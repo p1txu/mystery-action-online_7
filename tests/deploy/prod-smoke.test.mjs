@@ -7,8 +7,9 @@
  *   - CORS y WebSockets solo desde CLIENT_ORIGIN;
  *   - IP real tras el proxy (X-Forwarded-For) en los límites de intentos;
  *   - registros JSON, sin tokens ni secretos;
- *   - cierre ordenado (SIGTERM, como al desplegar una versión nueva) en plena expedición: cada
- *     jugador recibe su resultado «interrumpida», su progreso queda guardado y el proceso sale con 0.
+ *   - cierre ordenado (SIGTERM, como al desplegar una versión nueva) en plena expedición: la expedición
+ *     queda guardada («suspendida», 0.42), los jugadores reciben el aviso y el proceso sale con 0; tras
+ *     reiniciar la tienen pendiente y, al cerrarla, cada uno se queda lo conseguido una sola vez.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -113,9 +114,9 @@ test('servidor de producción: salud, orígenes, IP tras el proxy, registros y c
 
     // --- Despliegue de una versión nueva: SIGTERM con la expedición en marcha
     srv.kill('SIGTERM');
-    const results = await Promise.all(players.map(p => until(() => p.inbox.find(([t]) => t === S.RESULT), 15000, 'resultado de ' + p.name)));
-    for (const [, r] of results) { assert.equal(r.result, 'interrupted'); assert.equal(r.success, true); assert.ok(r.version >= 2, 'guardado en la base de datos'); }
-    assert.ok(players.every(p => p.inbox.some(([t, m]) => t === S.EVENT && m.type === 'shutdown')), 'aviso de reinicio');
+    await until(() => players.every(p => p.inbox.some(([t, m]) => t === S.EVENT && m.type === 'shutdown')), 15000, 'aviso de reinicio');
+    assert.ok(players.every(p => p.inbox.some(([t, m]) => t === S.EVENT && m.type === 'shutdown' && m.resumable)), 'la expedición queda guardada para continuarla');
+    assert.ok(!players.some(p => p.inbox.some(([t]) => t === S.RESULT)), 'no se cierra: no hay resultado todavía');
     const exit = await srv.exited;
     assert.equal(exit.code, 0, 'sale limpio: ' + srv.err.slice(-400));
     await until(() => players.every(p => p.closed != null), 5000, 'clientes desconectados');
@@ -123,7 +124,8 @@ test('servidor de producción: salud, orígenes, IP tras el proxy, registros y c
 
     // --- Registros: JSON, con los sucesos clave y sin secretos
     const L = lines(srv), msgs = new Set(L.map(l => l.msg));
-    for (const m of ['room.create', 'room.join', 'room.start', 'room.shutdown', 'room.end', 'reward.saved', 'server.shutdown']) assert.ok(msgs.has(m), 'registro ' + m);
+    for (const m of ['room.create', 'room.join', 'room.start', 'room.shutdown', 'expedition.saved', 'server.shutdown']) assert.ok(msgs.has(m), 'registro ' + m);
+    assert.ok(L.find(l => l.msg === 'expedition.saved' && l.status === 'suspended' && l.reason === 'shutdown'), 'guardada como suspendida');
     assert.ok(L.find(l => l.msg === 'http' && l.status === 429 && l.ip === '203.0.113.7'), 'la IP real aparece en el registro');
     const all = srv.out + srv.err;
     for (const p of players) assert.ok(!all.includes(p.token), 'ningún token en los registros');
@@ -135,6 +137,11 @@ test('servidor de producción: salud, orígenes, IP tras el proxy, registros y c
     try {
       await until(() => lines(again).find(l => l.msg === 'server.ready'), 15000, 'segundo arranque');
       for (const p of players) {
+        assert.equal((await http('GET', '/api/profile/rewards', { token: p.token })).body.rewards.length, 0, 'aún sin resultado');
+        const pend = (await http('GET', '/api/expedition', { token: p.token })).body.pending;
+        assert.ok(pend && pend.id, 'expedición pendiente tras reiniciar');
+        const c = await http('POST', '/api/expedition/close', { token: p.token, body: { id: pend.id } });
+        assert.equal(c.status, 200); assert.equal(c.body.result, 'interrupted');
         const rw = await http('GET', '/api/profile/rewards', { token: p.token });
         assert.equal(rw.status, 200); assert.equal(rw.body.rewards.length, 1); assert.equal(rw.body.rewards[0].result, 'interrupted');
         const prof = await http('GET', '/api/profile', { token: p.token });

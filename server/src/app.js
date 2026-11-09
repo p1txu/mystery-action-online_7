@@ -4,6 +4,7 @@ import { WebSocketTransport } from '@colyseus/ws-transport';
 import { IdentityService } from './identity/IdentityService.js';
 import { createProfileStore } from './persistence/index.js';
 import { withEncryptedAccounts } from './persistence/EncryptedAccounts.js';
+import { ExpeditionService } from './persistence/ExpeditionService.js';
 import { ProfileService } from './persistence/ProfileService.js';
 import { RoomRegistry } from './rooms/registry.js';
 import { ExpeditionRoom } from './rooms/ExpeditionRoom.js';
@@ -41,9 +42,11 @@ export async function createGameServer(config, { store: givenStore, logger } = {
   const registry = new RoomRegistry();
   const identity = new IdentityService({ secret: config.secret, store, ttlHours: config.tokenTtlHours });
   const profiles = new ProfileService({ store, registry, allowImport: config.allowProfileImport });
+  const expeditions = profiles.expeditions = new ExpeditionService({ store, profiles, log, isLive: id => [...registry.rooms.values()].some(r => r.exp && r.exp.id === id) });
+  await expeditions.recover();                     // resultados finales que quedaron sin guardar (caída del servidor al guardar)
   const social = new SocialService({ store, log });
   HubRoom.services = { identity, profiles, social, registry, matchMaker };
-  ExpeditionRoom.services = { identity, profiles, registry, reconnectSeconds: reconnectWindow(config.reconnectSeconds),
+  ExpeditionRoom.services = { identity, profiles, expeditions, registry, reconnectSeconds: reconnectWindow(config.reconnectSeconds),
     reconnectMaxSeconds: reconnectWindow(config.reconnectMaxSeconds || 300), hostGraceSeconds: config.hostGraceSeconds ?? HOST_GRACE_SECONDS };
   const startedAt = Date.now();
   const status = async deep => {
@@ -56,7 +59,7 @@ export async function createGameServer(config, { store: givenStore, logger } = {
   const host = config.hostTunnel && config.clientDir ? new HostTunnel({ port: config.port, binDir: config.hostBinDir, log,
     onUrl: url => { if (!config.clientOrigins.includes(url)) config.clientOrigins.push(url); },
     onClose: url => { const i = config.clientOrigins.indexOf(url); if (i >= 0) config.clientOrigins.splice(i, 1); } }) : null;
-  const api = createApi({ identity, profiles, registry, config, status, log, host, social, hub: () => hubRoom });
+  const api = createApi({ identity, profiles, expeditions, registry, config, status, log, host, social, hub: () => hubRoom });
 
   // Cada ruta de la API como endpoint del router de Colyseus; el cuerpo lo lee la propia API.
   const routes = createRouter(Object.fromEntries(API_ROUTES.map(([name, method, path]) =>
@@ -88,7 +91,7 @@ export async function createGameServer(config, { store: givenStore, logger } = {
   // sala (las expediciones se cierran guardando lo conseguido) y después a esto.
   server.onShutdown(async () => { log.info('server.shutdown', { rooms: registry.rooms.size }); if (host) host.close(); await closeStore(); });
   return {
-    server, store, registry, identity, profiles, social, matchMaker, log, status, host, get hub() { return hubRoom; },
+    server, store, registry, identity, profiles, expeditions, social, matchMaker, log, status, host, get hub() { return hubRoom; },
     listen: async () => { await server.listen(config.port); await startHub(); if (config.clientDir) serveClient(transport.server, config.clientDir, log); log.info('server.listening', { port: config.port, store: config.store, origins: config.clientOrigins, trustProxy: config.trustProxy || 0, reconnectSeconds: ExpeditionRoom.services.reconnectSeconds }); },
     close: async () => { if (host) host.close(); await server.gracefullyShutdown(false).catch(() => {}); await closeStore(); },
   };

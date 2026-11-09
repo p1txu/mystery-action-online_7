@@ -120,6 +120,11 @@ const control = {
     return { version: r.version };
   },
   async profile({ name }) { const c = [...app.hub.conns.values()].find(x => x.account && x.account.name === name); const p = await app.store.getProfile(c.account.id); return { resume: p.save.resume || null, cleared: p.save.cleared, rewards: (await app.store.listRewards(c.account.id)).length }; },
+  /** Como un reinicio del servidor para ESA sala: la expedición se guarda «suspendida» y se cierra la sala. */
+  async suspend() { const r = playing(); r.shuttingDown = true; await r.persist('shutdown', 'suspended'); r.broadcast('ev', { type: 'shutdown', resumable: true }); r.disconnect(4000).catch(() => {}); return { id: r.exp.id }; },
+  /** La base de datos falla (o vuelve) al guardar resultados de expedición. */
+  failCommits({ on }) { if (on) { app._real = app._real || app.profiles.applyResult.bind(app.profiles); app.profiles.applyResult = async () => { throw new Error('base de datos no disponible'); }; } else if (app._real) app.profiles.applyResult = app._real; return { on: !!on }; },
+  expedition() { const X = playing() && playing().exp; return X ? { id: X.id, step: X.stepIdx, label: X.floorInfo.label, resumed: !!X.resumed } : null; },
   lobby() { const r = [...app.registry.rooms.values()].find(q => q.state.phase === 'lobby' && q.members.size > 1); return r ? { resume: r.state.resume, dungeon: r.state.dungeon, players: [...r.state.players.values()].map(p => ({ name: p.name, companion: p.companion, checkpoint: p.checkpoint })) } : null; },
   freeze({ on }) { const r = playing(); r.frozen = !!on; if (on) r.sync(); return { frozen: r.frozen }; },
 };

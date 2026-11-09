@@ -1,4 +1,4 @@
-// GENERADO por tools/split-prototype.mjs a partir de prototype/mystery-action.html (sha256 f6c33b12051f4e40).
+// GENERADO por tools/split-prototype.mjs a partir de prototype/mystery-action.html (sha256 1d3d5f9c1e0ee7c2).
 // No lo edites a mano: cambia el prototipo y vuelve a ejecutar «npm run split».
 /* eslint-disable */
 /**
@@ -4199,7 +4199,72 @@ const sellPrice = id => Math.max(1, Math.round(ITEMS[id].price * ECONOMY.sellRat
 const SAVE_KEY = 'mystery-action-save-v1';
 const BACKUP_KEY = 'mystery-action-save-backup';
 const OPTIONS_KEY = 'mystery-action-options';
-const SAVE_VERSION = 6;   // 6: clases (Guerrero, Arquero, Mago, Asesino) en lugar de especies; las partidas anteriores no son compatibles
+const SAVE_VERSION = 7;   // 6: clases (Guerrero, Arquero, Mago, Asesino) en lugar de especies; las partidas anteriores no son compatibles
+                          // 7 (0.42): registro del perfil — códice (textos, secretos, reliquias), misiones cumplidas e historia
+/* --- Registro del perfil (v7) ---------------------------------------------------------------------
+   codex.lore     textos del escenario leídos (ids de LORE)
+   codex.secrets  salas secretas descubiertas («mazmorra:plantilla», p. ej. «bosque:muro_agrietado»)
+   codex.relics   reliquias: objetos épicos, legendarios o únicos que ha tenido alguna vez
+   log.jobs       misiones entregadas (las últimas LOG_MAX: id, tipo, mazmorra, estrellas y fecha)
+   story.flags    desbloqueos narrativos (STORY.flags) · story.endings  finales vistos (STORY.endings)
+   Todo se valida contra las listas del juego: un id desconocido se descarta. */
+const LOG_MAX = 100, CODEX_MAX = 300;
+const STORY = {
+  flags: { llegada: 'Llegada a la Aldea Raíz', mercader: 'El mercader Tobías abre su puesto', tablon: 'El cartero Lino cuelga el tablón de misiones' },
+  endings: {},              // los finales aún no existen en el juego: el campo se guarda y valida desde ya
+};
+const isRelic = id => !!ITEMS[id] && (ITEMS[id].unique || ITEMS[id].rarity === 'epica' || ITEMS[id].rarity === 'legendaria');
+const Codex = {
+  fresh() { return { lore: [], secrets: [], relics: [] }; },
+  /** Apunta un descubrimiento; devuelve true si es nuevo. */
+  add(s, kind, id) {
+    if (!s) return false;
+    if (!s.codex || typeof s.codex !== 'object') s.codex = Codex.fresh();
+    const list = s.codex[kind] || (s.codex[kind] = []);
+    if (list.includes(id) || !Codex.valid(kind, id) || list.length >= CODEX_MAX) return false;
+    list.push(id); return true;
+  },
+  valid(kind, id) {
+    if (typeof id !== 'string' || id.length > 60) return false;
+    if (kind === 'lore') return Object.values(LORE).some(l => l.some(q => q.id === id));
+    if (kind === 'relics') return isRelic(id);
+    if (kind === 'secrets') { const [d, t] = id.split(':'); return !!dungeonById(d) && Prefabs.list.some(p => p.id === t && p.role === 'secret'); }
+    return false;
+  },
+  sanitize(c) { const out = Codex.fresh(); if (c && typeof c === 'object') for (const k of Object.keys(out)) out[k] = Array.isArray(c[k]) ? [...new Set(c[k])].filter(id => Codex.valid(k, id)).slice(0, CODEX_MAX) : []; return out; },
+  /** Reliquias de una lista de objetos (inventario, equipo, botín). */
+  relicsIn(s, ids) { let n = 0; for (const id of ids) if (isRelic(id) && Codex.add(s, 'relics', id)) n++; return n; },
+};
+const Story = {
+  flag(s, id) { if (!s || !STORY.flags[id]) return false; if (!s.story) s.story = { flags: [], endings: [] }; if (s.story.flags.includes(id)) return false; s.story.flags.push(id); return true; },
+  /** Banderas que se deducen de lo ya jugado (migración y comprobación al cargar). */
+  derived(s) { const f = []; if (s.arrived) f.push('llegada'); if ((s.cleared || []).includes('bosque')) f.push('mercader'); if ((s.cleared || []).includes(COURIER_INTRO.dungeon)) f.push('tablon'); return f; },
+  sanitize(st, s) {
+    const flags = new Set([...(st && Array.isArray(st.flags) ? st.flags : []), ...Story.derived(s)].filter(id => STORY.flags[id]));
+    const endings = (st && Array.isArray(st.endings) ? [...new Set(st.endings)] : []).filter(id => STORY.endings[id]);
+    return { flags: [...flags], endings };
+  },
+};
+/** Misión entregada al registro (la más reciente al final; como mucho LOG_MAX). */
+const logJob = (s, j) => { if (!s.log || !Array.isArray(s.log.jobs)) s.log = { jobs: [] }; s.log.jobs.push({ id: j.id, type: j.type, dungeon: j.dungeon, stars: j.stars, at: Date.now() }); if (s.log.jobs.length > LOG_MAX) s.log.jobs.splice(0, s.log.jobs.length - LOG_MAX); };
+/**
+ * Migraciones del formato del perfil: MIGRATIONS[n] convierte una partida de la versión n en la n+1.
+ * Se aplican en orden al leer (en el navegador y en el servidor) y nunca borran datos conocidos.
+ * Las partidas de antes de la 6 (criaturas) no son compatibles con las clases: no se migran
+ * (el servidor las conserva archivadas en su registro, ver ProfileService).
+ */
+const SAVE_MIGRATIONS = {
+  // 6 → 7 (0.42): registro del perfil. Las reliquias que ya lleva y las banderas de historia que ya ha vivido se apuntan.
+  6(s) {
+    const out = Object.assign({}, s, { v: 7 });
+    out.codex = Codex.fresh();
+    const ids = [...(Array.isArray(s.inv) ? s.inv.map(x => x && x.id) : []), ...Object.values(s.equip || {}).map(e => e && e.id)].filter(Boolean);
+    Codex.relicsIn(out, ids);
+    out.log = { jobs: [] };
+    out.story = { flags: Story.derived(s), endings: [] };
+    return out;
+  },
+};
 const Store = {
   ok: (() => { try { const k = '__ma_test__'; localStorage.setItem(k, '1'); localStorage.removeItem(k); return true; } catch (e) { return false; } })(),
   mem: {},
@@ -4213,14 +4278,23 @@ const isInt = (v, min = 0, max = 1e9) => Number.isFinite(v) && v >= min && v <= 
 const toInt = (v, def, min = 0, max = 1e9) => Number.isFinite(+v) ? Math.min(max, Math.max(min, Math.floor(+v))) : def;
 
 const Save = {
-  fresh(speciesId) { return { v: SAVE_VERSION, species: speciesId, prog: Progress.fresh(speciesId), bank: 50, inv: Inventory.fromIds(['manzana', 'baya', 'baya', 'pocion', 'tonicoEnergia', 'orbeEscape'], 32), equip: freshEquip(), team: [], points: 0, cleared: [], jobs: [], board: [], boardSeed: 1 + Math.floor(Math.random() * 1e6), runs: 0, delivered: 0, activeRun: null, arrived: false, bosses: {} }; },
+  fresh(speciesId) { return { v: SAVE_VERSION, species: speciesId, prog: Progress.fresh(speciesId), bank: 50, inv: Inventory.fromIds(['manzana', 'baya', 'baya', 'pocion', 'tonicoEnergia', 'orbeEscape'], 32), equip: freshEquip(), team: [], points: 0, cleared: [], jobs: [], board: [], boardSeed: 1 + Math.floor(Math.random() * 1e6), runs: 0, delivered: 0, activeRun: null, arrived: false, bosses: {}, codex: Codex.fresh(), log: { jobs: [] }, story: { flags: [], endings: [] } }; },
   /** Con la cuenta online activa (Game.account) el perfil vive en el servidor: no se escribe en este navegador. */
   readOnly: false,
   /** Valida y repara una partida. Devuelve { ok, data, fixes } — `data` es un objeto nuevo y plano. */
-  sanitize(raw) {
+  /** Lleva una partida a SAVE_VERSION con las migraciones en orden. { data, from } (from: versión original). */
+  migrate(raw) {
+    const from = Number.isInteger(raw.v) ? raw.v : 6;       // las de clases sin número de versión son de la 6
+    let data = raw;
+    for (let v = from; v < SAVE_VERSION; v++) if (SAVE_MIGRATIONS[v]) data = SAVE_MIGRATIONS[v](data);
+    return { data, from };
+  },
+  sanitize(input) {
     const fixes = [], fail = why => ({ ok: false, data: null, fixes: [why] });
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return fail('no es un objeto');
-    if (!FORMS[raw.species]) return fail('partida de una versión anterior (criaturas): no es compatible con las clases; empieza una partida nueva');
+    if (!input || typeof input !== 'object' || Array.isArray(input)) return fail('no es un objeto');
+    if (!FORMS[input.species]) return fail('partida de una versión anterior (criaturas): no es compatible con las clases; empieza una partida nueva');
+    if (Number.isInteger(input.v) && input.v > SAVE_VERSION) return fail('partida de una versión más nueva del juego: actualiza el juego para usarla');
+    const { data: raw, from } = this.migrate(input);
     const out = { v: SAVE_VERSION, species: raw.species };
     // Progreso: nivel, experiencia, movimientos y evoluciones
     const p = raw.prog && typeof raw.prog === 'object' ? raw.prog : null;
@@ -4274,6 +4348,8 @@ const Save = {
       if (!out.equip.accesorio) out.equip.accesorio = { uid: typeof e.uid === 'string' ? e.uid : newUid(), id: e.id }; else toBag(e);
       fixes.push('equipo pasado a los huecos nuevos');
     }
+    // Reliquias: las que tiene ahora cuentan como descubiertas (el registro solo crece; ver Codex)
+    out.codex = Codex.sanitize(raw.codex); Codex.relicsIn(out, [...out.inv.map(x => x.id), ...Object.values(out.equip).filter(Boolean).map(e => e.id)]);
     // Compañeros
     const kinds = new Set(); out.team = [];
     for (const m of Array.isArray(raw.team) ? raw.team : []) {
@@ -4301,7 +4377,11 @@ const Save = {
     out.board = (Array.isArray(raw.board) ? raw.board : []).map(j => job(j, ['board'])).filter(Boolean);
     if ((raw.jobs || []).length !== out.jobs.length) fixes.push('misiones no válidas eliminadas');
     out.activeRun = raw.activeRun && dungeonById(raw.activeRun.dng) ? { dng: raw.activeRun.dng, at: toInt(raw.activeRun.at, 0, 0, 1e15) } : null;
-    return { ok: true, data: out, fixes };
+    // Registro (v7): misiones entregadas e historia (el códice va con el inventario)
+    out.log = { jobs: (raw.log && Array.isArray(raw.log.jobs) ? raw.log.jobs : []).filter(j => j && Jobs.weights[j.type] && dungeonById(j.dungeon)).slice(-LOG_MAX)
+      .map(j => ({ id: toInt(j.id, 0), type: j.type, dungeon: j.dungeon, stars: STARS.includes(j.stars) ? j.stars : 'E', at: toInt(j.at, 0, 0, 1e15) })) };
+    out.story = Story.sanitize(raw.story, out);
+    return { ok: true, data: out, fixes, from };
   },
   envelope(s) { const clean = this.sanitize(s); if (!clean.ok) return null; const json = JSON.stringify(clean.data); return JSON.stringify({ format: 'mystery-action', v: SAVE_VERSION, savedAt: Date.now(), sum: checksum(json), data: clean.data }); },
   /** Lee y valida una clave. { save, savedAt, error } */
@@ -4314,12 +4394,16 @@ const Save = {
       data = obj.data; savedAt = obj.savedAt;
     } else if (!obj || !(Number.isInteger(obj.v) && obj.v >= 1 && obj.v <= SAVE_VERSION)) return { save: null, error: 'formato desconocido' };
     const r = this.sanitize(data);
-    return r.ok ? { save: r.data, savedAt, fixes: r.fixes, error: null } : { save: null, error: r.fixes[0] };
+    return r.ok ? { save: r.data, savedAt, fixes: r.fixes, from: r.from, raw: txt, error: null } : { save: null, error: r.fixes[0] };
   },
   /** Carga el guardado principal; si está dañado, recupera la copia de seguridad. */
   loadDetailed() {
     const main = this.read(SAVE_KEY);
-    if (main.save) return { save: main.save, source: 'main', fixes: main.fixes || [] };
+    if (main.save) {
+      // Formato antiguo: se guarda una copia intacta del original (una vez por versión) antes de que se sobrescriba
+      if (main.from < SAVE_VERSION && !this.readOnly) { const k = `${SAVE_KEY}-v${main.from}`; if (Store.get(k) == null) Store.set(k, main.raw); }
+      return { save: main.save, source: 'main', fixes: main.fixes || [], from: main.from };
+    }
     const bak = this.read(BACKUP_KEY);
     if (bak.save) { this.write(bak.save); return { save: bak.save, source: 'backup', error: main.error, savedAt: bak.savedAt, fixes: bak.fixes || [] }; }
     return { save: null, source: null, error: main.error || bak.error };
@@ -5527,6 +5611,6 @@ const Quests = {
 };
 
 
-  return { CONFIG, U, T, SOLID, TILE_NAMES, World, Particles, CLASSES, CLASS_STATS, ELITE, eliteChance, floorEnemies, FAMILIES, Deco, Terrain, ALLY_ABILITY, canEquip, OLD_EQUIP_SLOTS, FRACTION_STATS, fmtStat, DMG, classMoves, groundTarget, SPECIES, EVOLVED, FORMS, Progress, EVOLUTIONS, EVO_ITEM_MIN_LEVEL, Combat, Effects, Projectile, Zone, BLOCKS_SHOT, TYPES, TYPE_CHART, typeEff, calcStats, MAX_LEVEL, expNeed, expYield, MOVES, BossKit, BossArena, GROMGAR, BOSS_MIN_TELE, DungeonPlan, Prefabs, MechSolver, Mechs, LORE, SOLVER_TILES_PER_S, BOONS, Boons, BOSS_RAGE, GEODA, Geoda, Boulder, Actor, Player, Enemy, STOP, ENEMIES, ENEMY_VARIANTS, makeKind, BOSSES, makeBossKind, BIOMES, RARITIES, CATEGORIES, EQUIP_SLOTS, ITEMS, QUICK, RARITY_ORDER, STAT_NAMES, BASE_SHOP, SHOP_TIERS, shopStock, sellPrice, RECIPES, newUid, LOOT, Loot, Inventory, finalStats, freshEquip, equipRegen, TRAPS, DUNGEONS, dungeonById, dungeonOpen, COURIER_INTRO, enemyLevel, RANKS, rankOf, weighted, Jobs, ECONOMY, SAVE_VERSION, checksum, Save, FloorGen, hashStr, RECRUIT, ORDERS, gridPath, Companion, LEGACY_JOBS, isLegacyJob, Quests };
+  return { CONFIG, U, T, SOLID, TILE_NAMES, World, Particles, CLASSES, CLASS_STATS, ELITE, eliteChance, floorEnemies, FAMILIES, Deco, Terrain, ALLY_ABILITY, canEquip, OLD_EQUIP_SLOTS, FRACTION_STATS, fmtStat, DMG, classMoves, groundTarget, SPECIES, EVOLVED, FORMS, Progress, EVOLUTIONS, EVO_ITEM_MIN_LEVEL, Combat, Effects, Projectile, Zone, BLOCKS_SHOT, TYPES, TYPE_CHART, typeEff, calcStats, MAX_LEVEL, expNeed, expYield, MOVES, BossKit, BossArena, GROMGAR, BOSS_MIN_TELE, DungeonPlan, Prefabs, MechSolver, Mechs, LORE, SOLVER_TILES_PER_S, BOONS, Boons, BOSS_RAGE, GEODA, Geoda, Boulder, Actor, Player, Enemy, STOP, ENEMIES, ENEMY_VARIANTS, makeKind, BOSSES, makeBossKind, BIOMES, RARITIES, CATEGORIES, EQUIP_SLOTS, ITEMS, QUICK, RARITY_ORDER, STAT_NAMES, BASE_SHOP, SHOP_TIERS, shopStock, sellPrice, RECIPES, newUid, LOOT, Loot, Inventory, finalStats, freshEquip, equipRegen, TRAPS, DUNGEONS, dungeonById, dungeonOpen, COURIER_INTRO, enemyLevel, RANKS, rankOf, weighted, Jobs, ECONOMY, SAVE_VERSION, SAVE_MIGRATIONS, checksum, Save, FloorGen, hashStr, Codex, Story, STORY, logJob, isRelic, LOG_MAX, RECRUIT, ORDERS, gridPath, Companion, LEGACY_JOBS, isLegacyJob, Quests };
 }
-export const SOURCE_HASH = 'f6c33b12051f4e40';
+export const SOURCE_HASH = '1d3d5f9c1e0ee7c2';

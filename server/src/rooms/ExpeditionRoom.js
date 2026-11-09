@@ -21,8 +21,11 @@ import { log, shortId } from '../log.js';
 const RULES = createEngineCore();
 
 /** Mazmorra del punto de control vigente de un perfil ('' si no tiene o ha caducado). */
-function checkpointOf(save) { const r = save && save.resume; return r && RULES.dungeonById(r.dungeon) && Date.now() - r.at < RESUME_TTL_MS ? r.dungeon : ''; }
-const RESUME_TTL_MS = 7 * 864e5;
+/** Repite una escritura en la base de datos si falla (fallos pasajeros): 3 reintentos con espera creciente. */
+export const RETRY_WAITS_MS = [300, 1000, 3000];
+async function retry(fn, waits = RETRY_WAITS_MS) {
+  for (let i = 0; ; i++) { try { return await fn(); } catch (e) { if (i >= waits.length) throw e; await new Promise(r => setTimeout(r, waits[i])); } }
+}
 
 export class ExpeditionRoom extends Room {
   /** Servicios inyectados desde app.js: { identity, profiles, registry, reconnectSeconds }. */
@@ -93,7 +96,7 @@ export class ExpeditionRoom extends Room {
     catch (e) { this.log.info('room.join_rejected', { code: e.code, reason: e.message }); throw e; }
   }
   async authorize(client, options, context) {
-    const { identity, profiles, registry } = ExpeditionRoom.services;
+    const { identity, profiles, registry, expeditions } = ExpeditionRoom.services;
     options = options || {};
     const token = (context && context.token) || options.token;
     const account = typeof token === 'string' ? await identity.verify(token) : null;
@@ -105,6 +108,7 @@ export class ExpeditionRoom extends Room {
     if (this.state.phase !== 'lobby') throw fail(ERR.STARTED);
     const prof = await profiles.get(account.id);
     if (!prof) throw fail(ERR.NO_PROFILE);
+    const pending = expeditions ? await expeditions.pendingFor(account.id) : null;   // expedición interrumpida que podría continuar
     // --- sin await a partir de aquí ---
     if (this.state.phase !== 'lobby' || this.starting) throw fail(ERR.STARTED);
     if ([...this.claims.values()].includes(account.id)) throw fail(ERR.DUPLICATE);
@@ -114,18 +118,18 @@ export class ExpeditionRoom extends Room {
     this.claims.set(client.sessionId, account.id);
     this.countPlayers();
     // Lo que se devuelve sale del servidor: cuenta del token y su perfil. Las opciones del cliente no se usan.
-    return { account: { id: account.id, name: account.name }, save: prof.save, version: prof.version };
+    return { account: { id: account.id, name: account.name }, save: prof.save, version: prof.version, pending };
   }
 
   onJoin(client, options, auth) {
-    const { account, save, version } = auth;
+    const { account, save, version, pending } = auth;
     let host = this.members.size === 0;
     if (this.party) {     // el líder del grupo es el anfitrión, entre quien entre primero
       host = account.id === this.party.leader || (this.members.size === 0 && !this.party.accounts.has(this.party.leader));
       if (account.id === this.party.leader) for (const q of this.state.players.values()) q.host = false;
       else if (this.members.size === 0) host = true;
     }
-    this.members.set(client.sessionId, { accountId: account.id, name: account.name, save, version });
+    this.members.set(client.sessionId, { accountId: account.id, name: account.name, save, version, pending: pending || null });
     this.state.players.set(client.sessionId, new PlayerState({ name: account.name, species: save.species, level: save.prog.level, host, ready: !!this.party, connected: true, hp: 1, maxHp: 1, joinedAt: Date.now() }));
     client.send(S.WELCOME, { sessionId: client.sessionId, code: this.code, host, save, reconnectSeconds: this.reconnectSeconds, reconnectChoices: this.reconnectChoices, hostRule: HOST_RULE });
     this.log.info('room.join', { session: client.sessionId, account: shortId(account.id), host, players: this.members.size });
@@ -135,15 +139,19 @@ export class ExpeditionRoom extends Room {
   /** Quién iría como acompañante a la mazmorra elegida (no la tiene desbloqueada): se ve en la sala de espera. */
   markCompanions() {
     const dng = RULES.dungeonById(this.state.dungeon);
-    for (const [id, m] of this.members) { const p = this.state.players.get(id); if (p) { p.companion = !!dng && !RULES.dungeonOpen(m.save, dng); p.checkpoint = checkpointOf(m.save); } }
-    // Continuar desde el punto de control: activado por defecto cuando TODOS lo tienen (el anfitrión puede desactivarlo);
-    // si entra alguien sin él, se empieza desde el principio.
+    for (const [id, m] of this.members) {
+      const p = this.state.players.get(id); if (!p) continue;
+      p.companion = !!dng && !RULES.dungeonOpen(m.save, dng);
+      p.checkpoint = m.pending ? m.pending.dungeon : ''; p.pending = m.pending ? m.pending.id : ''; p.pendingLabel = m.pending ? m.pending.label : '';
+    }
+    // Continuar la expedición interrumpida: activado por defecto cuando TODOS están en la misma (el anfitrión puede
+    // desactivarlo); si entra alguien que no estaba en ella, se empieza una nueva.
     this.state.resume = this.canResume() && !this.resumeOff;
   }
-  /** ¿Pueden continuar desde el punto de control? Solo si TODOS lo tienen para la mazmorra elegida. */
+  /** ¿Pueden continuar? Solo si TODOS tienen pendiente la MISMA expedición, de la mazmorra elegida. */
   canResume(dungeon = this.state.dungeon) {
-    const ms = [...this.members.values()];
-    return ms.length > 0 && ms.every(m => checkpointOf(m.save) === dungeon);
+    const ms = [...this.members.values()], id = ms[0] && ms[0].pending && ms[0].pending.id;
+    return !!id && ms.every(m => m.pending && m.pending.id === id && m.pending.dungeon === dungeon);
   }
   /** Grupo persistente: empieza cuando han entrado todos (o, al agotarse la espera, con los que hayan entrado). */
   partyStart(timeout) {
@@ -174,7 +182,7 @@ export class ExpeditionRoom extends Room {
     }
     if (msg.resume !== undefined) {
       const want = msg.resume === true;
-      if (want && !this.canResume(this.state.dungeon)) return client.send(S.REJECT, { what: 'options', why: 'Para continuar, todos deben tener el punto de control de esta mazmorra' });
+      if (want && !this.canResume(this.state.dungeon)) return client.send(S.REJECT, { what: 'options', why: 'Para continuar, todos tenéis que ser de la misma expedición interrumpida (y de esta mazmorra)' });
       this.resumeOff = !want;
       if (want !== this.state.resume) { this.state.resume = want; changed = true; }
     }
@@ -215,20 +223,38 @@ export class ExpeditionRoom extends Room {
   }
   /** Cada integrante entra con SU perfil, leído de nuevo de la base de datos al empezar. */
   async beginExpedition(dng) {
-    const { profiles } = ExpeditionRoom.services;
-    for (const m of this.members.values()) {
+    const { profiles, expeditions } = ExpeditionRoom.services;
+    const reload = async () => { for (const m of this.members.values()) {
       const rec = await profiles.get(m.accountId);
       if (!rec) throw new Error('Perfil desaparecido: ' + m.accountId);
       m.save = rec.save; m.version = rec.version;
+      m.pending = expeditions ? await expeditions.pendingFor(m.accountId) : null;
+    } };
+    await reload();
+    if (this.state.phase !== 'lobby') return;
+    // ¿Continuar la expedición interrumpida? Se vuelve a comprobar con lo recién leído de la base de datos
+    let snap = null;
+    if (this.state.resume && this.canResume(dng.id)) {
+      const e = await expeditions.get([...this.members.values()][0].pending.id);
+      if (e && e.state && e.status !== 'ended') snap = e;
+    }
+    if (snap) {
+      // Quien estaba en ella y no ha venido: se le cierra conservando lo conseguido (deja de estar pendiente)
+      const here = new Set([...this.members.values()].map(m => m.accountId));
+      for (const sm of snap.state.members) if (!sm.left && !here.has(sm.accountId)) await expeditions.close(sm.accountId, snap.id, 'absent');
+    } else {
+      // Expedición nueva: las interrumpidas de cada uno se cierran antes (conservando lo conseguido hasta su último punto seguro)
+      const closed = [];
+      for (const m of this.members.values()) if (m.pending) { await expeditions.close(m.accountId, m.pending.id, 'new-expedition'); closed.push({ name: m.name, label: m.pending.label }); }
+      if (closed.length) { await reload(); this.broadcast(S.EVENT, { type: 'pendingClosed', list: closed }); }
     }
     if (this.state.phase !== 'lobby') return;
-    // Continuar desde el punto de control: se vuelve a comprobar con los perfiles recién leídos
-    const resume = !!this.state.resume && this.canResume(dng.id);
     const companions = [...this.members.values()].filter(m => !RULES.dungeonOpen(m.save, dng)).map(m => m.name);
-    this.exp = new Expedition({ dungeonId: dng.id, seed: (Math.random() * 2 ** 31) >>> 0, resume,
-      members: [...this.members.entries()].map(([id, m]) => ({ id, accountId: m.accountId, name: m.name, profile: m.save, companion: !RULES.dungeonOpen(m.save, dng) })) });
+    const list = [...this.members.entries()].map(([id, m]) => ({ id, accountId: m.accountId, name: m.name, profile: m.save, companion: !RULES.dungeonOpen(m.save, dng) }));
+    this.exp = snap ? new Expedition({ restore: snap.state, members: list }) : new Expedition({ dungeonId: dng.id, seed: (Math.random() * 2 ** 31) >>> 0, members: list });
+    this.snapSeq = snap ? snap.seq : 0;                 // las instantáneas siguen numerándose donde se quedaron
     if (companions.length) this.broadcast(S.EVENT, { type: 'companions', names: companions, dungeon: dng.name });
-    if (resume) this.broadcast(S.EVENT, { type: 'resumed', dungeon: dng.name });
+    if (snap) this.broadcast(S.EVENT, { type: 'resumed', dungeon: dng.name, label: snap.state.label || '' });
     this.state.phase = 'playing'; this.starting = false;
     ExpeditionRoom.services.registry.close(this.code);
     this.lock();
@@ -237,7 +263,7 @@ export class ExpeditionRoom extends Room {
   }
 
   tick(deltaMs) {
-    if (!this.exp || this.state.phase !== 'playing' || this.frozen) return;   // frozen: solo en pruebas (comparar fotos fijas)
+    if (!this.exp || this.state.phase !== 'playing' || this.frozen || this.shuttingDown) return;   // frozen: solo en pruebas (comparar fotos fijas)
     this.acc = Math.min(this.acc + deltaMs / 1000, .25);       // tras un parón no se recupera más de 250 ms
     try {
       while (this.acc >= SIM_STEP) { this.exp.step(SIM_STEP); this.acc -= SIM_STEP; if (this.exp.ended) break; }
@@ -256,7 +282,7 @@ export class ExpeditionRoom extends Room {
   flushEvents() {
     for (const ev of this.exp.drainEvents()) {
       if (ev.type === 'floor') { this.broadcast(S.FLOOR, ev.info); continue; }
-      if (ev.type === 'checkpoint') this.saveCheckpoint(ev);
+      if (ev.type === 'safepoint') { this.persist(ev.reason).catch(() => {}); continue; }
       const to = ev.to && this.clients.find(c => c.sessionId === ev.to);
       if (ev.to) { if (to) to.send(S.EVENT, ev); } else this.broadcast(S.EVENT, ev);
     }
@@ -285,18 +311,29 @@ export class ExpeditionRoom extends Room {
     } else if (st.boss) st.boss = undefined;
   }
 
-  /** Guarda el punto de control en el perfil de cada integrante (en orden; el resultado final espera a que acabe). */
-  saveCheckpoint(ev) {
-    const { profiles } = ExpeditionRoom.services;
-    this.ckpt = (this.ckpt || Promise.resolve()).then(async () => {
-      for (const id of ev.members) {
-        const m = this.members.get(id); if (!m || this.committed.has(m.accountId)) continue;
-        try { const r = await profiles.checkpoint(m.accountId, { dungeon: ev.dungeon, at: ev.at }, m.version); m.version = r.version; }
-        catch (e) { this.log.error('room.checkpoint_failed', { account: shortId(m.accountId), error: e.message }); }
-      }
-      this.log.info('room.checkpoint', { dungeon: ev.dungeon, players: ev.members.length });
+  /**
+   * Punto seguro: guarda la instantánea de la expedición (en orden; cada una con `seq` mayor). Solo cuando la
+   * base de datos lo confirma se avisa a los jugadores («saved»); si falla tras los reintentos, «saveFailed»
+   * (se volverá a intentar en el siguiente punto seguro, que guarda el estado completo).
+   */
+  persist(reason, status = 'active', extra = null) {
+    const { expeditions } = ExpeditionRoom.services;
+    if (!this.exp || !expeditions) return Promise.resolve();
+    let state;
+    try { state = Object.assign(this.exp.snapshot(reason), extra || {}); } catch (e) { this.log.error('room.snapshot_failed', e); return Promise.resolve(); }
+    const seq = ++this.snapSeq, members = state.members.map(m => m.accountId);
+    const job = () => retry(() => expeditions.save({ id: state.id, dungeon: state.dungeon, status, seq, members, state }));
+    this.saveP = (this.saveP || Promise.resolve()).then(job).then(r => {
+      this.saved = { seq, reason, status, at: Date.now() };
+      this.log.info('expedition.saved', { expedition: state.id, reason, status, seq, applied: r.saved });
+      if (status !== 'ended') this.broadcast(S.EVENT, { type: 'saved', reason, seq });
+    }, e => {
+      this.log.error('expedition.save_failed', { expedition: state.id, reason, error: e.message });
+      if (status !== 'ended') this.broadcast(S.EVENT, { type: 'saveFailed', reason });
+      throw e;
     });
-    return this.ckpt;
+    const p = this.saveP; this.saveP = p.catch(() => {});   // la cadena sigue aunque una falle
+    return p;
   }
   /** Final de la expedición: una sola vez; quien llame después espera al mismo guardado. */
   end() { if (!this.endP) this.endP = this.settleAll(); return this.endP; }
@@ -305,6 +342,10 @@ export class ExpeditionRoom extends Room {
     this.state.phase = 'ended'; this.sync();
     const { results, result } = this.exp.ended;
     this.log.info('room.end', { result, players: results.size, expedition: this.exp.id });
+    // Primero los resultados de todos en la expedición (status «ended»): si el servidor cae mientras se
+    // guardan los perfiles, al volver a arrancar se aplican los que falten (ExpeditionService.recover).
+    const out = {}; for (const [id, r] of results) { const m = this.members.get(id); if (m && r) out[m.accountId] = r; }
+    await this.persist('end', 'ended', { results: out }).catch(() => {});
     for (const [id, r] of results) {
       try { await this.commit(id, r); }
       catch (e) { this.log.error('room.commit_failed', Object.assign({ session: id }, { error: e.message, stack: e.stack })); }
@@ -320,19 +361,36 @@ export class ExpeditionRoom extends Room {
     const m = this.members.get(id), { profiles, registry } = ExpeditionRoom.services;
     if (!r || !m || this.committed.has(m.accountId)) return;
     this.committed.add(m.accountId);
-    if (this.ckpt) await this.ckpt;   // el punto de control (si lo hay) se escribe antes que el resultado
-    let saved = null;
+    if (this.saveP) await this.saveP;   // la última instantánea (si la hay) se escribe antes que el resultado
+    let saved = null, error = null;
     if (r.profile) {
-      saved = await profiles.applyResult({ expeditionId: r.expeditionId, accountId: m.accountId, result: r.result, summary: r.summary, save: r.profile, expectedVersion: m.version });
-      m.version = saved.version;
+      try { saved = await retry(() => profiles.applyResult({ expeditionId: r.expeditionId, accountId: m.accountId, result: r.result, summary: r.summary, save: r.profile, expectedVersion: m.version })); m.version = saved.version; }
+      catch (e) { error = e; this.log.error('room.commit_failed', { account: shortId(m.accountId), error: e.message }); }
     }
-    this.log.info('reward.saved', { account: shortId(m.accountId), result: r.result, applied: !!(saved && saved.applied), version: saved && saved.version });
+    if (!error) this.log.info('reward.saved', { account: shortId(m.accountId), result: r.result, applied: !!(saved && saved.applied), version: saved && saved.version });
+    // `saved`: el cliente solo dice «guardado» cuando la base de datos lo ha confirmado
     const msg = { expeditionId: r.expeditionId, result: r.result, success: r.success, lines: r.lines, summary: r.summary,
-      envelope: r.profile ? profiles.envelope(r.profile) : null, version: saved && saved.version, duplicate: !!(saved && !saved.applied) };
+      envelope: r.profile ? profiles.envelope(r.profile) : null, version: saved && saved.version, duplicate: !!(saved && !saved.applied),
+      saved: !error, error: error ? 'No se ha podido guardar el resultado todavía. Se sigue intentando: no cierres el juego si puedes; si no, se guardará solo en cuanto el servidor pueda.' : undefined };
     this.results.set(m.accountId, msg);
     const c = this.clients.find(x => x.sessionId === id);
     if (c) c.send(S.RESULT, msg);
+    if (error) { this.retryCommit(id, m, r, msg); return; }
     registry.free(m.accountId, this.roomId);
+  }
+  /** El guardado del resultado falló: se reintenta cada 10 s mientras la sala exista (luego lo hace ExpeditionService). */
+  retryCommit(id, m, r, msg) {
+    const { profiles, registry } = ExpeditionRoom.services;
+    const t = this.clock.setInterval(async () => {
+      try {
+        const saved = await profiles.applyResult({ expeditionId: r.expeditionId, accountId: m.accountId, result: r.result, summary: r.summary, save: r.profile });
+        t.clear(); m.version = saved.version;
+        Object.assign(msg, { saved: true, error: undefined, version: saved.version, duplicate: !saved.applied, late: true });
+        const c = this.clients.find(x => x.sessionId === id); if (c) c.send(S.RESULT, msg);
+        registry.free(m.accountId, this.roomId);
+        this.log.info('reward.saved', { account: shortId(m.accountId), result: r.result, applied: saved.applied, late: true });
+      } catch (e) { this.log.warn('room.commit_retry_failed', { account: shortId(m.accountId), error: e.message }); }
+    }, 10000);
   }
 
   /**
@@ -407,7 +465,7 @@ export class ExpeditionRoom extends Room {
   async onLeave(client) {
     const id = client.sessionId, { registry } = ExpeditionRoom.services;
     const accountId = this.claims.get(id) || (this.members.get(id) || {}).accountId;
-    if (this.exp && this.state.phase === 'playing' && this.members.has(id)) await this.commit(id, this.exp.removeMember(id, 'abandon'));
+    if (this.exp && this.state.phase === 'playing' && this.members.has(id) && !this.shuttingDown) await this.commit(id, this.exp.removeMember(id, 'abandon'));   // al apagar el servidor no: la expedición queda suspendida
     if (accountId) registry.free(accountId, this.roomId);
     const wasHost = this.state.players.get(id)?.host;
     if (accountId) this.log.info('room.leave', { session: id, account: shortId(accountId), phase: this.state.phase });
@@ -432,17 +490,19 @@ export class ExpeditionRoom extends Room {
   }
   countPlayers() { ExpeditionRoom.services.registry.update(this.code, { players: this.claims.size, max: this.state.max }); }
   /**
-   * Cierre ordenado del servidor (despliegue o reinicio, SIGTERM): las expediciones en curso
-   * terminan como «interrumpidas» y cada jugador conserva lo conseguido (sin las pérdidas de una
-   * derrota). Se guarda todo ANTES de desconectar; los clientes reciben su resultado y el aviso.
+   * Cierre ordenado del servidor (despliegue o reinicio, SIGTERM): las expediciones en curso se guardan
+   * como «suspendidas» (instantánea completa) ANTES de desconectar; el grupo puede continuarlas después.
+   * Las que ya habían terminado guardan sus resultados.
    */
   async onBeforeShutdown() {
     this.log.info('room.shutdown', { phase: this.state.phase });
+    this.shuttingDown = true;                                  // ya no se simula ni se cobra la retirada de quien se desconecta
     try {
-      if (this.exp && this.state.phase === 'playing' && !this.exp.ended) { this.exp.finish('interrupted'); this.flushEvents(); }
+      // Expedición en curso: se guarda como «suspendida» en el punto en que está; se podrá continuar (misma expedición)
+      if (this.exp && this.state.phase === 'playing' && !this.exp.ended) { this.flushEvents(); await this.persist('shutdown', 'suspended'); this.suspended = true; }
       if (this.exp && this.exp.ended) await this.end();
     } catch (e) { this.log.error('room.shutdown_failed', e); }
-    this.broadcast(S.EVENT, { type: 'shutdown' });
+    this.broadcast(S.EVENT, { type: 'shutdown', resumable: !!this.suspended });
     this.disconnect(CloseCode.SERVER_SHUTDOWN).catch(() => {});
   }
   onDispose() {

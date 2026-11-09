@@ -41,7 +41,7 @@ const EXPORTS = [
   'BASE_SHOP', 'SHOP_TIERS', 'shopStock', 'sellPrice', 'RECIPES', 'newUid',
   'LOOT', 'Loot', 'Inventory', 'finalStats', 'freshEquip', 'equipRegen',
   'TRAPS', 'DUNGEONS', 'dungeonById', 'dungeonOpen', 'COURIER_INTRO', 'enemyLevel', 'RANKS', 'rankOf', 'weighted', 'Jobs', 'ECONOMY',
-  'SAVE_VERSION', 'checksum', 'Save', 'FloorGen', 'hashStr',
+  'SAVE_VERSION', 'SAVE_MIGRATIONS', 'checksum', 'Save', 'FloorGen', 'hashStr', 'Codex', 'Story', 'STORY', 'logJob', 'isRelic', 'LOG_MAX',
   'RECRUIT', 'ORDERS', 'gridPath', 'Companion', 'LEGACY_JOBS', 'isLegacyJob', 'Quests',
 ];
 

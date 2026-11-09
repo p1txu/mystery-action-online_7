@@ -1,6 +1,6 @@
 """Las operaciones de la aldea que valida el servidor (server/src/profile/rules.js) dan EXACTAMENTE
 el mismo perfil que los métodos del juego local (prototipo en el navegador) partiendo de la misma
-partida. Los identificadores internos de las pilas (uid) se normalizan porque son aleatorios."""
+partida. Los identificadores internos de las pilas (uid) y la hora de cada misión entregada se normalizan porque son aleatorios."""
 import asyncio, json, os, subprocess, sys
 from playwright.async_api import async_playwright
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.dirname(os.path.dirname(HERE))
@@ -19,7 +19,7 @@ STEPS = [['buy', {'id': 'pocion'}], ['sell', {'uid': 'a4'}], ['equip', {'uid': '
          ]   # «evolve» ya no existe (las clases no evolucionan) y con una sola habilidad «setMoves» no cambia nada: ver abajo
 NORM = r"""(s) => { const inv = {}; for (const x of s.inv) inv[x.id] = (inv[x.id] || 0) + x.qty;
   const equip = Object.fromEntries(Object.entries(s.equip).map(([k, v]) => [k, v && v.id]));
-  return JSON.stringify(Object.assign({}, s, { inv: Object.entries(inv).sort(), equip, team: s.team.map(m => Object.assign({}, m, { uid: m.uid })) })); }"""
+  return JSON.stringify(Object.assign({}, s, { inv: Object.entries(inv).sort(), equip, team: s.team.map(m => Object.assign({}, m, { uid: m.uid })), log: s.log && { jobs: s.log.jobs.map(j => Object.assign({}, j, { at: 0 })) } })); }"""   # la hora de entrega (log.jobs[].at) es distinta por fuerza
 
 def resolve(step, s0):
     op, args = step; args = dict(args)

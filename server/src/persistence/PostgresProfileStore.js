@@ -7,9 +7,10 @@
 import { readFileSync } from 'node:fs';
 import { VersionConflict, DuplicateUsername, DuplicateFriendCode, pairKey } from './ProfileStore.js';
 
-const MIGRATIONS = ['001_init.sql', '002_social.sql'].map(f => new URL('../../db/migrations/' + f, import.meta.url));
+const MIGRATIONS = ['001_init.sql', '002_social.sql', '003_expeditions.sql'].map(f => new URL('../../db/migrations/' + f, import.meta.url));
 const acc = r => r ? { id: r.id, name: r.name, kind: r.kind, username: r.username, passHash: r.pass_hash, tokenVersion: r.token_version, createdAt: new Date(r.created_at).toISOString() } : null;
 const rew = r => r ? { expeditionId: r.expedition_id, accountId: r.account_id, result: r.result, summary: r.summary, profileVersion: r.profile_version, createdAt: new Date(r.created_at).toISOString() } : null;
+const expRow = r => ({ id: r.id, dungeon: r.dungeon, status: r.status, seq: r.seq, state: r.state || null, createdAt: new Date(r.created_at).toISOString(), updatedAt: new Date(r.updated_at).toISOString() });
 const dup = e => { if (e && e.code === '23505' && /username/.test(e.constraint || e.detail || '')) throw new DuplicateUsername(); throw e; };
 
 export class PostgresProfileStore {
@@ -55,13 +56,34 @@ export class PostgresProfileStore {
       await this.write(c, id, save, v + 1, origin); return { version: v + 1 };
     });
   }
-  async mutateProfile(id, fn, { origin = 'online', expectedVersion } = {}) {
+  async mutateProfile(id, fn, { origin = 'online', expectedVersion, opId } = {}) {
     return this.tx(async c => {
       const cur = await this.readProfile(c, id, true); if (!cur) throw new Error('Sin perfil');
+      if (opId) { const done = (await c.query('select * from profile_ops where account_id = $1 and op_id = $2', [id, opId])).rows[0]; if (done) return { duplicate: true, save: cur.save, version: cur.version, info: done.info || {} }; }
       if (expectedVersion != null && expectedVersion !== cur.version) throw new VersionConflict(cur.version);
       const out = fn(cur.save), v = cur.version + 1;
-      await this.write(c, id, out.save, v, origin); return Object.assign({}, out, { version: v });
+      await this.write(c, id, out.save, v, origin);
+      if (opId) await c.query('insert into profile_ops (account_id, op_id, version, info) values ($1, $2, $3, $4)', [id, opId, v, JSON.stringify(out.info ?? {})]);
+      return Object.assign({}, out, { version: v });
     });
+  }
+  async saveExpedition({ id, dungeon, status, seq, members = [], state }) {
+    return this.tx(async c => {
+      const r = await c.query(`insert into expeditions (id, dungeon, status, seq, state) values ($1, $2, $3, $4, $5)
+        on conflict (id) do update set status = excluded.status, seq = excluded.seq, state = excluded.state, updated_at = now() where expeditions.seq < excluded.seq`, [id, dungeon, status, seq, JSON.stringify(state)]);
+      const saved = r.rowCount > 0;
+      if (saved) for (const a of members) await c.query('insert into expedition_members (expedition_id, account_id) values ($1, $2) on conflict do nothing', [id, a]);
+      return { saved };
+    });
+  }
+  async getExpedition(id) { const r = (await this.pool.query('select * from expeditions where id = $1', [id])).rows[0]; return r ? expRow(r) : null; }
+  async pendingExpeditions(a) {
+    return (await this.pool.query(`select e.id, e.dungeon, e.status, e.seq, e.created_at, e.updated_at from expeditions e join expedition_members m on m.expedition_id = e.id
+      where m.account_id = $1 and not exists (select 1 from rewards r where r.expedition_id = e.id and r.account_id = m.account_id) order by e.updated_at desc`, [a])).rows.map(r => expRow(Object.assign({ state: null }, r)));
+  }
+  async unsettledExpeditions(status = 'ended') {
+    return (await this.pool.query(`select distinct e.id from expeditions e join expedition_members m on m.expedition_id = e.id
+      where e.status = $1 and not exists (select 1 from rewards r where r.expedition_id = e.id and r.account_id = m.account_id)`, [status])).rows.map(r => r.id);
   }
   async applyReward({ expeditionId, accountId, result, summary, save, expectedVersion }) {
     return this.tx(async c => {

@@ -29,7 +29,7 @@ const inv = save => Object.fromEntries(new E.Inventory(save.inv, () => 99).stack
 let app;
 const boot = async () => { const w = console.warn; console.warn = () => {}; app = await createGameServer(cfg); console.warn = w; await app.listen(); };
 test.before(async () => {
-  if (PGURL) { const { PostgresProfileStore } = await import('../../server/src/persistence/PostgresProfileStore.js'); const s = await PostgresProfileStore.connect(PGURL); await s.pool.query('drop table if exists rewards, profiles, profile_events, accounts cascade'); await s.close(); }
+  if (PGURL) { const { PostgresProfileStore } = await import('../../server/src/persistence/PostgresProfileStore.js'); const s = await PostgresProfileStore.connect(PGURL); await s.pool.query('drop table if exists profile_ops, expedition_members, expeditions, rewards, profiles, profile_events, accounts cascade'); await s.close(); }
   await boot();
 });
 test.after(async () => { await app.close(); });

@@ -113,7 +113,8 @@ export class Lobby {
     if (!this.auth || this.auth.server !== this.server) { this.conn = 'offline'; this.account = null; return this.render(); }
     this.conn = 'checking'; this.render();
     try {
-      const [me, prof] = await Promise.all([this.api.me(), this.api.profile()]);
+      const [me, prof, exp] = await Promise.all([this.api.me(), this.api.profile(), this.api.expedition().catch(() => null)]);
+      this.pending = exp && exp.pending || null;
       this.account = me.account; this.policy = me.policy || {}; this.profile = prof; this.conn = 'online'; this.seat = me.seat || null;
       this.startHub();
       if (this.msg && this.retryFn === this.refreshRetry) this.say('');
@@ -127,6 +128,18 @@ export class Lobby {
       return this.say(e.offline ? describeError({ message: 'fetch failed' }, this.server) : e.message, 'bad', this.refreshRetry);
     }
     this.render();
+  }
+  /** Cierra la expedición interrumpida: el servidor guarda lo conseguido hasta su último punto seguro. Solo se confirma con su respuesta. */
+  async closePending() {
+    const P = this.pending; if (!P) return;
+    this.say('Cerrando la expedición…', 'warn');
+    try {
+      const r = await this.api.closeExpedition(P.id);
+      this.pending = null;
+      if (G().account && r.profile) G().account.adopt(r.profile, r.version);
+      await this.refresh();
+      this.say('Expedición cerrada y guardada: ' + ((r.lines || []).join(' ') || 'conservas lo conseguido.'), 'good');
+    } catch (e) { this.say((e.offline ? 'No se puede conectar con el servidor: no se ha cerrado. ' : '') + e.message, 'bad', () => this.closePending()); }
   }
   newSession() {
     return new Session({ server: this.server, token: this.auth.token, game: G(), onChange: s => this.onSession(s) });
@@ -370,11 +383,13 @@ export class Lobby {
         <p>${S.coins} monedas · ${items} objetos · ${eq.length ? 'equipo: ' + esc(eq.join(', ')) : 'sin equipo'} · ${(S.companions || []).length} compañeros · ${(S.missions || {}).active ? S.missions.active.length : 0} misiones · rango ${esc((S.progress || {}).rank)} · ${((S.progress || {}).cleared || []).length} mazmorras</p>
         <p class="hint-line">Habilidades: ${(S.moves && S.moves.equipped || []).map(m => MOVES[m] ? MOVES[m].name : m).join(', ')}</p></div></div>`;
     }
+    // Expedición interrumpida (servidor reiniciado o caído): se continúa con el grupo o se cierra conservando lo conseguido
+    const P = this.pending, pend = P ? `<div class="on-msg warn" id="on-pending"><span>Tienes una expedición interrumpida: <b>${esc(P.label || P.dungeon)}</b> (guardada ${esc(new Date(P.savedAt).toLocaleString())}${P.members.length > 1 ? ', con ' + esc(P.members.map(m => m.name).join(', ')) : ''}). Para continuarla, cread una partida a esa mazmorra (o entra en ella en solitario). Mientras tanto la tienda y las misiones están bloqueadas.</span><button id="on-closeexp" class="btn-ghost">Cerrar y quedarme con lo conseguido</button></div>` : '';
     const importBox = this.policy.allowImport ? `<p class="on-msg warn"><span>Modo de desarrollo: este servidor permite subir la partida local (no es seguro).</span><button id="on-upload" class="btn-ghost">Subir partida local</button></p>` : '';
-    return `${who}${upgrade}${card}${importBox}${this.renderHost()}
+    return `${who}${upgrade}${card}${pend}${importBox}${this.renderHost()}
       <div class="on-menu">
         <button id="on-solo" class="btn-main"${rec ? '' : ' disabled'}>Entrar en la aldea</button>
-        <div class="on-opt"><label>Mazmorra <select id="on-dng">${DUNGEONS.map(d => `<option value="${d.id}">${esc(d.name)}</option>`).join('')}</select></label><button id="on-create" class="btn-main"${rec && !busy ? '' : ' disabled'}>Crear partida privada</button></div>
+        <div class="on-opt"><label>Mazmorra <select id="on-dng">${DUNGEONS.map(d => `<option value="${d.id}"${this.pending && this.pending.dungeon === d.id ? ' selected' : ''}>${esc(d.name)}</option>`).join('')}</select></label><button id="on-create" class="btn-main"${rec && !busy ? '' : ' disabled'}>Crear partida privada</button></div>
         <div class="on-opt"><label>Código de invitación <input id="on-code" maxlength="8" autocomplete="off" spellcheck="false" placeholder="ABC234" autocapitalize="characters" value="${esc(this.invite || '')}"></label><button id="on-join" class="btn-main"${rec && !busy ? '' : ' disabled'}>Unirse a partida</button></div>
         ${this.seat ? `<button id="on-resume" class="btn-main">Volver a mi grupo (${esc(this.seat.code)})</button>` : ''}
         <button id="on-leave" class="btn-ghost" disabled title="No estás en ningún grupo">Abandonar grupo</button>
@@ -394,14 +409,14 @@ export class Lobby {
     const reconnectSel = L.reconnectChoices.length ? `<label>Si alguien pierde la conexión, esperar <select id="on-grec">${L.reconnectChoices.map(v => `<option value="${v}"${v === L.reconnectSeconds ? ' selected' : ''}>${v < 60 ? v + ' s' : v / 60 + ' min'}</option>`).join('')}</select></label>` : '';
     const hostCtl = L.host ? `<label>Mazmorra <select id="on-gdng">${DUNGEONS.map(d => `<option value="${d.id}"${d.id === L.dungeon ? ' selected' : ''}>${esc(d.name)}</option>`).join('')}</select></label>
         ${reconnectSel}
-        ${L.canResume ? `<label class="on-check" style="display:flex;flex-direction:row;align-items:center;gap:6px;align-self:flex-end;padding-bottom:10px" title="La última expedición a esta mazmorra se interrumpió después del punto de control"><input type="checkbox" id="on-gres"${L.resume ? ' checked' : ''}> Continuar desde el punto de control</label>` : ''}
+        ${L.canResume ? `<label class="on-check" style="display:flex;flex-direction:row;align-items:center;gap:6px;align-self:flex-end;padding-bottom:10px" title="Vuestra última expedición a esta mazmorra se interrumpió: se continúa donde se guardó"><input type="checkbox" id="on-gres"${L.resume ? ' checked' : ''}> Continuar la expedición interrumpida</label>` : ''}
         <button id="on-start" class="btn-main"${L.canStart && st === 'lobby' ? '' : ' disabled'}>Iniciar expedición</button>` : `<button id="on-ready" class="btn-main"${st === 'lobby' ? '' : ' disabled'}>${L.me && L.me.ready ? 'No estoy listo' : 'Estoy listo'}</button>`;
     return `<div class="on-code"><span>Código de invitación</span><b id="on-code-val">${esc(L.code || '······')}</b><button id="on-copy" class="btn-link">copiar</button><button id="on-invite" class="btn-link">copiar enlace de invitación</button></div>
       <p class="hint-line">Compártelo con tus amigos: entran con «Unirse a partida». El anfitrión elige las opciones e inicia; la sala la mantiene el servidor, no tu navegador. ${L.players.length} de ${L.max} · Destino: <b>${esc(dng.name || '')}</b></p>
       ${this.host ? this.renderHost() : /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(location.hostname) ? '<p class="hint-line" id="on-lanhint">Esta dirección solo funciona en tu casa. Para que entren amigos desde fuera, quien juega en el ordenador que hace de servidor pulsa <b>«Crear enlace para amigos»</b> y comparte el enlace https.</p>' : ''}
       <ul class="on-players">${slots}</ul>
       <div class="on-row">${hostCtl}<button id="on-leave" class="btn-ghost">Abandonar grupo</button></div>
-      ${L.canResume ? `<p class="hint-line" id="on-resume-line">${L.resume ? 'Continuaréis desde el punto de control de ' + esc(dng.name || '') + ' (la expedición anterior se interrumpió).' : 'Empezaréis desde el primer piso (el anfitrión ha desactivado «continuar»).'}</p>` : ''}
+      ${L.canResume ? `<p class="hint-line" id="on-resume-line">${L.resume ? 'Continuaréis la expedición interrumpida donde se guardó: ' + esc(L.resumeLabel || dng.name || '') + '.' : 'Empezaréis una expedición nueva desde el primer piso (el anfitrión ha desactivado «continuar»); la interrumpida se cerrará conservando lo conseguido.'}</p>` : ''}
       <p class="hint-line" id="on-coop">Dificultad · ${esc(coopSummary(L.players.length))}. Se ajusta sola si alguien sale del grupo.</p>
       <p class="hint-line" id="on-hostrule">${esc(HOST_RULE_TEXT)} Si alguien pierde la conexión se le guarda el sitio ${L.reconnectSeconds || ''} s.</p>
       ${L.host && !L.canStart ? '<p class="hint-line">Podrás iniciar cuando todos estén listos y conectados.</p>' : ''}${!L.host && L.me && L.me.ready ? '<p class="hint-line">Esperando a que el anfitrión inicie la expedición…</p>' : ''}`;
@@ -428,6 +443,7 @@ export class Lobby {
     on('on-solo', () => this.solo());
     on('on-local', () => this.local());
     on('on-upload', () => this.upload());
+    on('on-closeexp', () => this.closePending());
     this.el.querySelectorAll('.on-fresh').forEach(b => b.onclick = () => this.fresh(b.dataset.sp));
     on('on-create', () => this.create(val('on-dng')));
     on('on-join', () => this.join(val('on-code')));

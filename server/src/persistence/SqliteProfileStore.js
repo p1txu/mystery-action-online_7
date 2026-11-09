@@ -31,7 +31,18 @@ create table if not exists friendships (
 create index if not exists friendships_b on friendships(b);
 create table if not exists blocks (owner text not null references accounts(id) on delete cascade, target text not null references accounts(id) on delete cascade, created_at text not null, primary key (owner, target));
 create index if not exists blocks_target on blocks(target);
+create table if not exists expeditions (
+  id text primary key, dungeon text not null, status text not null check (status in ('active', 'suspended', 'ended')),
+  seq integer not null, state text not null, created_at text not null, updated_at text not null);
+create table if not exists expedition_members (
+  expedition_id text not null references expeditions(id) on delete cascade, account_id text not null references accounts(id) on delete cascade,
+  primary key (expedition_id, account_id));
+create index if not exists expedition_members_account on expedition_members(account_id);
+create table if not exists profile_ops (
+  account_id text not null references accounts(id) on delete cascade, op_id text not null, version integer not null, info text, created_at text not null,
+  primary key (account_id, op_id));
 `;
+const rowExp = r => r ? { id: r.id, dungeon: r.dungeon, status: r.status, seq: r.seq, state: r.state ? JSON.parse(r.state) : null, createdAt: r.created_at, updatedAt: r.updated_at } : null;
 const now = () => new Date().toISOString();
 const rowAccount = r => r ? { id: r.id, name: r.name, kind: r.kind, username: r.username, passHash: r.pass_hash, tokenVersion: r.token_version, createdAt: r.created_at } : null;
 const rowReward = r => r ? { expeditionId: r.expedition_id, accountId: r.account_id, result: r.result, summary: JSON.parse(r.summary), profileVersion: r.profile_version, createdAt: r.created_at } : null;
@@ -54,6 +65,16 @@ export class SqliteProfileStore {
       insRew: q('insert into rewards (expedition_id, account_id, result, summary, profile_version, created_at) values (?, ?, ?, ?, ?, ?)'),
       listRew: q('select * from rewards where account_id = ? order by created_at desc limit ?'),
       insEv: q('insert into profile_events (account_id, kind, data, version, created_at) values (?, ?, ?, ?, ?)'),
+      getOp: q('select * from profile_ops where account_id = ? and op_id = ?'),
+      insOp: q('insert into profile_ops (account_id, op_id, version, info, created_at) values (?, ?, ?, ?, ?)'),
+      getExp: q('select * from expeditions where id = ?'),
+      insExp: q('insert into expeditions (id, dungeon, status, seq, state, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?)'),
+      upExp: q('update expeditions set status = ?, seq = ?, state = ?, updated_at = ? where id = ? and seq < ?'),
+      insMem: q('insert or ignore into expedition_members (expedition_id, account_id) values (?, ?)'),
+      pending: q(`select e.id, e.dungeon, e.status, e.seq, e.created_at, e.updated_at from expeditions e join expedition_members m on m.expedition_id = e.id
+                  where m.account_id = ? and not exists (select 1 from rewards r where r.expedition_id = e.id and r.account_id = m.account_id) order by e.updated_at desc`),
+      unsettled: q(`select distinct e.id from expeditions e join expedition_members m on m.expedition_id = e.id
+                  where e.status = ? and not exists (select 1 from rewards r where r.expedition_id = e.id and r.account_id = m.account_id)`),
     };
   }
   /** Transacción con bloqueo de escritura: nada se intercala entre leer y escribir. */
@@ -88,15 +109,33 @@ export class SqliteProfileStore {
       return { version: v + 1 };
     });
   }
-  async mutateProfile(id, fn, { origin = 'online', expectedVersion } = {}) {
+  async mutateProfile(id, fn, { origin = 'online', expectedVersion, opId } = {}) {
     return this.tx(() => {
       const cur = this.readProfile(id); if (!cur) throw new Error('Sin perfil');
+      if (opId) { const done = this.q.getOp.get(id, opId); if (done) return { duplicate: true, save: cur.save, version: cur.version, info: done.info ? JSON.parse(done.info) : {} }; }   // la misma petición otra vez
       if (expectedVersion != null && expectedVersion !== cur.version) throw new VersionConflict(cur.version);
       const out = fn(cur.save), v = cur.version + 1;
       this.q.upProf.run(id, JSON.stringify(out.save), v, origin, now());
+      if (opId) this.q.insOp.run(id, opId, v, JSON.stringify(out.info ?? {}), now());
       return Object.assign({}, out, { version: v });
     });
   }
+  /* ---------- Expediciones (estado en puntos seguros) ---------- */
+  /** Guarda la instantánea si es más nueva que la guardada (seq). → { saved } */
+  async saveExpedition({ id, dungeon, status, seq, members = [], state }) {
+    return this.tx(() => {
+      const cur = this.q.getExp.get(id), t = now(), json = JSON.stringify(state);
+      let saved;
+      if (!cur) { this.q.insExp.run(id, dungeon, status, seq, json, t, t); saved = true; }
+      else saved = this.q.upExp.run(status, seq, json, t, id, seq).changes > 0;
+      if (saved) for (const a of members) this.q.insMem.run(id, a);
+      return { saved };
+    });
+  }
+  async getExpedition(id) { return rowExp(this.q.getExp.get(id)); }
+  /** Expediciones de la cuenta aún sin resultado guardado para ella (interrumpidas o con el resultado pendiente). */
+  async pendingExpeditions(accountId) { return this.q.pending.all(accountId).map(r => rowExp(Object.assign({ state: null }, r))); }
+  async unsettledExpeditions(status = 'ended') { return this.q.unsettled.all(status).map(r => r.id); }
   async applyReward({ expeditionId, accountId, result, summary, save, expectedVersion }) {
     return this.tx(() => {
       const prev = rowReward(this.q.getRew.get(expeditionId, accountId));

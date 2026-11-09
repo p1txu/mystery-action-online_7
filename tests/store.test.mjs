@@ -13,7 +13,7 @@ const acc = (id, extra = {}) => Object.assign({ id, name: 'N', kind: 'guest', to
 
 // PostgreSQL real si se indica TEST_DATABASE_URL (tests/run-all.sh arranca uno local y desechable)
 const PG = process.env.TEST_DATABASE_URL;
-const freshPg = async () => { const s = await PostgresProfileStore.connect(PG); await s.pool.query('drop table if exists rewards, profiles, profile_events, accounts cascade'); await s.close(); return PostgresProfileStore.connect(PG); };
+const freshPg = async () => { const s = await PostgresProfileStore.connect(PG); await s.pool.query('drop table if exists profile_ops, expedition_members, expeditions, rewards, profiles, profile_events, accounts cascade'); await s.close(); return PostgresProfileStore.connect(PG); };
 const STORES = [['SQLite', () => new SqliteProfileStore(tmpDb())], ['memoria', () => new MemoryProfileStore()]].concat(PG ? [['PostgreSQL', freshPg]] : []);
 for (const [name, make] of STORES) {
   test(`${name}: cuentas, usuarios únicos sin distinguir mayúsculas y versiones del perfil`, async () => {
@@ -31,6 +31,36 @@ for (const [name, make] of STORES) {
     await assert.rejects(s.mutateProfile('u_aaaaaaaa01', save => ({ save }), { expectedVersion: 1 }), VersionConflict);
     await assert.rejects(s.mutateProfile('u_aaaaaaaa01', () => { throw new Error('regla'); }), /regla/);
     assert.equal((await s.getProfile('u_aaaaaaaa01')).version, 2, 'si la regla falla no se escribe nada');
+    await s.close();
+  });
+
+  test(`${name}: operación con opId: repetirla (también a la vez) no la aplica dos veces`, async () => {
+    const s = await make(); await s.createAccount(acc('u_opopopop01')); await s.putProfile('u_opopopop01', freshSave());
+    const sell = save => { save.bank += 100; return { save, info: { price: 100 } }; };
+    const r1 = await s.mutateProfile('u_opopopop01', sell, { opId: 'op-0000000001', expectedVersion: 1 });
+    const r2 = await s.mutateProfile('u_opopopop01', sell, { opId: 'op-0000000001', expectedVersion: 1 });   // reintento tras un corte
+    assert.equal(r1.version, 2); assert.equal(r2.duplicate, true); assert.equal(r2.version, 2); assert.deepEqual(r2.info, { price: 100 });
+    const both = await Promise.allSettled([s.mutateProfile('u_opopopop01', sell, { opId: 'op-0000000002' }), s.mutateProfile('u_opopopop01', sell, { opId: 'op-0000000002' })]);
+    assert.equal(both.filter(x => x.status === 'fulfilled' && !x.value.duplicate).length, 1, 'a la vez: una sola se aplica');
+    assert.equal((await s.getProfile('u_opopopop01')).save.bank, freshSave().bank + 200);
+    await s.close();
+  });
+
+  test(`${name}: expediciones: instantáneas en orden (una antigua no pisa a una nueva), pendientes y sin resultado`, async () => {
+    const s = await make(); for (const a of ['u_exexexex01', 'u_exexexex02']) { await s.createAccount(acc(a)); await s.putProfile(a, freshSave()); }
+    const M = ['u_exexexex01', 'u_exexexex02'];
+    assert.deepEqual(await s.saveExpedition({ id: 'exp-1', dungeon: 'gruta', status: 'active', seq: 1, members: M, state: { step: 0 } }), { saved: true });
+    assert.deepEqual(await s.saveExpedition({ id: 'exp-1', dungeon: 'gruta', status: 'active', seq: 3, members: M, state: { step: 2 } }), { saved: true });
+    assert.deepEqual(await s.saveExpedition({ id: 'exp-1', dungeon: 'gruta', status: 'active', seq: 2, members: M, state: { step: 1 } }), { saved: false }, 'llega tarde: no se aplica');
+    const e = await s.getExpedition('exp-1'); assert.equal(e.seq, 3); assert.deepEqual(e.state, { step: 2 }); assert.equal(e.status, 'active');
+    assert.deepEqual((await s.pendingExpeditions('u_exexexex01')).map(x => x.id), ['exp-1']);
+    await s.applyReward({ expeditionId: 'exp-1', accountId: 'u_exexexex01', result: 'interrupted', summary: {}, save: freshSave() });
+    assert.deepEqual(await s.pendingExpeditions('u_exexexex01'), [], 'con resultado guardado deja de estar pendiente');
+    assert.equal((await s.pendingExpeditions('u_exexexex02')).length, 1, 'para el otro sigue pendiente');
+    await s.saveExpedition({ id: 'exp-1', dungeon: 'gruta', status: 'ended', seq: 4, members: M, state: { results: {} } });
+    assert.deepEqual(await s.unsettledExpeditions('ended'), ['exp-1']);
+    await s.applyReward({ expeditionId: 'exp-1', accountId: 'u_exexexex02', result: 'clear', summary: {}, save: freshSave() });
+    assert.deepEqual(await s.unsettledExpeditions('ended'), []);
     await s.close();
   });
 

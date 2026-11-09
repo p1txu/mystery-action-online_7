@@ -5,7 +5,7 @@
  *  - acompañantes: sin la región desbloqueada se gana EXP, botín y trofeo, pero la mazmorra no cuenta como superada;
  *  - reanimar: tiempo creciente por piso, desangrado si nadie ayuda, fuera de combate hasta el piso siguiente;
  *  - reparto de objetivos en grupo (los enemigos no se amontonan sobre uno) y escalado menos «esponja»;
- *  - punto de control: se guarda al llegar, se conserva solo si la expedición se interrumpe y se gasta al terminarla;
+ *  - (el punto de control de la 0.41 lo sustituye el estado de expedición de la 0.42: tests/expedition-state.test.mjs);
  *  - en solitario nada de esto cambia el juego.
  */
 import test from 'node:test';
@@ -164,29 +164,6 @@ test('escalado menos «esponja»: PS ×1,5 / ×1,95 / ×2,4 y más élites y err
   assert.deepEqual([2, 3, 4].map(n => COOP_SCALING[n].hp), [1.5, 1.95, 2.4]);
   for (let n = 2; n <= 4; n++) assert.ok(COOP_SCALING[n].hp < n, `${n} jugadores: menos vida que la suma de ${n} solitarios`);
   assert.ok(COOP_SCALING[4].elite >= .15);
-});
-
-test('punto de control: se guarda al llegar, se conserva si la expedición se interrumpe y se gasta al terminarla', () => {
-  const x = pair('gruta'); clear(x); x.drainEvents();
-  const wp = x.seq.findIndex(s => s.kind === 'waypoint'); assert.ok(wp > 0);
-  for (let i = 0; i < wp; i++) x.nextStep();
-  assert.equal(x.seq[x.stepIdx].kind, 'waypoint');
-  const ev = x.drainEvents().find(e => e.type === 'checkpoint');
-  assert.ok(ev); assert.deepEqual(ev.members.sort(), ['a', 'b']); assert.equal(ev.dungeon, 'gruta');
-  x.finish('interrupted');
-  for (const id of ['a', 'b']) { const r = x.ended.results.get(id); assert.equal(r.profile.resume.dungeon, 'gruta', id + ' conserva el punto de control'); }
-  // Continuar: empieza en el punto de control y, al terminar, lo gasta
-  const saves = ['a', 'b'].map(id => x.ended.results.get(id).profile);
-  const y = make('gruta', [{ id: 'a', name: 'Ana', profile: saves[0] }, { id: 'b', name: 'Beto', profile: saves[1] }], { resume: true });
-  assert.equal(y.resumed, true); assert.equal(y.seq[y.stepIdx].kind, 'waypoint');
-  y.finish('faint');
-  for (const id of ['a', 'b']) assert.equal(y.ended.results.get(id).profile.resume, null, 'una derrota lo gasta');
-  // Un final normal también; el de OTRA mazmorra no se toca
-  const z = make('gruta', [{ id: 'a', name: 'Ana', profile: Object.assign(structuredClone(saves[0]), { resume: { dungeon: 'mina', at: Date.now() } }) }]);
-  z.finish('return'); assert.equal(z.ended.results.get('a').profile.resume.dungeon, 'mina');
-  // Una mazmorra sin punto de control: «continuar» empieza en el primer piso
-  const w = make('bosque', [{ id: 'a', name: 'Ana', profile: veteran('guerrero') }], { resume: true });
-  assert.equal(w.resumed, false); assert.equal(w.stepIdx, 0);
 });
 
 test('el perfil valida el punto de control: mazmorra con punto de control, fecha válida y caduca a los 7 días', () => {

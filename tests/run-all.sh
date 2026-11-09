@@ -28,6 +28,7 @@ if command -v python3 >/dev/null && python3 -c "import playwright" 2>/dev/null; 
   python3 tests/e2e/rules_parity.py tests/.tmp/prototype.html
   python3 tests/e2e/escorts.py tests/.tmp/prototype.html                              # mercader Tobías escondido junto al jefe, cartero Lino por la ruta y huida lenta, Gruta ×3 PS, velocidades
   python3 tests/e2e/world_art.py tests/.tmp/prototype.html                            # aldea y mazmorras pintadas: colisiones = dibujo, caminos libres, profundidad, biomas, cofres
+  python3 tests/e2e/save_offline.py tests/.tmp/prototype.html                          # guardado sin conexión: migración 6 → 7 con copia del original, copia de seguridad, registro
   python3 tests/e2e/boss_gromgar.py tests/.tmp/prototype.html                          # Gromgar sin red: avisos, furia, aturdido, derribado, muerte limpia, trofeo una vez
   python3 tests/e2e/dungeon_ch1.py tests/.tmp/prototype.html                          # mazmorra del capítulo 1 jugada: palancas, puentes, placas de tiempo, paredes falsas, emboscada, minijefe, textos; mismo piso en navegador y Node
   python3 tests/e2e/hero_sprites.py tests/.tmp/prototype.html                          # héroes en pixel art: 920 fotogramas, sin cortes, pies anclados, 8 direcciones, paleta
@@ -39,7 +40,7 @@ if command -v python3 >/dev/null && python3 -c "import playwright" 2>/dev/null; 
   SHOT_DIR=tests/.tmp python3 tests/colyseus/browser_gromgar_e2e.py                  # Gromgar en cooperativo con 280 ms de latencia: furia, rocas iguales, choques, derribado, muerte en mitad de un ataque
   SHOT_DIR=tests/.tmp python3 tests/colyseus/browser_geoda_e2e.py                    # Gruta en cooperativo: Pico Cartero y Reina Geoda (rocas, aturdida, salto)
   SHOT_DIR=tests/.tmp python3 tests/colyseus/browser_revive_e2e.py                   # caer y reanimar: cuenta atrás de desangrado, la partida del caído no se cierra; Ana lo reanima
-  SHOT_DIR=tests/.tmp python3 tests/colyseus/browser_campaign_e2e.py                 # campaña: acompañante en la sala, continuar desde el punto de control, gastado al volver
+  SHOT_DIR=tests/.tmp python3 tests/colyseus/browser_campaign_e2e.py                 # campaña y guardado: acompañante, expedición suspendida y continuada (la misma), resultado no confirmado si falla la base de datos
   SHOT_DIR=tests/.tmp python3 tests/colyseus/browser_social_e2e.py                   # siempre online: amigos, grupo, aldea compartida, chat y mazmorra en grupo (3 navegadores)
   SHOT_DIR=tests/.tmp python3 tests/colyseus/browser_arrival_e2e.py                  # cuenta nueva + Guerrero: llegada en carretilla; versión visible; pestaña antigua se recarga
   SHOT_DIR=tests/.tmp python3 tests/colyseus/browser_host_e2e.py                     # anfitrión y amigo: invitación, opciones, ceder liderazgo

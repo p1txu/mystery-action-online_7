@@ -12,7 +12,27 @@ import { applyOp, RuleError } from '../profile/rules.js';
 export class ProfileService {
   constructor({ store, registry, allowImport = false, random = Math.random }) { this.store = store; this.registry = registry; this.allowImport = allowImport; this.random = random; this.E = createEngineCore(); }
   /** Perfil de la cuenta. Los de versiones anteriores (criaturas, sin clase) no son compatibles: cuentan como «sin perfil». */
-  async get(accountId) { const r = await this.store.getProfile(accountId); return r && this.compatible(r) ? r : null; }
+  async get(accountId) { const r = await this.store.getProfile(accountId); return r && this.compatible(r) ? this.upgrade(accountId, r) : null; }
+  /**
+   * Migración al leer: un perfil de un formato anterior (SAVE_VERSION) se convierte con Save.migrate y
+   * Save.sanitize y se escribe con una versión nueva. El ORIGINAL queda intacto en el registro
+   * (`profile_events`, tipo «migration») para poder recuperarlo. Si otro proceso lo migra a la vez, gana el primero.
+   */
+  async upgrade(accountId, rec) {
+    const E = this.E;
+    if (rec.save.v === E.SAVE_VERSION) return rec;
+    if (Number.isInteger(rec.save.v) && rec.save.v > E.SAVE_VERSION) return rec;    // de un servidor más nuevo: no se toca
+    const clean = E.Save.sanitize(rec.save); if (!clean.ok) return rec;
+    try {
+      const { version } = await this.store.putProfile(accountId, clean.data, { expectedVersion: rec.version, origin: 'migration' });
+      await this.store.logEvent(accountId, 'migration', { from: clean.from, to: E.SAVE_VERSION, original: rec.save }, version);
+      log.info('profile.migrated', { account: shortId(accountId), from: clean.from, to: E.SAVE_VERSION });
+      return Object.assign({}, rec, { save: clean.data, version, origin: 'migration' });
+    } catch (e) {
+      if (e instanceof VersionConflict) { const again = await this.store.getProfile(accountId); return again && again.save.v === E.SAVE_VERSION ? again : rec; }
+      throw e;
+    }
+  }
   compatible(rec) { return !!(rec && rec.save && this.E.FORMS[rec.save.species]); }
   envelope(save) { return this.E.Save.envelope(save); }
 
@@ -29,18 +49,21 @@ export class ProfileService {
       moves: { known: pr.known, equipped: pr.equipped },
       inventory: s.inv, equipment: s.equip, coins: s.bank,
       companions: s.team.map(m => ({ uid: m.uid, kind: m.kind, name: m.name, level: m.level, exp: m.exp, active: m.active, fainted: m.fainted })),
-      missions: { active: s.jobs, board: s.board.length, delivered: s.delivered || 0 },
+      missions: { active: s.jobs, board: s.board.length, delivered: s.delivered || 0, completed: s.log.jobs },
       progress: { points: s.points, rank: rank.name, cleared: s.cleared, runs: s.runs || 0, bagSlots: rank.bag },
+      reputation: { points: s.points, rank: rank.name },                     // la reputación del gremio es el rango (puntos)
+      campaign: { cleared: s.cleared, next: (E.DUNGEONS.find(d => !s.cleared.includes(d.id) && E.dungeonOpen(s, d)) || {}).id || null, bosses: s.bosses },
+      codex: s.codex, story: s.story, formatVersion: s.v,
     };
   }
-  /** Perfil nuevo con una de las clases (solo si aún no tiene uno compatible; uno de criaturas se sustituye). */
+  /** Perfil nuevo con una de las clases (solo si aún no tiene uno compatible; uno de criaturas se sustituye y queda archivado en el registro, «reset-legacy»). */
   async createFresh(accountId, speciesId) {
     if (!this.E.CLASSES.some(s => s.id === speciesId)) return { error: 'Clase no válida' };
     const cur = await this.store.getProfile(accountId);
     if (cur && this.compatible(cur)) return { error: 'Ya tienes un perfil' };
     const save = this.E.Save.sanitize(this.E.Save.fresh(speciesId)).data;
     save.board = this.E.Jobs.board(save, save.boardSeed);
-    try { const { version } = await this.store.putProfile(accountId, save, { expectedVersion: cur ? cur.version : 0, origin: cur ? 'new-class' : 'new' }); await this.store.logEvent(accountId, cur ? 'reset-legacy' : 'new', { cls: speciesId }, version); return { save, version }; }
+    try { const { version } = await this.store.putProfile(accountId, save, { expectedVersion: cur ? cur.version : 0, origin: cur ? 'new-class' : 'new' }); await this.store.logEvent(accountId, cur ? 'reset-legacy' : 'new', cur ? { cls: speciesId, original: cur.save } : { cls: speciesId }, version); return { save, version }; }
     catch (e) { if (e instanceof VersionConflict) return { error: 'Ya tienes un perfil' }; throw e; }
   }
   /** SOLO desarrollo (ALLOW_PROFILE_IMPORT=true): sube una partida local. No es seguro. */
@@ -56,12 +79,17 @@ export class ProfileService {
    * Operación de la aldea pedida por el jugador (comprar, equipar…). La valida y aplica el servidor
    * en una transacción. Devuelve { save, version, info } o { error, save, version } con el perfil actual.
    */
-  async op(accountId, op, args, expectedVersion) {
+  async op(accountId, op, args, expectedVersion, opId) {
     if (this.registry.roomOf(accountId)) return this.fail(accountId, 'No puedes cambiar tu perfil mientras estás en un grupo');
     if (!(await this.get(accountId))) return { error: 'Aún no tienes perfil en el servidor: elige tu clase' };
+    // Expedición interrumpida sin cerrar: lo que lleva encima está en esa expedición; cambiar el perfil ahora
+    // permitiría, al continuarla, duplicar oro u objetos (p. ej. vender algo que la expedición aún tiene).
+    const pending = this.expeditions && await this.expeditions.pendingFor(accountId);
+    if (pending) return Object.assign(await this.fail(accountId, `Tienes una expedición interrumpida (${pending.label || pending.dungeon}). Continúala con tu grupo o ciérrala conservando lo conseguido antes de usar la aldea.`), { pending });
     try {
-      const r = await this.store.mutateProfile(accountId, save => applyOp(this.E, save, op, args, this.random), { origin: 'op', expectedVersion });
-      await this.store.logEvent(accountId, 'op:' + op, { args, info: r.info }, r.version);
+      const r = await this.store.mutateProfile(accountId, save => applyOp(this.E, save, op, args, this.random), { origin: 'op', expectedVersion, opId });
+      if (r.duplicate) return { save: r.save, version: r.version, info: r.info, duplicate: true };   // la misma petición repetida: no se aplica otra vez
+      await this.store.logEvent(accountId, 'op:' + op, { args, info: r.info, opId }, r.version);
       return { save: r.save, version: r.version, info: r.info };
     } catch (e) {
       if (e instanceof RuleError) return this.fail(accountId, e.message);
@@ -69,16 +97,6 @@ export class ProfileService {
       if (e.message === 'Sin perfil') return { error: 'Aún no tienes perfil en el servidor' };
       throw e;
     }
-  }
-  /**
-   * Punto de control de una expedición en curso: solo escribe `save.resume` (nada de botín ni EXP:
-   * eso llega con el resultado). Así, si el servidor cae sin poder cerrar la sala, el grupo puede
-   * continuar desde el punto de control. Devuelve la versión nueva del perfil.
-   */
-  async checkpoint(accountId, resume, expectedVersion) {
-    const fn = save => { const out = JSON.parse(JSON.stringify(save)); out.resume = resume ? { dungeon: resume.dungeon, at: resume.at } : null; const clean = this.E.Save.sanitize(out); if (!clean.ok) throw new Error('Punto de control no válido'); return { save: clean.data }; };
-    try { return await this.store.mutateProfile(accountId, fn, { origin: 'checkpoint', expectedVersion }); }
-    catch (e) { if (!(e instanceof VersionConflict)) throw e; log.warn('profile.changed_during_expedition', { account: shortId(accountId), at: 'checkpoint', version: e.current }); return this.store.mutateProfile(accountId, fn, { origin: 'checkpoint' }); }
   }
   async fail(accountId, error, conflict = false) { const p = await this.get(accountId); return { error, conflict, save: p && p.save, version: p && p.version }; }
   /**

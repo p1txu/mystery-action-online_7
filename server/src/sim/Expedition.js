@@ -31,6 +31,7 @@ const DROP_LOCK = 2, MAX_FLOOR_ITEMS = 80;   // objetos soltados: quien suelta n
 const DOOR_R = 56, PICK_R = 18, CHEST_R = 24, STAIRS_R = 18, GATHER_R = 56, REVIVE_R = 40, REVIVE_TIME = 2.5, CAMPFIRE_R = 80;
 /** Reanimación: cada reanimación en el mismo piso tarda más (+1,5 s, hasta 7 s); quien lleva BLEED_TIME s caído
  *  sin ayuda queda fuera de combate hasta el siguiente piso; el reanimado vuelve con el 35 % de PS y sin energía. */
+const LORE_R = 30;          // px: leer un texto del escenario (como FloorRT.explore)
 export const REVIVE_RULES = Object.freeze({ base: REVIVE_TIME, step: 1.5, max: 7, bleed: 45, hp: .35 });
 const reviveTime = n => Math.min(REVIVE_RULES.max, REVIVE_RULES.base + REVIVE_RULES.step * n);
 
@@ -43,7 +44,9 @@ export class Expedition {
    * @param {() => number} [o.random]
    * @param {string} [o.expeditionId]   identificador único (clave de las recompensas en la base de datos)
    */
-  constructor({ dungeonId, seed, members, random = Math.random, expeditionId = randomUUID(), resume = false }) {
+  constructor({ dungeonId, seed, members, random = Math.random, expeditionId = randomUUID(), restore = null }) {
+    // Reanudar (restore = Expedition.snapshot()): la MISMA expedición — id, semilla y piso — con el estado del último punto seguro
+    if (restore) { dungeonId = restore.dungeon; seed = restore.seed; expeditionId = restore.id; members = Expedition.restoredMembers(restore, members); }
     const E = this.E = createServerEngine();
     this.dng = E.dungeonById(dungeonId);
     if (!this.dng) throw new Error('Mazmorra desconocida: ' + dungeonId);
@@ -58,10 +61,34 @@ export class Expedition {
     // Generador propio para los dones: no altera la secuencia aleatoria del resto de la simulación
     let bs = (this.seed ^ 0xB00B5) >>> 0; this.boonRandom = () => { bs = (bs + 0x6D2B79F5) >>> 0; let t = bs; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
     this.setScaling(this.partySize);
-    // Continuar desde el punto de control (la sala ya ha comprobado que todos lo tienen)
-    const wp = this.seq.findIndex(x => x.kind === 'waypoint');
-    this.resumed = !!resume && wp > 0;
-    this.loadStep(this.resumed ? wp : 0);
+    this.resumed = !!restore;
+    if (restore) {
+      this.floorCount = Math.max(0, (restore.floorCount || 1) - 1);
+      for (const m of this.members.values()) this.restoreMember(m, restore.members.find(x => x.accountId === m.accountId));
+      this.loadStep(restore.step, { size: restore.size, restore: restore.floor });
+      for (const m of this.members.values()) { const sm = restore.members.find(x => x.accountId === m.accountId); m.rewards.rooms = new Set(sm.run.rooms || []); }
+    } else this.loadStep(0);
+  }
+  /** Integrantes de una instantánea que están en la sala nueva (por cuenta), con su copia de la expedición. */
+  static restoredMembers(snap, present) {
+    const out = [];
+    for (const sm of snap.members) {
+      if (sm.left) continue;
+      const q = present.find(x => x.accountId === sm.accountId); if (!q) continue;
+      out.push({ id: q.id, accountId: sm.accountId, name: q.name || sm.name, companion: sm.companion, profile: Object.assign({}, sm.save, { inv: sm.inv, equip: sm.equip }) });
+    }
+    if (!out.length) throw new Error('Nadie de la expedición guardada está en la sala');
+    return out;
+  }
+  restoreMember(m, sm) {
+    const p = m.player, r = sm.run || {}, B = this.E.Boons;
+    Object.assign(m.rewards, { gems: r.gems || 0, exp: r.exp || 0, loot: r.loot || [], defeated: r.defeated || 0, assists: r.assists || 0, damage: r.damage || 0, floors: r.floors || 0, maxFloor: r.maxFloor || 0, quests: r.quests || [] });
+    m.bossGranted = !!sm.bossGranted;
+    for (const [b, lv] of Object.entries(sm.boons && typeof sm.boons === 'object' ? sm.boons : {})) for (let i = 0; i < Math.min(lv | 0, 10); i++) B.apply(p, b);   // los dones elegidos (B.apply valida cada uno)
+    m.boonOffers = Array.isArray(sm.boonOffers) ? sm.boonOffers.slice(0, 3) : [];
+    if (Number.isFinite(sm.hp) && sm.hp > 0) p.hp = Math.min(p.maxHp, Math.max(1, Math.round(sm.hp)));
+    if (Number.isFinite(sm.energy)) p.energy = Math.min(p.maxEnergy, Math.max(0, sm.energy));
+    if (Number.isFinite(sm.belly)) p.belly = Math.max(0, sm.belly);
   }
 
   addMember({ id, accountId = id, name, profile, companion = false }) {
@@ -84,6 +111,7 @@ export class Expedition {
   quest(m, kind, info) {
     const done = this.E.Quests.progress({ save: m.save }, kind, Object.assign({ dungeon: this.dng.id }, info));
     for (const j of done) { m.rewards.quests.push(j.id); this.emit('quest', { to: m.id, id: j.id, jobType: j.type, title: this.E.Jobs.title(j) }); }
+    if (done.length && this.floor) this.safepoint('objective');
   }
 
   get humans() { return [...this.members.values()].filter(m => !m.left).map(m => m.player); }
@@ -111,14 +139,20 @@ export class Expedition {
   drainEvents() { const e = this.events; this.events = []; return e; }
 
   /* ---------- Pisos ---------- */
-  loadStep(i) {
+  /**
+   * Carga el paso i de la mazmorra. Con `restore` (Expedition.snapshot().floor) el piso se regenera con la
+   * semilla y se le aplica lo que ya había cambiado: enemigos vencidos, cofres, puertas, mecanismos, objetos
+   * del suelo y jefe derrotado. `size` fija el tamaño del piso (el que tenía al guardarse).
+   */
+  loadStep(i, { size: fixedSize = 0, restore = null } = {}) {
     const E = this.E, st = this.seq[i], kind = st.kind;
     this.stepIdx = i;
     const genNo = st.floorNo + (kind === 'waypoint' ? 200 : 0);
     // El piso crece con el grupo (FloorGen.SIZES): se fija al cargarlo y el cliente lo genera igual con `size`
-    const size = this.partySize, gen = E.FloorGen.generate(this.seed, this.dng, genNo, kind, [], size);
+    const size = fixedSize || this.partySize, gen = E.FloorGen.generate(this.seed, this.dng, genNo, kind, [], size);
     this.gen = gen; this.L = gen.layout; this.world = gen.world;
-    this.floor = { kind, floorNo: st.floorNo, genNo, size, windLimit: Math.round(this.dng.wind * E.FloorGen.size(size).wind), time: 0, wind: 0, spawnT: 40, mh: false, warp: null };
+    this.floor = { kind, floorNo: st.floorNo, genNo, size, windLimit: Math.round(this.dng.wind * E.FloorGen.size(size).wind), time: 0, wind: 0, spawnT: 40, mh: false, warp: null,
+      killed: new Set(restore ? restore.killed : []), bossDown: !!(restore && restore.bossDown), miniDown: !!(restore && restore.miniDown) };
     this.g = createHeadlessGame(E, this.world, { onPlayerDown: p => this.onPlayerDown(p), onEnemyDown: e => this.onEnemyDown(e) });
     // Furia del guardián: la simulación se detiene para TODOS mientras se ve la animación
     this.g.onBossRage = (e, stage = 0) => { const ph = e.kind.bk ? E.BossKit.def(e).phases[stage] : null; this.pauseT = ph ? ph.pause || E.BOSS_RAGE.pause : E.BOSS_RAGE.pauses[stage] || E.BOSS_RAGE.pause; this.emit('bossRage', { id: e.netId, stage }); };
@@ -127,11 +161,12 @@ export class Expedition {
     this.g.onBossEvent = (e, what, info) => this.emit('bossEvent', { id: e.netId, what, hits: (info && info.hits) || 0, need: (info && info.need) || 0, why: (info && info.why) || '' });
     // Enemigos del piso (como FloorRT.spawnInitial; los forajidos y vecinos de misiones no van online)
     const lvl = E.enemyLevel(this.dng, st.floorNo);
-    for (const s of this.L.enemies) {
-      if (s.outlaw) continue;
+    for (const [spawnIdx, s] of this.L.enemies.entries()) {
+      if (s.outlaw || this.floor.killed.has(spawnIdx) || (s.boss && this.floor.bossDown)) continue;   // al reanudar, los ya vencidos no vuelven
       const kindObj = s.boss ? E.makeBossKind(s.boss) : E.makeKind(s.variant);
       const e = new E.Enemy(kindObj, (s.tx + .5) * TS, (s.ty + .5) * TS, { level: s.boss ? E.enemyLevel(this.dng, this.dng.floors) + 2 : lvl, elite: s.boss ? s.elite : this.rollElite(s.elite), final: s.final, hpMul: (this.dng.hpMul || 1) * (s.mini || 1) });
       if (s.mini) { e.mini = true; e.nameTag = s.name; }
+      e.spawnIdx = spawnIdx;
       this.addEnemy(e, s.boss ? 'b:' + s.boss : 'v:' + s.variant);
       if (s.boss) {
         this.boss = e;
@@ -144,16 +179,24 @@ export class Expedition {
     // Objetos del suelo (sin tienda ni objetos de encargo) y objetos del piso
     this.items = new Map();
     for (const m of this.members.values()) { m.rewards.rooms = new Set(); m.rewards.maxFloor = Math.max(m.rewards.maxFloor, st.floorNo); }
-    this.L.items.forEach((it, idx) => { if (!it.price && it.id !== 'job') this.items.set('f' + idx, { key: 'f' + idx, id: it.id, amount: it.amount || 1, x: (it.tx + .5) * TS, y: (it.ty + .5) * TS, tx: it.tx, ty: it.ty }); });
+    if (restore) for (const it of restore.items || []) this.items.set(it.key, { key: it.key, id: it.id, amount: it.amount, tx: it.tx, ty: it.ty, x: (it.tx + .5) * TS, y: (it.ty + .5) * TS, owner: it.owner || null });
+    else this.L.items.forEach((it, idx) => { if (!it.price && it.id !== 'job') this.items.set('f' + idx, { key: 'f' + idx, id: it.id, amount: it.amount || 1, x: (it.tx + .5) * TS, y: (it.ty + .5) * TS, tx: it.tx, ty: it.ty }); });
     // Puertas de la cámara del tesoro: compartidas; las abre quien llegue con una llave en SU mochila
     const W = this.L.w;
     this.corrTile = gen.biome.corrTile; this.bossPh2 = false;
     this.doors = this.L.doors.map((d, i) => { const cx = d.tiles.reduce((t, k) => t + k % W, 0) / d.tiles.length, cy = d.tiles.reduce((t, k) => t + ((k / W) | 0), 0) / d.tiles.length; return { key: 'door' + i, tiles: d.tiles.slice(), x: (cx + .5) * TS, y: (cy + .5) * TS, open: false }; });
     this.objects = this.L.objects.map((o, idx) => Object.assign({ key: 'o' + idx, opened: false }, o, { x: (o.tx + .5) * TS, y: (o.ty + .5) * TS }));
+    if (restore) {
+      for (const o of restore.extra || []) this.objects.push(Object.assign({}, o, { x: (o.tx + .5) * TS, y: (o.ty + .5) * TS }));   // portal y cofre del jefe
+      const opened = new Set(restore.opened || []), revealed = new Set(restore.revealed || []);
+      for (const o of this.objects) { if (opened.has(o.key)) o.opened = true; if (revealed.has(o.key)) o.revealed = true; }
+      for (const dr of this.doors) if ((restore.doors || []).includes(dr.key)) { dr.open = true; for (const t of dr.tiles) this.world.tiles[t] = this.corrTile; }
+    }
     // Mecanismos del piso (sección 18b): el servidor es el único que los mueve; los clientes aplican `mech`
     this.mechs = this.L.mechs && this.L.mechs.length ? new E.Mechs(this.world, this.L, this.mechHost(gen)) : null;
     this.g.onCombatArea = (team, x, y, r, by) => { if (this.mechs) this.mechs.hit(team, x, y, r, by || null); };
     this.g.onShotMove = (x, y, by) => !!(this.mechs && this.mechs.shotAt(x, y, by));
+    if (restore && restore.mech && this.mechs) this.mechs.apply(restore.mech);
     for (const m of this.members.values()) m.player.altarMul = 1;
     // Jugadores en la entrada (en abanico para no solaparse); los caídos vuelven con un cuarto de PS
     const sx = gen.world.spawn.x, sy = gen.world.spawn.y, off = [[0, 0], [-22, 0], [22, 0], [0, 22]];
@@ -171,18 +214,18 @@ export class Expedition {
     const label = kind === 'normal' ? `${this.dng.name} · P${st.floorNo}` : kind === 'waypoint' ? `${this.dng.name} · Punto de control` : `${this.dng.name} · Guarida`;
     this.floorInfo = { seed: this.seed, dungeon: this.dng.id, floorNo: st.floorNo, genNo, kind, step: i, total: this.seq.length, label, w: gen.world.w, h: gen.world.h, n: ++this.floorCount, size, coop: this.coopInfo() };
     this.emit('floor', { info: this.floorInfo });
-    if (kind === 'waypoint') {   // punto de control: si la expedición se interrumpe, el grupo podrá continuar desde aquí
-      const resume = { dungeon: this.dng.id, at: Date.now() };
-      for (const m of this.members.values()) if (!m.left) m.save.resume = { ...resume };
-      this.emit('checkpoint', { dungeon: this.dng.id, at: resume.at, members: [...this.members.values()].filter(m => !m.left).map(m => m.id) });
-    }
     // El cartero Lino (vecino de las misiones): ruidos extraños en el piso 2 de la Gruta si alguien aún no lo conoce.
     // La escena (y su pausa) es para todo el grupo; el vecino es solo visual en cada cliente.
     const CI = E.COURIER_INTRO;
     if (this.dng.id === CI.dungeon && kind === 'normal' && st.floorNo === CI.floor && [...this.members.values()].some(m => !m.left && !m.save.cleared.includes(CI.dungeon))) { this.pauseT = CI.pause; this.emit('courierNoise', {}); }
     for (const m of this.members.values()) m.player.alientoUsed = false;
-    if (kind === 'waypoint' || (kind === 'normal' && st.floorNo > 1)) this.offerBoons();
+    if (restore) { for (const m of this.members.values()) if (m.boonOffers[0]) this.emit('boons', { to: m.id, options: m.boonOffers[0], pending: m.boonOffers.length }); }
+    else if (kind === 'waypoint' || (kind === 'normal' && st.floorNo > 1)) this.offerBoons();
+    // Punto seguro: al llegar a cada piso (y al reanudar) se guarda el estado de la expedición
+    this.safepoint(restore ? 'resume' : kind === 'waypoint' ? 'waypoint' : 'floor');
   }
+  /** Avisa a la sala de que es un buen momento para guardar (piso nuevo, jefe vencido, objetivo cumplido). */
+  safepoint(reason) { this.emit('safepoint', { reason, step: this.stepIdx }); }
 
   /** Lo que los mecanismos necesitan de la simulación (la misma interfaz que FloorRT.mechHost en el cliente). */
   mechHost(gen) {
@@ -248,7 +291,9 @@ export class Expedition {
       if (Math.hypot(x - sx, y - sy) < 8 * TS) continue;
       const e = new E.Enemy(E.makeKind(s.variant), x, y, { level: lvl, elite: this.rollElite(false), hpMul: this.dng.hpMul || 1 });
       if (!e.free(this.world, x, y)) continue;
-      this.addEnemy(e, 'v:' + s.variant); made++;
+      e.spawnIdx = 1000 + made; made++;                   // índice estable (los vencidos no vuelven al reanudar)
+      if (this.floor.killed.has(e.spawnIdx)) continue;
+      this.addEnemy(e, 'v:' + s.variant);
     }
     this.floor.extra = made;
   }
@@ -361,7 +406,11 @@ export class Expedition {
       for (const dr of this.doors) if (!dr.open && Math.hypot(dr.x - p.x, dr.y - p.y) <= DOOR_R) this.tryDoor(m, dr);
       // Salas que explora cada uno (misiones de explorar) y nido de monstruos
       const tx = p.x / TS | 0, ty = p.y / TS | 0, room = this.L.rooms.find(r => tx >= r.x && tx < r.x + r.w && ty >= r.y && ty < r.y + r.h);
-      if (room && !m.rewards.rooms.has(room.id)) { m.rewards.rooms.add(room.id); if (f.kind === 'normal') this.quest(m, 'room', {}); }
+      if (room && !m.rewards.rooms.has(room.id)) {
+        m.rewards.rooms.add(room.id); if (f.kind === 'normal') this.quest(m, 'room', {});
+        if (room.role === 'secret' && room.prefab && this.E.Codex.add(m.save, 'secrets', `${this.dng.id}:${room.prefab}`)) this.emit('codex', { to: m.id, kind: 'secrets', id: room.prefab });   // sala secreta: al códice de quien entra
+      }
+      for (const l of this.L.lore || []) if (Math.hypot((l.tx + .5) * TS - p.x, (l.ty + .5) * TS - p.y) <= LORE_R && this.E.Codex.add(m.save, 'lore', l.id)) this.emit('codex', { to: m.id, kind: 'lore', id: l.id });
       if (!f.mh && this.L.mhRoom >= 0 && room && room.id === this.L.mhRoom) this.triggerMonsterHouse(room, p);
     }
     // Reanimar: un compañero junto al caído (REVIVE_RULES). Si nadie llega a tiempo, fuera de combate hasta el piso siguiente.
@@ -505,6 +554,7 @@ export class Expedition {
   }
   onEnemyDown(e) {
     if (e.netDone) return; e.netDone = true;            // experiencia y botín una sola vez por enemigo
+    if (e.spawnIdx != null) this.floor.killed.add(e.spawnIdx);
     if (e.netLast) { creditDamage(e, e.netLast.id, e.netLast.before); e.netLast = null; }   // el golpe final
     const E = this.E, dmg = e.netDmg || {};
     for (const m of this.members.values()) {
@@ -517,7 +567,7 @@ export class Expedition {
       if (e.team === 'enemy') this.quest(m, 'defeat', { kind: e.kindId, boss: !!e.kind.isBoss });
     }
     this.emit('enemyDown', { id: e.netId, x: e.x, y: e.y, boss: !!e.kind.isBoss });
-    if (e.mini) { for (const o of this.objects) if (o.hiddenUntil === 'mini') o.revealed = true; this.emit('miniDown', { id: e.netId, name: e.nameTag || '' }); }
+    if (e.mini) { this.floor.miniDown = true; for (const o of this.objects) if (o.hiddenUntil === 'mini') o.revealed = true; this.emit('miniDown', { id: e.netId, name: e.nameTag || '' }); this.safepoint('objective'); }
     if (e.kind.isBoss) {
       this.g.actors.forEach(a => { if (a.summoner === e && a.alive) a.die(this.g); });
       const r = this.L.rooms[0];
@@ -525,6 +575,7 @@ export class Expedition {
       const tx = Math.floor(e.x / TS), ty = Math.floor(e.y / TS), cx = (r.cx === tx && r.cy === ty) ? tx + 2 : tx, free = !E.SOLID[this.world.tiles[ty * this.L.w + cx]];
       const ch = { key: 'bossChest', type: 'chest', tier: 'cofreJefe', tx: free ? cx : r.cx + 2, ty: free ? ty : r.cy, opened: false };
       ch.x = (ch.tx + .5) * TS; ch.y = (ch.ty + .5) * TS; this.objects.push(ch);
+      this.floor.bossDown = true; this.safepoint('boss');
     } else if (!e.summoner) {
       for (const q of this.looters) {                    // botín individual: cada uno tira por su cuenta
         const res = E.Loot.roll(e.elite ? 'elite' : 'enemigo', this.dng, this.random);
@@ -586,25 +637,28 @@ export class Expedition {
    * con éxito se cobran las monedas; al caer se pierden las monedas de la expedición y la mitad
    * de las casillas del inventario. Nunca se pierden niveles, experiencia ni movimientos.
    */
-  settle(m, result) {
-    // 'interrupted': el servidor se reinicia o falla la sala. No es culpa del jugador: conserva lo
-    // conseguido (como al volver por el portal) pero no cuenta como misión cumplida.
-    const E = this.E, s = m.save, p = m.player, success = ['clear', 'return', 'interrupted'].includes(result), lines = [];
+  settle(m, result, dry = false) {
+    // 'interrupted': la expedición se cierra sin terminarla (fallo de la sala o expedición interrumpida que se
+    // da por cerrada). No es culpa del jugador: conserva lo conseguido (como al volver por el portal) pero no
+    // cuenta como misión cumplida. `dry`: sobre copias, sin tocar la expedición (resultado para la instantánea).
+    const E = this.E, s = dry ? structuredClone(m.save) : m.save, success = ['clear', 'return', 'interrupted'].includes(result), lines = [];
+    const p = dry ? { bag: new E.Inventory(structuredClone(m.player.bag.stacks), () => 999), equip: structuredClone(m.player.equip) } : m.player;
     let lostItems = 0;
     if (success) {
       s.bank += m.run.gems;
-      if (result === 'interrupted') lines.push('La expedición se ha interrumpido (reinicio o fallo del servidor): conservas lo conseguido.');
-      else this.quest(m, 'expedition', { floor: m.rewards.maxFloor });
+      if (result === 'interrupted') lines.push('La expedición se ha interrumpido: conservas lo conseguido hasta el último punto seguro.');
+      else if (!dry) this.quest(m, 'expedition', { floor: m.rewards.maxFloor });
       if (result === 'clear') {
         const bonus = 80 + 60 * E.DUNGEONS.indexOf(this.dng); this.gainExp(m, bonus); lines.push(`Recompensa por vencer al guardián: ${bonus} EXP.`);
-        if (!m.bossGranted) { m.bossGranted = true; lines.push(...E.BossKit.grant(s, this.dng.boss, p.bag)); }   // trofeo único y progreso, una vez
+        if (!m.bossGranted) { if (!dry) m.bossGranted = true; lines.push(...E.BossKit.grant(s, this.dng.boss, p.bag)); }   // trofeo único y progreso, una vez
         // Acompañante (no tenía la región desbloqueada): se lleva EXP, botín y trofeo, pero no se salta la campaña
         if (m.companion && !E.dungeonOpen(s, this.dng)) lines.push(`Has ido como acompañante: ${this.dng.name} contará como superada cuando la desbloquees tú.`);
         else if (!s.cleared.includes(this.dng.id)) { s.cleared.push(this.dng.id); s.points += 50; lines.push(`¡Primera vez que completas ${this.dng.name}! +50 puntos de rango.`); }
       }
     } else {
       const n = Math.floor(p.bag.stacks.length / 2);
-      for (let i = 0; i < n; i++) { const st = p.bag.stacks[Math.floor(this.random() * p.bag.stacks.length)]; lostItems += st.qty; p.bag.takeUid(st.uid, st.qty); }
+      const rnd = dry ? (() => { let q = 7; return () => (q = (q * 16807) % 2147483647) / 2147483647; })() : this.random;
+      for (let i = 0; i < n; i++) { const st = p.bag.stacks[Math.floor(rnd() * p.bag.stacks.length)]; lostItems += st.qty; p.bag.takeUid(st.uid, st.qty); }
       lines.push(`Has perdido ${m.run.gems} monedas y ${lostItems} objeto${lostItems === 1 ? '' : 's'} del inventario.`);
       lines.push(`Conservas tu nivel (${s.prog.level}), la experiencia y los movimientos aprendidos.`);
     }
@@ -620,6 +674,37 @@ export class Expedition {
     return { id: m.id, accountId: m.accountId, expeditionId: this.id, result, success, lines, profile: clean.ok ? clean.data : null,
       summary: { floors: r.floors, maxFloor: r.maxFloor, defeated: r.defeated, assists: r.assists, damage: Math.round(r.damage), gems: success ? r.gems : 0, gemsLost: success ? 0 : r.gems,
         exp: r.exp, items: r.loot.filter(x => x.id !== 'gems').reduce((t, x) => t + x.qty, 0), itemsLost: lostItems, quests: r.quests.slice(), level: s.prog.level, species: s.species } };
+  }
+
+  /* ---------- Instantánea (punto seguro) ---------- */
+  /**
+   * Estado de la expedición para guardarlo en la base de datos (tabla `expeditions`). Solo lo que NO se puede
+   * regenerar con la semilla: el piso se vuelve a generar igual con (semilla, paso, tamaño) y se le aplican los
+   * cambios. Cada integrante lleva su copia de la expedición (perfil con lo ganado hasta aquí, mochila, equipo,
+   * dones…) y `result`: lo que se le guardaría si la expedición se da por cerrada aquí («interrupted»).
+   */
+  snapshot(reason = 'manual') {
+    const f = this.floor, base = new Set(this.L.objects.map((o, i) => 'o' + i));
+    return {
+      v: 1, id: this.id, dungeon: this.dng.id, seed: this.seed, reason, at: Date.now(),
+      step: this.stepIdx, size: f.size, floorCount: this.floorCount, label: this.floorInfo.label,
+      floor: {
+        killed: [...f.killed], bossDown: !!f.bossDown, miniDown: !!f.miniDown,
+        opened: this.objects.filter(o => o.opened).map(o => o.key), revealed: this.objects.filter(o => o.revealed).map(o => o.key),
+        extra: this.objects.filter(o => !base.has(o.key)).map(o => ({ key: o.key, type: o.type, tier: o.tier, tx: o.tx, ty: o.ty, opened: !!o.opened })),
+        doors: this.doors.filter(d => d.open).map(d => d.key), mech: this.mechs ? this.mechs.serialize() : '',
+        items: [...this.items.values()].map(it => ({ key: it.key, id: it.id, amount: it.amount, tx: it.tx, ty: it.ty, owner: it.owner || null })),
+      },
+      members: [...this.members.values()].map(m => {
+        const p = m.player, r = m.rewards;
+        return { accountId: m.accountId, name: m.name, companion: !!m.companion, left: !!m.left,
+          save: structuredClone(m.save), inv: p.bag.stacks.map(x => ({ uid: x.uid, id: x.id, qty: x.qty })), equip: structuredClone(p.equip),
+          run: { gems: r.gems, exp: r.exp, loot: r.loot.slice(-200), defeated: r.defeated, assists: r.assists, damage: Math.round(r.damage), floors: r.floors, maxFloor: r.maxFloor, quests: r.quests.slice(), rooms: [...r.rooms] },
+          bossGranted: !!m.bossGranted, boons: Object.assign({}, p.boons), boonOffers: m.boonOffers.slice(0, 3),
+          hp: Math.ceil(p.hp), energy: Math.floor(p.energy), belly: Math.ceil(p.belly),
+          result: m.left || this.ended ? null : this.settle(m, 'interrupted', true) };
+      }),
+    };
   }
 
   /* ---------- Vista para la red ---------- */

@@ -4,6 +4,8 @@ const KEY = 'ma-online-auth';
 export function loadAuth() { try { return JSON.parse(localStorage.getItem(KEY)) || null; } catch { return null; } }
 export function saveAuth(a) { try { a ? localStorage.setItem(KEY, JSON.stringify(a)) : localStorage.removeItem(KEY); } catch { /* sin almacenamiento */ } }
 
+export const newOpId = () => (globalThis.crypto && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 12));
+
 export class Api {
   constructor(base, token = null) { this.base = base.replace(/\/+$/, ''); this.token = token; }
   async req(method, path, body) {
@@ -24,8 +26,20 @@ export class Api {
   me() { return this.req('GET', '/api/me'); }
   async profile() { const r = await this.req('GET', '/api/profile'); return r && r.profile ? r : null; }   // null: cuenta sin perfil todavía
   newProfile(species) { return this.req('POST', '/api/profile/new', { species }); }
-  op(op, args, version) { return this.req('POST', '/api/profile/op', { op, args, version }); }
+  /**
+   * Operación de la aldea con un identificador único (opId): si la red falla, se reintenta con el MISMO opId
+   * y el servidor no la aplica dos veces (devuelve el mismo resultado con duplicate: true).
+   */
+  async op(op, args, version, opId = newOpId()) {
+    const waits = [400, 1200, 3000];
+    for (let i = 0; ; i++) {
+      try { return await this.req('POST', '/api/profile/op', { op, args, version, opId }); }
+      catch (e) { if (!e.offline && !(e.status >= 500) || i >= waits.length) throw e; await new Promise(r => setTimeout(r, waits[i])); }
+    }
+  }
   rewards() { return this.req('GET', '/api/profile/rewards'); }
+  expedition() { return this.req('GET', '/api/expedition'); }
+  closeExpedition(id) { return this.req('POST', '/api/expedition/close', { id }); }
   uploadSave(text, version) { return this.req('PUT', '/api/profile', { text, version }); }
   resume(takeover = false) { return this.req('POST', '/api/rooms/resume', { takeover }); }
   roomByCode(code) { return this.req('GET', '/api/rooms/' + encodeURIComponent(code)); }

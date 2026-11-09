@@ -135,7 +135,7 @@ export const OPS = {
     const j = s.jobs.find(x => x.id === id);
     need(j && !E.isLegacyJob(j) && j.state === 'done', 'Esa misión no está lista para entregar');
     s.jobs = s.jobs.filter(x => x !== j);
-    s.bank += j.reward.gems; s.points += j.reward.points; s.delivered = (s.delivered || 0) + 1;
+    s.bank += j.reward.gems; s.points += j.reward.points; s.delivered = (s.delivered || 0) + 1; E.logJob(s, j);
     const got = bagOf(E, s).add(j.reward.item) > 0; if (!got) s.bank += E.sellPrice(j.reward.item);
     const xp = gainExp(E, s, j.reward.exp || 30);
     return { reward: j.reward, itemSold: !got, levels: xp.levels, learned: xp.learned };

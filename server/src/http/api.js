@@ -13,6 +13,9 @@
  *   POST /api/profile/new     { species }                      → { profile, version, summary }
  *   POST /api/profile/op      { op, args, version }            → { profile, version, info, summary } | 400/409 { error, profile, version }
  *   GET  /api/profile/rewards                                  → { rewards }   (recompensas de expediciones guardadas)
+ *   POST /api/profile/op  … { opId }   opId (opcional, ≤ 64): repetir la misma petición devuelve lo mismo (duplicate: true) sin aplicarla dos veces
+ *   GET  /api/expedition                                       → { pending: { id, dungeon, label, savedAt, members } | null }
+ *   POST /api/expedition/close { id }                          → { closed, result, lines, profile, version }   (cerrar una expedición interrumpida conservando lo conseguido)
  *   PUT  /api/profile         { text, version }   SOLO si ALLOW_PROFILE_IMPORT (desarrollo; no es seguro)
  *   POST /api/rooms/resume    { takeover? }                → { reconnectionToken, roomId, code, phase }  (volver a MI sitio guardado)
  *   GET  /api/rooms/:code                              → { roomId, code, players, max } | 404 / 409
@@ -47,6 +50,8 @@ export const API_ROUTES = [
   ['profilePut', 'PUT', '/api/profile'],
   ['profileNew', 'POST', '/api/profile/new'],
   ['roomResume', 'POST', '/api/rooms/resume'],
+  ['expedition', 'GET', '/api/expedition'],
+  ['expeditionClose', 'POST', '/api/expedition/close'],
   ['roomByCode', 'GET', '/api/rooms/:code'],
   ['friends', 'GET', '/api/friends'],
   ['friendRequest', 'POST', '/api/friends/request'],
@@ -79,7 +84,7 @@ export function isLocalRequest(request) {
 
 const httpError = (status, message) => Object.assign(new Error(message), { status });
 
-export function createApi({ identity, profiles, registry, config, status = async () => ({ ok: true }), log = null, host = null, social = null }) {
+export function createApi({ identity, profiles, expeditions = null, registry, config, status = async () => ({ ok: true }), log = null, host = null, social = null }) {
   const hits = new Map();   // límite de creación de invitados por IP (ventana de 10 min)
   const limited = ip => { const now = Date.now(), h = (hits.get(ip) || []).filter(t => now - t < 600000); h.push(now); hits.set(ip, h); return h.length > 20; };
 
@@ -180,9 +185,20 @@ export function createApi({ identity, profiles, registry, config, status = async
       if (path === '/api/profile/op' && method === 'POST') {
         const b = await readJson(request);
         if (typeof b.op !== 'string') return json(400, { error: 'Falta la operación' }, origin);
-        const r = await profiles.op(account.id, b.op, b.args || {}, Number.isInteger(b.version) ? b.version : undefined);
+        const opId = typeof b.opId === 'string' && /^[\w-]{8,64}$/.test(b.opId) ? b.opId : undefined;
+        const r = await profiles.op(account.id, b.op, b.args || {}, Number.isInteger(b.version) ? b.version : undefined, opId);
         if (r.error && !r.save) return json(404, { error: r.error, errorCode: ERR.NO_PROFILE }, origin);
-        return r.error ? withSummary(r.conflict ? 409 : 400, r, { error: r.error }) : withSummary(200, r, { info: r.info });
+        return r.error ? withSummary(r.conflict ? 409 : r.pending ? 423 : 400, r, { error: r.error, errorCode: r.pending ? 'PENDING_EXPEDITION' : undefined, pending: r.pending || undefined }) : withSummary(200, r, { info: r.info, duplicate: !!r.duplicate });
+      }
+      if (expeditions && path === '/api/expedition' && method === 'GET') return json(200, { pending: registry.roomOf(account.id) ? null : await expeditions.pendingFor(account.id) }, origin);
+      if (expeditions && path === '/api/expedition/close' && method === 'POST') {
+        const b = await readJson(request);
+        if (registry.roomOf(account.id)) return json(409, { error: 'Estás dentro de una expedición: termínala o sal de ella primero.' }, origin);
+        const pend = await expeditions.pendingFor(account.id);
+        if (!pend || pend.id !== b.id) return json(404, { error: 'No tienes esa expedición pendiente (puede que ya esté cerrada).' }, origin);
+        const r = await expeditions.close(account.id, pend.id, 'player');
+        const p = await profiles.get(account.id);
+        return json(200, { closed: true, result: r && r.result, lines: (r && r.lines) || [], profile: p && p.save, version: p && p.version }, origin);
       }
       if (path === '/api/profile/rewards' && method === 'GET') return json(200, { rewards: await profiles.store.listRewards(account.id, 20) }, origin);
       if (path === '/api/profile' && method === 'PUT') {
