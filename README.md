@@ -83,6 +83,7 @@ npm run test:deploy    # el servidor en modo producción (proceso real), la imag
 npm run test:all       # todo, incluidos los navegadores y HTTPS/WSS (requiere python3 + playwright)
 ```
 
+- **Historia de Eldoria** (fuente de verdad narrativa: canon, propuestas, capítulos, misiones, jefes y cronología): [`docs/BIBLIA_NARRATIVA_ELDORIA.md`](docs/BIBLIA_NARRATIVA_ELDORIA.md) y `docs/lore/`.
 - **Mazmorras, movimientos por nivel, guardianes (Reina Geoda), Topo Mercader y Pico Cartero**: `docs/PROGRESION.md`.
 - **Instalador de Windows** (`MysteryAction-Setup.exe`, lo construye GitHub): `docs/INSTALADOR.md`.
 - **Actualizaciones automáticas del lanzador** (`update.json`, `Actualizar.bat`): `docs/ACTUALIZAR.md`.
