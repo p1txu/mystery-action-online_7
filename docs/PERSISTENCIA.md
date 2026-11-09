@@ -42,6 +42,7 @@ Todo id desconocido se descarta al validar, y las listas tienen tope.
 | 1-5 | Criaturas | **No compatibles** con las clases. No se migran ni se borran: en el servidor, si el jugador elige clase, el perfil antiguo se guarda entero en el registro (`profile_events`, tipo `reset-legacy`) |
 | 6 | Clases | — |
 | **7 (0.42)** | Registro: códice, misiones completadas e historia | Se añaden `codex`, `log` y `story`. Las reliquias que ya lleva y las banderas que ya ha vivido se apuntan. No se quita nada |
+| **8 (0.43)** | Gremio, aldea y eventos regionales ([CIUDAD.md](CIUDAD.md)) | Se añaden `guild` (recompensas únicas cobradas y título), `town` (mejoras) y `events`. La reputación sigue siendo `points`. Los guardianes ya vencidos se apuntan como cobrados, así que no dan reputación otra vez |
 
 **Sin destruir nada:**
 - **En el servidor:** al leer un perfil antiguo se migra y se escribe con versión nueva (origen `migration`). El original queda entero en `profile_events` (tipo `migration`, con `from`, `to` y `original`). Si dos procesos lo migran a la vez, gana el primero y el otro lee el resultado.

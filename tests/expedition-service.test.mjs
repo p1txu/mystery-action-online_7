@@ -39,13 +39,13 @@ async function savedExpedition(svc, accounts) {
 }
 
 for (const [name, make] of STORES) {
-  test(`${name}: migración al leer — el perfil v6 pasa a v7 y el original queda archivado; una sola vez`, async () => {
+  test(`${name}: migración al leer — el perfil v6 pasa al formato actual y el original queda archivado; una sola vez`, async () => {
     const { store, profiles } = await setup(make);
     await store.createAccount(acc('u_mig')); const v6 = structuredClone(veteran('guerrero')); v6.v = 6; delete v6.codex; delete v6.log; delete v6.story;
     await store.putProfile('u_mig', v6);
     const r = await profiles.get('u_mig');
-    assert.equal(r.save.v, 7); assert.equal(r.version, 2); assert.equal(r.save.bank, 100);
-    const raw = await store.getProfile('u_mig'); assert.equal(raw.save.v, 7); assert.equal(raw.origin, 'migration');
+    assert.equal(r.save.v, E.SAVE_VERSION); assert.equal(r.version, 2); assert.equal(r.save.bank, 100);
+    const raw = await store.getProfile('u_mig'); assert.equal(raw.save.v, E.SAVE_VERSION); assert.equal(raw.origin, 'migration');
     const again = await profiles.get('u_mig'); assert.equal(again.version, 2, 'no se vuelve a migrar');
     if (store instanceof MemoryProfileStore) { const ev = store.events.filter(e => e.kind === 'migration'); assert.equal(ev.length, 1); assert.equal(ev[0].data.original.v, 6); assert.equal(ev[0].data.from, 6); }
     else { const row = store.db.prepare("select data from profile_events where kind = 'migration'").get(); assert.equal(JSON.parse(row.data).original.v, 6); }

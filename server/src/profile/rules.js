@@ -58,7 +58,7 @@ export const OPS = {
   buy(E, s, { id }) {
     shopOpen(s);
     const it = E.ITEMS[id], inv = bagOf(E, s);
-    need(it && E.shopStock(s).includes(id), 'La tienda no vende eso');
+    need(it && (E.shopStock(s).includes(id) || E.forgeStock(s).includes(id)), 'La tienda no vende eso');   // la forja de Brasa vende su equipo especial (forja construida + rango)
     need(s.bank >= it.price, 'No tienes monedas suficientes');
     need(inv.room(id) >= 1, 'El inventario está lleno');
     s.bank -= it.price; inv.add(id); s.bought = (s.bought || 0) + 1;
@@ -136,9 +136,10 @@ export const OPS = {
     need(j && !E.isLegacyJob(j) && j.state === 'done', 'Esa misión no está lista para entregar');
     s.jobs = s.jobs.filter(x => x !== j);
     s.bank += j.reward.gems; s.points += j.reward.points; s.delivered = (s.delivered || 0) + 1; E.logJob(s, j);
+    const built = E.Town.delivered(s, j);                          // proyecto de la aldea (forja…): la mejora queda construida, una vez
     const got = bagOf(E, s).add(j.reward.item) > 0; if (!got) s.bank += E.sellPrice(j.reward.item);
     const xp = gainExp(E, s, j.reward.exp || 30);
-    return { reward: j.reward, itemSold: !got, levels: xp.levels, learned: xp.learned };
+    return { reward: j.reward, itemSold: !got, levels: xp.levels, learned: xp.learned, built };
   },
 };
 

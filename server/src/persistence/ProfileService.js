@@ -51,7 +51,8 @@ export class ProfileService {
       companions: s.team.map(m => ({ uid: m.uid, kind: m.kind, name: m.name, level: m.level, exp: m.exp, active: m.active, fainted: m.fainted })),
       missions: { active: s.jobs, board: s.board.length, delivered: s.delivered || 0, completed: s.log.jobs },
       progress: { points: s.points, rank: rank.name, cleared: s.cleared, runs: s.runs || 0, bagSlots: rank.bag },
-      reputation: { points: s.points, rank: rank.name },                     // la reputación del gremio es el rango (puntos)
+      reputation: { points: s.points, rank: rank.name, title: E.Guild.title(s), titles: E.Guild.titles(s) },   // la reputación del gremio es el rango (puntos)
+      town: { upgrades: s.town.upgrades }, region: { active: s.events.active, history: s.events.history },
       campaign: { cleared: s.cleared, next: (E.DUNGEONS.find(d => !s.cleared.includes(d.id) && E.dungeonOpen(s, d)) || {}).id || null, bosses: s.bosses },
       codex: s.codex, story: s.story, formatVersion: s.v,
     };

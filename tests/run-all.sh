@@ -28,6 +28,7 @@ if command -v python3 >/dev/null && python3 -c "import playwright" 2>/dev/null; 
   python3 tests/e2e/rules_parity.py tests/.tmp/prototype.html
   python3 tests/e2e/escorts.py tests/.tmp/prototype.html                              # mercader Tobías escondido junto al jefe, cartero Lino por la ruta y huida lenta, Gruta ×3 PS, velocidades
   python3 tests/e2e/world_art.py tests/.tmp/prototype.html                            # aldea y mazmorras pintadas: colisiones = dibujo, caminos libres, profundidad, biomas, cofres
+  python3 tests/e2e/town_e2e.py tests/.tmp/prototype.html                             # aldea que evoluciona: ruinas → forja, Brasa, evento resuelto; cerrar y volver a cargar
   python3 tests/e2e/save_offline.py tests/.tmp/prototype.html                          # guardado sin conexión: migración 6 → 7 con copia del original, copia de seguridad, registro
   python3 tests/e2e/boss_gromgar.py tests/.tmp/prototype.html                          # Gromgar sin red: avisos, furia, aturdido, derribado, muerte limpia, trofeo una vez
   python3 tests/e2e/dungeon_ch1.py tests/.tmp/prototype.html                          # mazmorra del capítulo 1 jugada: palancas, puentes, placas de tiempo, paredes falsas, emboscada, minijefe, textos; mismo piso en navegador y Node

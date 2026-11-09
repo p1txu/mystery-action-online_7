@@ -28,7 +28,7 @@ async def main():
           const s2 = G.save; Save.write(s2);
           return { v: s2.v, bank: s2.bank, cleared: s2.cleared, relics: s2.codex.relics, flags: s2.story.flags, note: G.loadNote, copy: JSON.parse(localStorage.getItem(SAVE_KEY + '-v6') || 'null'),
             stored: JSON.parse(localStorage.getItem(SAVE_KEY)).v }; }''')
-        check('formato 6 → 7 al cargar, sin perder monedas ni progreso', r['v'] == 7 and r['bank'] == 4321 and r['cleared'] == ['bosque', 'gruta'] and r['stored'] == 7, r)
+        check('formato 6 → actual al cargar, sin perder monedas ni progreso', r['v'] >= 7 and r['bank'] == 4321 and r['cleared'] == ['bosque', 'gruta'] and r['stored'] == r['v'], r)
         check('reliquias e historia ya vividas se apuntan', 'lagrimaEstelar' in r['relics'] and set(r['flags']) == {'llegada', 'mercader', 'tablon'}, r)
         check('se avisa de la actualización y el original queda intacto en una copia', 'versión 6' in (r['note'] or '') and r['copy'] and r['copy']['v'] == 6 and r['copy']['data']['bank'] == 4321, {'note': r['note']})
         # --- Guardado principal dañado: copia de seguridad

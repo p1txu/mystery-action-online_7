@@ -59,7 +59,7 @@ async def main():
             await B.screenshot(path=os.path.join(shots, 'gromgar_online_rocas.png'))
 
             for k in range(1, 4):
-                d = st.ctl('bkChargeAtRock', name='Ana')
+                d = st.ctl('bkChargeAtRock', name='Ana', hits=k - 1)   # (el jefe pudo chocar solo mientras se esperaba: se fija la cuenta)
                 check(f'choque {k}: hay una roca con sitio a los dos lados', d['rock'] is not None, d)
                 want = 'stun' if k < 3 else 'vuln'
                 ok = False

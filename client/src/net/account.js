@@ -47,6 +47,7 @@ export class OnlineAccount {
       this.adopt(r.profile, r.version);
       const msg = describe(op, r.info);
       if (msg) UI.toast(msg, '#7dffa0');
+      if (r.info && r.info.built && r.info.built.length) { setTimeout(() => UI.toast(r.info.built[0], '#f2b84b'), 2600); const g = this.g; if (g.village && g.village.refreshTown) g.village.refreshTown(); }   // mejora de la aldea construida
       return r.info || true;
     } catch (e) {
       if (e.data && e.data.profile) this.adopt(e.data.profile, e.data.version);   // el servidor manda: se vuelve a su copia

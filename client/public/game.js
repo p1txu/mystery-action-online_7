@@ -1,4 +1,4 @@
-// GENERADO por tools/split-prototype.mjs a partir de prototype/mystery-action.html (sha256 1d3d5f9c1e0ee7c2).
+// GENERADO por tools/split-prototype.mjs a partir de prototype/mystery-action.html (sha256 2c755fc9de874289).
 // No lo edites a mano: cambia el prototipo y vuelve a ejecutar «npm run split».
 
 'use strict';
@@ -3820,6 +3820,11 @@ const ITEMS = {
   coronaEspinas: { name: 'Corona de Espinas', cat: 'equipo', slot: 'accesorio', rarity: 'epica', unique: true, icon: 'ring', color: '#9be36b', price: 500, mods: { flat: { atk: 4 }, pct: { def: .06 } }, desc: 'Trofeo único: una corona de raíces vivas del Guardián de Espinas. Aún huele a savia.' },
   colmilloGromgar: { name: 'Colmillo de Gromgar', cat: 'equipo', slot: 'accesorio', rarity: 'epica', unique: true, icon: 'ring', color: '#e0a040', price: 600, mods: { flat: { def: 6, atk: 3 }, pct: { def: .05 } }, desc: 'Trofeo único: un trozo de la mandíbula de piedra del Quebrantamontañas. Aún vibra cuando algo choca.' },
   panueloRojo: { name: 'Pañuelo rojo', cat: 'equipo', slot: 'accesorio', rarity: 'comun', icon: 'scarf', color: '#e0473c', price: 60, mods: { flat: { atk: 4 } }, desc: 'Un pañuelo sencillo que anima a pelear.' },
+  // Equipo especial de la forja de Brasa (aldea, tras reparar la forja; según el rango del gremio)
+  yelmoBrasa: { name: 'Yelmo de Brasa', cat: 'equipo', slot: 'casco', rarity: 'rara', icon: 'helm', color: '#e0763a', price: 260, mods: { flat: { def: 4, hp: 10 } }, desc: 'Forjado en la fragua de Brasa con cuarzo de la Gruta. Sirve a cualquier explorador.' },
+  botasExplorador: { name: 'Botas del Explorador', cat: 'equipo', slot: 'botas', rarity: 'rara', icon: 'boots', color: '#8a5a32', price: 240, mods: { flat: { spe: 8, def: 1 } }, desc: 'Suela claveteada del gremio: no resbalan ni en el barro de la ciénaga.' },
+  guantesForja: { name: 'Guantes de Forja', cat: 'equipo', slot: 'guantes', rarity: 'rara', icon: 'gloves', color: '#b0603a', price: 380, mods: { flat: { atk: 2, spa: 2, def: 2 } }, desc: 'Cuero curtido junto al fuego. Para exploradores de Plata.' },
+  insigniaGremio: { name: 'Insignia del Gremio', cat: 'equipo', slot: 'accesorio', rarity: 'rara', icon: 'scarf', color: '#3f6fc4', price: 420, mods: { flat: { hp: 12 }, pct: { def: .04, atk: .04 } }, desc: 'Solo la llevan los exploradores de Plata o más. Brasa la acuña con el emblema de la espada.' },
   panueloSeda: { name: 'Pañuelo de seda', cat: 'equipo', slot: 'accesorio', rarity: 'pococomun', icon: 'scarf', color: '#7fe3e8', price: 140, mods: { pct: { spe: .08 } }, desc: 'Ligero como el aire.' },
   panueloCarmesi: { name: 'Pañuelo carmesí', cat: 'equipo', slot: 'accesorio', rarity: 'rara', icon: 'scarf', color: '#b8243a', price: 320, mods: { pct: { atk: .1, spa: .1 } }, desc: 'Teñido con pigmento de las ruinas.' },
   panueloTormenta: { name: 'Pañuelo tormenta', cat: 'equipo', slot: 'accesorio', rarity: 'epica', icon: 'scarf', color: '#ffe14d', price: 700, mods: { pct: { spa: .15, spe: .1 } }, desc: 'Chisporrotea con cada movimiento.' },
@@ -4159,15 +4164,31 @@ const JOB_ITEMS = ['Collar perdido', 'Piedra lunar', 'Pluma azul', 'Bufanda roja
 const STARS = ['E', 'D', 'C', 'B', 'A', 'S'];
 const Jobs = {
   /** Pesos de cada tipo de misión en el tablón. */
-  weights: { rescue: 2, find: 2, outlaw: 2, hunt: 3, collect: 2, explore: 2, boss: 1, expedition: 1 },
+  weights: { rescue: 2, find: 2, outlaw: 2, hunt: 3, collect: 2, explore: 2, boss: 1, expedition: 1, elite: 2, lore: 2, secret: 1 },
+  /** Contratos del gremio (0.43) y el rango mínimo para que salgan en el tablón. */
+  minRank: { elite: 1, secret: 1, lore: 0 },
+  /** ¿Puede cumplirse este tipo en esa mazmorra? Los textos y las salas secretas solo existen donde hay salas con propósito. */
+  feasible(type, d) {
+    if (type === 'lore') return !!DungeonPlan.table(d.biome) && (LORE[d.biome] || []).length > 0;
+    if (type === 'secret') return !!DungeonPlan.table(d.biome) && Prefabs.list.some(p => p.role === 'secret' && (!p.biomes || p.biomes.includes(d.biome)));
+    return true;
+  },
+  /** Firma de un contrato: el tablón no repite la de los aceptados ni la de los últimos entregados. */
+  sig(j) { return `${j.type}:${j.dungeon}:${j.target || ''}`; },
   board(save, seed) {
-    const rnd = U.rng(seed), jobs = [];
+    const rnd = U.rng(seed), jobs = [], rank = RANKS.indexOf(rankOf(save.points || 0));
     const open = DUNGEONS.filter(d => dungeonOpen(save, d));
-    for (let i = 0; i < 6; i++) {
-      const d = open[Math.floor(rnd() * open.length)], type = weighted(this.weights, rnd);
+    const recent = new Set([...(save.jobs || []), ...((save.log && save.log.jobs) || []).slice(-6)].map(j => this.sig(j)));
+    const project = Town.projectJob(save, seed);                       // contrato especial que construye una mejora de la aldea
+    if (project) jobs.push(project);
+    for (let i = jobs.length; i < 6; i++) {
+     let job, diff;
+     for (let attempt = 0; attempt < 6; attempt++) {                    // otra tirada si repetiría un contrato reciente
+      const d = open[Math.floor(rnd() * open.length)];
+      const w = Object.fromEntries(Object.entries(this.weights).filter(([t]) => (this.minRank[t] || 0) <= rank && this.feasible(t, d)));
+      const type = weighted(w, rnd);
       const client = CLIENT_NAMES[Math.floor(rnd() * CLIENT_NAMES.length)];
-      const job = { id: (seed % 100000) * 10 + i, type, dungeon: d.id, client, state: 'board', progress: 0, goal: 1 };
-      let diff;
+      job = { id: (seed % 100000) * 10 + i, type, dungeon: d.id, client, state: 'board', progress: 0, goal: 1 };
       if (isLegacyJob(job)) {
         job.floor = 1 + Math.floor(rnd() * d.floors);
         diff = Math.floor((enemyLevel(d, job.floor) + (type === 'outlaw' ? 3 : 0)) / 3);
@@ -4181,12 +4202,21 @@ const Jobs = {
         job.goal = 8 + Math.floor(rnd() * 8); diff = Math.floor((d.level + job.goal / 4) / 3);
       } else if (type === 'boss') {
         job.target = d.boss; diff = Math.floor((d.level + 8) / 3);
+      } else if (type === 'elite') {                                   // caza de élites: cualquier élite de la mazmorra
+        job.goal = 1 + Math.floor(rnd() * 3); diff = Math.floor((d.level + 3 + job.goal * 2) / 3);
+      } else if (type === 'lore') {                                    // investigación: leer textos del escenario
+        job.goal = 2 + Math.floor(rnd() * 2); diff = Math.floor((d.level + job.goal) / 3);
+      } else if (type === 'secret') {                                  // cámara secreta
+        job.goal = 1; diff = Math.floor((d.level + 5) / 3);
       } else {
         job.reach = Math.max(2, Math.ceil(d.floors * .6)); diff = Math.floor((enemyLevel(d, job.reach) + 2) / 3);
       }
-      diff = Math.max(0, Math.min(5, diff));
+      if (!recent.has(this.sig(job)) && !jobs.some(q => this.sig(q) === this.sig(job))) break;
+     }
+      diff = Math.max(0, Math.min(RANK_STARS[rank] ?? 5, diff));       // las misiones de rango superior solo con el rango que toca
       job.stars = STARS[diff];
       job.reward = { exp: 25 + diff * 30, gems: ECONOMY.jobBase + diff * ECONOMY.jobPerStar + Math.floor(rnd() * 20), item: ['baya', 'manzanaGrande', 'elixir', 'semillaVital', 'orbeEscape', 'semillaExplosiva'][Math.min(5, Math.floor(rnd() * (2 + diff)))], points: [10, 20, 35, 50, 75, 100][diff] };
+      const pool = CONTRACT_ITEMS[type_(job)]; if (pool) job.reward.item = pool[Math.floor(rnd() * pool.length)];   // recompensa propia de cada contrato
       jobs.push(job);
     }
     return jobs;
@@ -4200,9 +4230,12 @@ const Jobs = {
     if (j.type === 'collect') return `Encontrar ${j.goal} × ${ITEMS[j.target].name} · ${d.name}`;
     if (j.type === 'explore') return `Explorar ${j.goal} salas · ${d.name}`;
     if (j.type === 'boss') return `Vencer a ${makeBossKind(j.target).name}, guardián de ${d.name}`;
+    if (j.type === 'elite') return `Cazar ${j.goal} élite${j.goal > 1 ? 's' : ''} · ${d.name}`;
+    if (j.type === 'lore') return `Investigar: leer ${j.goal} textos antiguos · ${d.name}`;
+    if (j.type === 'secret') return `Encontrar una cámara secreta · ${d.name}`;
     return `Expedición: llegar al piso ${j.reach} de ${d.name} y volver`;
   },
-  kindLabel(j) { return { rescue: 'Rescate', find: 'Búsqueda', outlaw: 'Forajido', hunt: 'Caza', collect: 'Recolección', explore: 'Exploración', boss: 'Guardián', expedition: 'Expedición' }[j.type]; },
+  kindLabel(j) { return j.project ? 'Proyecto de la aldea' : { rescue: 'Rescate', find: 'Búsqueda', outlaw: 'Forajido', hunt: 'Caza', collect: 'Recolección', explore: 'Exploración', boss: 'Guardián', expedition: 'Expedición', elite: 'Caza de élites', lore: 'Investigación', secret: 'Cámara secreta' }[j.type]; },
 };
 
 /* --- Economía: todas las cifras de precios y recompensas en un sitio --- */
@@ -4214,6 +4247,153 @@ const ECONOMY = {
 };
 const sellPrice = id => Math.max(1, Math.round(ITEMS[id].price * ECONOMY.sellRate));
 
+/* --- 0.43 · Reputación del gremio, aldea que evoluciona y eventos regionales ----------------------
+   Diseño completo: docs/CIUDAD.md. Todo vive en el perfil (formato 8) y lo cambian las mismas
+   reglas en el juego local y en el servidor. Las recompensas con identificador se apuntan en
+   guild.claims y nunca se cobran dos veces. La duración de los eventos se cuenta en expediciones
+   (save.runs), no con el reloj. */
+const type_ = j => j.type;
+const CONTRACT_ITEMS = { elite: ['elixir', 'superpocion', 'semillaVital', 'bayaAurea'], lore: ['hierbaLucida', 'orbeLuminoso', 'elixir'], secret: ['orbeEscape', 'bayaAurea', 'semillaVital'] };
+const RANK_STARS = [2, 3, 3, 4, 5];    // estrella máxima de los contratos por rango: Normal ★C, Bronce/Plata ★B, Oro ★A, Diamante ★S
+const RANK_TITLES = ['Explorador novato', 'Explorador de Bronce', 'Explorador de Plata', 'Explorador de Oro', 'Explorador de Diamante'];
+const GUILD_REP = { bossFirst: 40, eventWon: 30, eventExpired: -10, help: 5 };
+const CLAIMS_MAX = 300;
+const Guild = {
+  rankIndex(s) { return RANKS.indexOf(rankOf(s.points || 0)); },
+  fresh() { return { claims: [], title: '' }; },
+  /** Recompensa única: true la primera vez (y la apunta); false si ya se cobró. */
+  claim(s, id) {
+    if (!s.guild) s.guild = Guild.fresh();
+    const c = s.guild.claims; if (c.includes(id)) return false;
+    c.push(id);
+    while (c.length > CLAIMS_MAX) { const k = c.findIndex(x => x.startsWith('event:')); c.splice(k >= 0 ? k : 0, 1); }
+    return true;
+  },
+  claimed(s, id) { return !!(s.guild && s.guild.claims.includes(id)); },
+  /** Suma o resta reputación. Una penalización nunca te baja de rango. */
+  addRep(s, n) { const floor = n < 0 ? rankOf(s.points || 0).pts : 0; s.points = Math.max(floor, (s.points || 0) + n); },
+  titles(s) { return RANK_TITLES.slice(0, Guild.rankIndex(s) + 1); },
+  title(s) { const t = s.guild && s.guild.title; return t && Guild.titles(s).includes(t) ? t : RANK_TITLES[Guild.rankIndex(s)]; },
+  /** Primera victoria contra el guardián de una mazmorra: +40 de reputación, una vez. */
+  bossDefeated(s, dng) { return Guild.claim(s, 'boss:' + dng.boss) ? (Guild.addRep(s, GUILD_REP.bossFirst), [`El gremio celebra tu primera victoria contra el guardián de ${dng.name}: +${GUILD_REP.bossFirst} de reputación.`]) : []; },
+  /** Lo que desbloquea cada rango (para el panel del gremio). */
+  PERKS: [
+    ['Contratos de caza, recolección, exploración e investigación (hasta ★C)', 'Tienda básica', 'Título: Explorador novato'],
+    ['Contratos de caza de élites y de cámaras secretas (hasta ★B)', 'Proyecto de la forja (tras la Gruta de Cuarzo)', 'Forja: Yelmo de Brasa y Botas del Explorador', 'Eventos regionales', 'Título: Explorador de Bronce'],
+    ['Forja: Guantes de Forja e Insignia del Gremio', 'Más artículos en la tienda', 'Título: Explorador de Plata'],
+    ['Contratos hasta ★A', 'Título: Explorador de Oro'],
+    ['Contratos hasta ★S', 'Título: Explorador de Diamante'],
+  ],
+  sanitize(g) { const out = Guild.fresh(); if (g && typeof g === 'object') { out.claims = [...new Set(Array.isArray(g.claims) ? g.claims : [])].filter(x => typeof x === 'string' && /^(boss|event|project):[\w:.-]{1,60}$/.test(x)).slice(-CLAIMS_MAX); out.title = RANK_TITLES.includes(g.title) ? g.title : ''; } return out; },
+};
+
+/** Mejoras de la aldea: se construyen con un contrato especial y se guardan en town.upgrades. */
+const TOWN_UPGRADES = {
+  forja: { name: 'Forja de Brasa', rank: 1, cleared: 'gruta', client: 'Herrera Brasa', dungeon: 'gruta', target: 'fragmentoCuarzo', goal: 3, jobId: 9000001,
+    reward: { exp: 120, gems: 150, item: 'superpocion', points: 35 },
+    done: 'La casa en ruinas del sur vuelve a tener techo: Brasa ha encendido su fragua. Ya puedes comprarle equipo especial.' },
+};
+/** Equipo especial de la forja (con la forja construida), por rango del gremio. */
+const FORGE_STOCK = [{ rank: 1, items: ['yelmoBrasa', 'botasExplorador'] }, { rank: 2, items: ['guantesForja', 'insigniaGremio'] }];
+const Town = {
+  fresh() { return { upgrades: [] }; },
+  built(s, id) { return !!(s.town && s.town.upgrades.includes(id)); },
+  /** Contrato del proyecto que toca (o null): uno a la vez, nunca repetido una vez construido. */
+  projectJob(s, seed) {
+    for (const [id, u] of Object.entries(TOWN_UPGRADES)) {
+      if (Town.built(s, id) || Guild.rankIndex(s) < u.rank || !(s.cleared || []).includes(u.cleared)) continue;
+      if ((s.jobs || []).some(j => j.project === id)) continue;          // ya aceptado
+      return { id: u.jobId, type: 'collect', project: id, dungeon: u.dungeon, client: u.client, target: u.target, goal: u.goal, state: 'board', progress: 0, stars: 'C', reward: Object.assign({}, u.reward) };
+    }
+    return null;
+  },
+  /** Al entregar un contrato: si era de un proyecto, la mejora queda construida (una vez). Devuelve las líneas. */
+  delivered(s, j) {
+    const u = j && j.project && TOWN_UPGRADES[j.project]; if (!u || Town.built(s, j.project)) return [];
+    if (!s.town) s.town = Town.fresh();
+    Guild.claim(s, 'project:' + j.project); s.town.upgrades.push(j.project);
+    return [u.done];
+  },
+  sanitize(t, s) {
+    const out = Town.fresh(); if (t && typeof t === 'object' && Array.isArray(t.upgrades)) out.upgrades = [...new Set(t.upgrades)].filter(id => TOWN_UPGRADES[id]);
+    return out;
+  },
+};
+const forgeStock = s => Town.built(s, 'forja') ? [].concat(...FORGE_STOCK.filter(t => Guild.rankIndex(s) >= t.rank).map(t => t.items)) : [];
+
+/**
+ * Eventos regionales. «invasor»: un élite con nombre invade un piso de una mazmorra superada.
+ * Aparece al volver de una expedición (rango Bronce, sin evento en curso, tras la espera), dura
+ * 3 expediciones; vencerlo da monedas, reputación y un elíxir (una vez: event:<id>); si caduca, −10.
+ */
+const REGION_EVENTS = {
+  invasor: { name: 'Un élite invade', duration: 3, cooldown: 2, chance: .4, minRank: 1, hpMul: 2.5, levelUp: 2,
+    reward: d => ({ gems: 120 + 40 * DUNGEONS.indexOf(d), rep: GUILD_REP.eventWon, item: 'elixir' }) },
+};
+const INVADER_NAMES = ['Garrafría', 'Rompecercas', 'Ojo de Ceniza', 'Colmillo Errante', 'Zarpa de Hierro', 'Lomo Quebrado'];
+const RegionEvents = {
+  fresh() { return { active: null, history: [], nextRun: 0 }; },
+  /** Texto del evento en curso para el gremio y el alcalde. */
+  describe(ev) { const d = dungeonById(ev.dungeon); return `${ev.name} invade ${d.name} (piso ${ev.floor}). Quedan ${ev.left} expedición${ev.left === 1 ? '' : 'es'}.`; },
+  left(s) { const a = s.events && s.events.active; return a ? Math.max(0, a.endsRun - (s.runs || 0)) : 0; },
+  /**
+   * Al volver de cada expedición (con save.runs ya contado): caduca el evento en curso o, si toca, hace
+   * aparecer uno. Determinista (semilla del perfil): igual en el juego local y en el servidor. → líneas
+   */
+  tick(s) {
+    if (!s.events) s.events = RegionEvents.fresh();
+    const E = s.events, lines = [], runs = s.runs || 0;
+    if (E.active && runs >= E.active.endsRun) {                      // caducó sin resolver
+      const a = E.active; E.active = null; E.nextRun = runs + REGION_EVENTS[a.type].cooldown;
+      Guild.addRep(s, GUILD_REP.eventExpired);
+      RegionEvents.log(s, a, 'expired');
+      lines.push(`${a.name} se ha retirado de ${dungeonById(a.dungeon).name} con su botín. El gremio no está contento (${GUILD_REP.eventExpired} de reputación).`);
+    }
+    if (!E.active && runs >= E.nextRun) {
+      const T = REGION_EVENTS.invasor, rnd = U.rng(hashStr(`ev:${s.boardSeed}:${runs}`));
+      const regions = DUNGEONS.filter(d => (s.cleared || []).includes(d.id) && d.floors >= 3);
+      if (Guild.rankIndex(s) >= T.minRank && regions.length && rnd() < T.chance) {
+        const d = regions[Math.floor(rnd() * regions.length)], floor = 2 + Math.floor(rnd() * Math.max(1, d.floors - 2));
+        const variant = weighted(d.enemies, rnd), id = `inv-${runs}-${d.id}-${Math.floor(rnd() * 1e6).toString(36)}`;
+        E.active = { id, type: 'invasor', dungeon: d.id, floor, variant, name: INVADER_NAMES[Math.floor(rnd() * INVADER_NAMES.length)], startRun: runs, endsRun: runs + T.duration };
+        lines.push(`¡Evento regional! ${E.active.name}, un élite, ha invadido ${d.name} (piso ${floor}). Tienes ${T.duration} expediciones para echarlo.`);
+      }
+    }
+    return lines;
+  },
+  log(s, a, result) { s.events.history.push({ id: a.id, type: a.type, dungeon: a.dungeon, result, run: s.runs || 0 }); if (s.events.history.length > 20) s.events.history.splice(0, s.events.history.length - 20); },
+  /** Enemigo del evento para un piso (o null): se añade a L.enemies con su propia semilla, sin tocar la del piso. */
+  spawnFor(s, dng, floorNo, L, world) {
+    const a = s && s.events && s.events.active; if (!a || a.dungeon !== dng.id || a.floor !== floorNo || Guild.claimed(s, 'event:' + a.id)) return null;
+    const rnd = U.rng(hashStr(a.id + ':' + floorNo)), rooms = L.rooms.filter((r, i) => i > 0 && r.type === 'normal' && r.w >= 4 && r.h >= 4);   // salas normales (nunca la de inicio ni una cámara cerrada)
+    for (let k = 0; k < 60; k++) {
+      const r = (rooms.length ? rooms : L.rooms)[Math.floor(rnd() * (rooms.length || L.rooms.length))];
+      const tx = r.x + 1 + Math.floor(rnd() * Math.max(1, r.w - 2)), ty = r.y + 1 + Math.floor(rnd() * Math.max(1, r.h - 2));
+      if (world.isSolid(tx, ty)) continue;
+      return { variant: a.variant, tx, ty, room: r.id, elite: true, invader: a.id, name: 'Invasor: ' + a.name };
+    }
+    return null;
+  },
+  /** El invasor ha caído: resuelve el evento de ESE perfil, una vez. → { lines, item } o null */
+  resolve(s, id) {
+    const a = s.events && s.events.active; if (!a || a.id !== id || !Guild.claim(s, 'event:' + id)) return null;
+    const d = dungeonById(a.dungeon), R = REGION_EVENTS[a.type].reward(d);
+    s.bank += R.gems; Guild.addRep(s, R.rep);
+    s.events.active = null; s.events.nextRun = (s.runs || 0) + REGION_EVENTS[a.type].cooldown + 1;
+    RegionEvents.log(s, a, 'won');
+    return { item: R.item, lines: [`¡Has echado a ${a.name} de ${d.name}! El gremio te paga ${R.gems} monedas (al banco), +${R.rep} de reputación y un ${ITEMS[R.item].name}.`] };
+  },
+  sanitize(e, s) {
+    const out = RegionEvents.fresh(); if (!e || typeof e !== 'object') return out;
+    const a = e.active, d = a && dungeonById(a.dungeon);
+    if (a && REGION_EVENTS[a.type] && d && typeof a.id === 'string' && a.id.length <= 60 && ENEMY_VARIANTS[a.variant] && Number.isInteger(a.floor) && a.floor >= 1 && a.floor <= d.floors && Number.isInteger(a.endsRun))
+      out.active = { id: a.id, type: a.type, dungeon: d.id, floor: a.floor, variant: a.variant, name: typeof a.name === 'string' ? a.name.slice(0, 30) : 'Invasor', startRun: a.startRun | 0, endsRun: a.endsRun | 0 };
+    out.history = (Array.isArray(e.history) ? e.history : []).filter(h => h && REGION_EVENTS[h.type] && dungeonById(h.dungeon) && ['won', 'expired'].includes(h.result)).slice(-20).map(h => ({ id: String(h.id).slice(0, 60), type: h.type, dungeon: h.dungeon, result: h.result, run: h.run | 0 }));
+    out.nextRun = Number.isInteger(e.nextRun) && e.nextRun >= 0 ? e.nextRun : 0;
+    return out;
+  },
+};
+
 /* --- Guardado (solo en este navegador) ---
    Formato: { format, v, savedAt, sum, data }. `data` es una copia saneada con SOLO datos
    reconstruibles (nada de objetos del motor). `sum` detecta guardados dañados.
@@ -4221,8 +4401,9 @@ const sellPrice = id => Math.max(1, Math.round(ITEMS[id].price * ECONOMY.sellRat
 const SAVE_KEY = 'mystery-action-save-v1';
 const BACKUP_KEY = 'mystery-action-save-backup';
 const OPTIONS_KEY = 'mystery-action-options';
-const SAVE_VERSION = 7;   // 6: clases (Guerrero, Arquero, Mago, Asesino) en lugar de especies; las partidas anteriores no son compatibles
+const SAVE_VERSION = 8;   // 6: clases (Guerrero, Arquero, Mago, Asesino) en lugar de especies; las partidas anteriores no son compatibles
                           // 7 (0.42): registro del perfil — códice (textos, secretos, reliquias), misiones cumplidas e historia
+                          // 8 (0.43): gremio (recompensas únicas, título), mejoras de la aldea y eventos regionales
 /* --- Registro del perfil (v7) ---------------------------------------------------------------------
    codex.lore     textos del escenario leídos (ids de LORE)
    codex.secrets  salas secretas descubiertas («mazmorra:plantilla», p. ej. «bosque:muro_agrietado»)
@@ -4268,7 +4449,7 @@ const Story = {
   },
 };
 /** Misión entregada al registro (la más reciente al final; como mucho LOG_MAX). */
-const logJob = (s, j) => { if (!s.log || !Array.isArray(s.log.jobs)) s.log = { jobs: [] }; s.log.jobs.push({ id: j.id, type: j.type, dungeon: j.dungeon, stars: j.stars, at: Date.now() }); if (s.log.jobs.length > LOG_MAX) s.log.jobs.splice(0, s.log.jobs.length - LOG_MAX); };
+const logJob = (s, j) => { if (!s.log || !Array.isArray(s.log.jobs)) s.log = { jobs: [] }; s.log.jobs.push(Object.assign({ id: j.id, type: j.type, dungeon: j.dungeon, stars: j.stars, at: Date.now() }, j.target ? { target: String(j.target).slice(0, 40) } : {}, j.project ? { project: j.project } : {})); if (s.log.jobs.length > LOG_MAX) s.log.jobs.splice(0, s.log.jobs.length - LOG_MAX); };
 /**
  * Migraciones del formato del perfil: MIGRATIONS[n] convierte una partida de la versión n en la n+1.
  * Se aplican en orden al leer (en el navegador y en el servidor) y nunca borran datos conocidos.
@@ -4286,6 +4467,16 @@ const SAVE_MIGRATIONS = {
     out.story = { flags: Story.derived(s), endings: [] };
     return out;
   },
+  // 7 → 8 (0.43): gremio, aldea y eventos. La reputación sigue siendo `points` (no cambia). Las primeras
+  // victorias contra guardianes ya conseguidas se apuntan como cobradas (no dan reputación otra vez).
+  7(s) {
+    const out = Object.assign({}, s, { v: 8 });
+    out.guild = { claims: Object.entries(s.bosses || {}).filter(([, b]) => b && b.kills > 0).map(([id]) => 'boss:' + id).concat(DUNGEONS.filter(d => (s.cleared || []).includes(d.id)).map(d => 'boss:' + d.boss)), title: '' };
+    out.guild.claims = [...new Set(out.guild.claims)];
+    out.town = { upgrades: [] };
+    out.events = { active: null, history: [], nextRun: 0 };
+    return out;
+  },
 };
 const Store = {
   ok: (() => { try { const k = '__ma_test__'; localStorage.setItem(k, '1'); localStorage.removeItem(k); return true; } catch (e) { return false; } })(),
@@ -4300,7 +4491,7 @@ const isInt = (v, min = 0, max = 1e9) => Number.isFinite(v) && v >= min && v <= 
 const toInt = (v, def, min = 0, max = 1e9) => Number.isFinite(+v) ? Math.min(max, Math.max(min, Math.floor(+v))) : def;
 
 const Save = {
-  fresh(speciesId) { return { v: SAVE_VERSION, species: speciesId, prog: Progress.fresh(speciesId), bank: 50, inv: Inventory.fromIds(['manzana', 'baya', 'baya', 'pocion', 'tonicoEnergia', 'orbeEscape'], 32), equip: freshEquip(), team: [], points: 0, cleared: [], jobs: [], board: [], boardSeed: 1 + Math.floor(Math.random() * 1e6), runs: 0, delivered: 0, activeRun: null, arrived: false, bosses: {}, codex: Codex.fresh(), log: { jobs: [] }, story: { flags: [], endings: [] } }; },
+  fresh(speciesId) { return { v: SAVE_VERSION, species: speciesId, prog: Progress.fresh(speciesId), bank: 50, inv: Inventory.fromIds(['manzana', 'baya', 'baya', 'pocion', 'tonicoEnergia', 'orbeEscape'], 32), equip: freshEquip(), team: [], points: 0, cleared: [], jobs: [], board: [], boardSeed: 1 + Math.floor(Math.random() * 1e6), runs: 0, delivered: 0, activeRun: null, arrived: false, bosses: {}, codex: Codex.fresh(), log: { jobs: [] }, story: { flags: [], endings: [] }, guild: Guild.fresh(), town: Town.fresh(), events: RegionEvents.fresh() }; },
   /** Con la cuenta online activa (Game.account) el perfil vive en el servidor: no se escribe en este navegador. */
   readOnly: false,
   /** Valida y repara una partida. Devuelve { ok, data, fixes } — `data` es un objeto nuevo y plano. */
@@ -4391,6 +4582,7 @@ const Save = {
       if (j.reach != null) o.reach = toInt(j.reach, 1, 1, 30);
       if (o.type === 'hunt' && !ENEMY_VARIANTS[o.target]) return null;
       if (o.type === 'collect' && !ITEMS[o.target]) return null;
+      if (j.project && TOWN_UPGRADES[j.project]) o.project = j.project;     // contrato que construye una mejora de la aldea
       if (o.state === 'done' && o.progress < o.goal) o.state = 'accepted';
       if (o.state === 'accepted' && !isLegacyJob(o) && o.progress >= o.goal) o.state = 'done';
       return o;
@@ -4401,8 +4593,12 @@ const Save = {
     out.activeRun = raw.activeRun && dungeonById(raw.activeRun.dng) ? { dng: raw.activeRun.dng, at: toInt(raw.activeRun.at, 0, 0, 1e15) } : null;
     // Registro (v7): misiones entregadas e historia (el códice va con el inventario)
     out.log = { jobs: (raw.log && Array.isArray(raw.log.jobs) ? raw.log.jobs : []).filter(j => j && Jobs.weights[j.type] && dungeonById(j.dungeon)).slice(-LOG_MAX)
-      .map(j => ({ id: toInt(j.id, 0), type: j.type, dungeon: j.dungeon, stars: STARS.includes(j.stars) ? j.stars : 'E', at: toInt(j.at, 0, 0, 1e15) })) };
+      .map(j => Object.assign({ id: toInt(j.id, 0), type: j.type, dungeon: j.dungeon, stars: STARS.includes(j.stars) ? j.stars : 'E', at: toInt(j.at, 0, 0, 1e15) }, typeof j.target === 'string' ? { target: j.target.slice(0, 40) } : {}, TOWN_UPGRADES[j.project] ? { project: j.project } : {})) };
     out.story = Story.sanitize(raw.story, out);
+    // Gremio, aldea y eventos (v8)
+    out.guild = Guild.sanitize(raw.guild);
+    out.town = Town.sanitize(raw.town, out);
+    out.events = RegionEvents.sanitize(raw.events, out);
     return { ok: true, data: out, fixes, from };
   },
   envelope(s) { const clean = this.sanitize(s); if (!clean.ok) return null; const json = JSON.stringify(clean.data); return JSON.stringify({ format: 'mystery-action', v: SAVE_VERSION, savedAt: Date.now(), sum: checksum(json), data: clean.data }); },
@@ -5486,7 +5682,7 @@ class FloorRT {
       const info = (LORE[this.biome.id] || LORE.forest).find(q => q.id === l.id); if (!info) { l.read = true; continue; }
       if (!online && this.g.actors.some(a => a.team === 'enemy' && a.alive && a.aggro && Math.hypot(a.x - p.x, a.y - p.y) < 320)) { this.say('Hay algo escrito aquí… cuando no haya peligro', '#d8c79a', 3); continue; }
       l.read = true; Sfx.play('open');
-      if (!online) Codex.add(this.g.save, 'lore', l.id);   // texto leído: al códice (en línea lo apunta el servidor)
+      if (!online) { Codex.add(this.g.save, 'lore', l.id); Quests.progress(this.g, 'lore', { dungeon: this.dng.id }); }   // texto leído: al códice y al contrato de investigación (en línea, el servidor)
       if (online) UI.toast(`${info.title}: ${info.text}`, '#e8dcb8');
       else UI.ask(`${info.title}\n\n${info.text}`, [{ label: 'Seguir', main: true, fn: () => {} }]);
     }
@@ -5496,8 +5692,10 @@ class FloorRT {
     const TS = CONFIG.TILE, L = this.L, lvl = enemyLevel(this.dng, this.floorNo);
     for (const s of L.enemies) {
       const kind = s.boss ? makeBossKind(s.boss) : makeKind(s.variant);
-      const e = new Enemy(kind, (s.tx + .5) * TS, (s.ty + .5) * TS, { level: s.boss ? enemyLevel(this.dng, this.dng.floors) + 2 : lvl, elite: s.elite, final: s.final, hpMul: (this.dng.hpMul || 1) * (s.mini || 1) });
+      const INV = s.invader ? REGION_EVENTS.invasor : null;
+      const e = new Enemy(kind, (s.tx + .5) * TS, (s.ty + .5) * TS, { level: s.boss ? enemyLevel(this.dng, this.dng.floors) + 2 : lvl + (INV ? INV.levelUp : 0), elite: s.elite, final: s.final, hpMul: (this.dng.hpMul || 1) * (s.mini || 1) * (INV ? INV.hpMul : 1) });
       if (s.mini) { e.mini = true; e.nameTag = s.name; }
+      if (s.invader) { e.invader = s.invader; e.nameTag = s.name; }
       if (s.outlaw) { e.outlaw = s.outlaw; e.nameTag = s.name; e.kind = Object.assign({}, e.kind, { brain: outlawBrain, baseBrain: e.kind.brain, name: s.name }); }
       if (s.boss) this.boss = e;
       this.g.actors.push(e);
@@ -5704,6 +5902,7 @@ class FloorRT {
   onEnterRoom(r) {
     const g = this.g, p = g.player;
     if (this.kind === 'normal') Quests.progress(g, 'room', { dungeon: this.dng.id });
+    if (r.role === 'secret') Quests.progress(g, 'secret', { dungeon: this.dng.id });   // contrato de cámara secreta
     if (p) Effects.ring(g, p.x, p.y, 10, 150, 'rgba(255,242,208,.5)', .55, 3, 'ground');
     if (r.type === 'shop') this.say('Tienda del mercader Tobías: coge lo que quieras y paga antes de salir', '#f2b84b');
     else if (r.type === 'treasure') this.say('Cámara del tesoro', '#f2b84b');
@@ -5757,6 +5956,10 @@ class FloorRT {
     this.stats.defeated++;
     if (e.outlaw) g.completeJob(e.outlaw, `Has derrotado al forajido ${e.nameTag}`);
     if (e.mini) this.revealMini(e);
+    if (e.invader) {                                                  // evento regional resuelto (una vez: event:<id>)
+      const r = RegionEvents.resolve(g.save, e.invader);
+      if (r) { if (!g.player || g.player.bag.add(r.item) < 1) g.save.bank += Math.round(ITEMS[r.item].price / 2); UI.toast(r.lines[0], '#f2b84b'); Sfx.play('victory'); Save.write(g.save); }
+    }
     if (e.kind.isBoss) {
       g.actors.forEach(a => { if (a.summoner === e && a.alive) a.die(g); });
       const r = this.L.rooms[0];
@@ -6135,6 +6338,9 @@ const Quests = {
       else if (kind === 'room' && j.type === 'explore') n = 1;
       else if (kind === 'item' && j.type === 'collect' && info.id === j.target) n = info.n || 1;
       else if (kind === 'expedition' && j.type === 'expedition' && info.floor >= j.reach) n = 1;
+      else if (kind === 'defeat' && j.type === 'elite' && info.elite && !info.boss) n = 1;
+      else if (kind === 'lore' && j.type === 'lore') n = 1;
+      else if (kind === 'secret' && j.type === 'secret') n = 1;
       if (!n) continue;
       j.progress = Math.min(j.goal, (j.progress || 0) + n);
       if (j.progress >= j.goal) { j.state = 'done'; done.push(j); UI.toast(`¡Misión completada! ${Jobs.title(j)}. Entrégala en el gremio.`, '#7dffa0'); }
@@ -6482,9 +6688,11 @@ const STATIONS = {
   gate: { name: 'Puerta de las mazmorras', npc: 'centinela', at: [20, 4], desc: 'Elige mazmorra y sal de expedición.' },
   camp: { name: 'Campamento de compañeros', npc: 'cuidador', at: [33, 26], desc: 'Elige quién te acompaña y consulta a tus compañeros.' },
   mayor: { name: 'Casa del alcalde', npc: 'alcalde', at: [16, 14], desc: 'Habla con el alcalde Bartolo.' },
+  forge: { name: 'Forja de Brasa', npc: 'herrera', at: [6, 23], desc: 'Equipo especial del gremio, según tu rango.', requires: s => Town.built(s, 'forja') },
 };
 const VILLAGE_NPCS = {
   alcalde: { name: 'Alcalde Bartolo' },   // dibujo en drawNPC (como todos los vecinos)
+  herrera: { name: 'Herrera Brasa' },     // llega con la forja (mejora de la aldea)
   gremial: { name: 'Maestra Ulula', draw(c, st) {
     const b = st.bob * .5;
     U.ellipse(c, -5, -2, 3.5, 2, '#5a3a20'); U.ellipse(c, 5, -2, 3.5, 2, '#5a3a20');
@@ -6524,6 +6732,24 @@ const VILLAGE_NPCS = {
   } },
 };
 
+
+/** Forja de Brasa (mejora de la aldea): equipo especial según el rango del gremio. Compra con las reglas de la tienda. */
+const ForgeShop = {
+  open(g) {
+    const s = g.save, have = forgeStock(s), list = [].concat(...FORGE_STOCK.map(t => t.items.map(id => ({ id, rank: t.rank }))));
+    const opts = list.map(({ id, rank }) => {
+      const it = ITEMS[id], ok = have.includes(id);
+      return { label: ok ? `${it.name} · ${it.price} monedas` : `${it.name} · rango ${RANKS[rank].name}`, fn: () => {
+        if (!ok) { UI.toast(`Brasa: «Esto solo se lo forjo a exploradores de ${RANKS[rank].name}».`, '#cdbf9c'); return; }
+        if (s.bank < it.price) { UI.toast('No tienes monedas suficientes', '#ff9a4a'); return; }
+        const r = g.buyItem(id);
+        Promise.resolve(r).then(v => { if (v && !g.account) UI.toast(`Has comprado ${it.name}`, '#7dffa0'); });
+      } };
+    });
+    opts.push({ label: 'Adiós', main: true, fn: () => {} });
+    UI.ask(`Herrera Brasa: «¡Gracias a ti la fragua vuelve a arder! Tengo ${have.length ? 'esto para ti' : 'poca cosa aún: vuelve cuando el gremio te dé rango Bronce'}.» (Tienes ${s.bank} monedas.)`, opts);
+  },
+};
 
 /* --- Aldea medieval pobre: empedrado, barro y casas de piedra con tejado de paja ------------------- */
 const VILLAGE_PAL = { village: true, blade: '#7d7446', bladeDark: '#4e4a2c', tall: '#55502e', tallLight: '#8a7e46', flowers: ['#8a7a44', '#6a5e3a', '#9a8a5a', '#5a4a2e'] };   // hierba seca y malas hierbas
@@ -6713,9 +6939,21 @@ const VillageIntro = {
     if (g.cine && g.cine.kind === 'arrival') { g.cine.hold = false; g.cine.dur = 0; }
     UI.toast('Habla con los vecinos con E. El alcalde vive junto a la plaza.', '#cdbf9c');
   },
+  /** Lo que comenta Bartolo según lo que ha pasado de verdad (guardianes, forja, eventos): primero lo más reciente. */
+  news(s) {
+    const n = [], c = s.cleared || [], ev = s.events && s.events.active;
+    if (ev) n.push(`Dicen que ${ev.name} anda suelto por ${dungeonById(ev.dungeon).name}. Si lo echas, el gremio te lo agradecerá.`);
+    if (Town.built(s, 'forja')) n.push('¿Oyes el martillo? Brasa ha devuelto la vida a la casa del sur. Hacía años que no olía a fragua en la aldea.');
+    else if (c.includes('gruta')) n.push('Una herrera de paso, Brasa, quiere arreglar la casa en ruinas del sur. Si el gremio te da rango, échale una mano.');
+    const won = ((s.events && s.events.history) || []).filter(h => h.result === 'won').length;
+    if (won) n.push(`En la taberna hablan de ti: ${won} invasor${won > 1 ? 'es echados' : ' echado'} de nuestras tierras.`);
+    if (c.includes('gruta')) n.push('Desde que cayó la Reina Geoda, los mineros vuelven a hablar de la Gruta sin bajar la voz.');
+    if (c.includes('bosque')) n.push('El bosque está más tranquilo desde que venciste a Robletón. Tobías ya no cierra el puesto al anochecer.');
+    return n;
+  },
   /** Conversación con el alcalde (después de la llegada). */
   mayorTalk(g) {
-    const L = this.TALK, line = L[(this.talkI = ((this.talkI ?? -1) + 1) % L.length)];
+    const L = this.news(g.save).concat(this.TALK), line = L[(this.talkI = ((this.talkI ?? -1) + 1) % L.length)];
     g.paused = true; g.input.clear();
     UI.ask(`Alcalde Bartolo: «${line}»`, [
       { label: 'Hasta luego', main: true, fn: () => { g.paused = false; } },
@@ -7522,6 +7760,47 @@ class TownSprite {
   }
 }
 
+/** La casa del sur según la aldea: en ruinas (tablones, techo hundido, andamio, escombros) o forja encendida. */
+const TownForge = {
+  BODY_X: 4 * 32, BASE_Y: 23 * 32,                                     // esquina inferior izquierda de la planta (casillas 4..9 × 20..22)
+  draw(c, g, sp) {
+    const built = Town.built(g.save || {}, 'forja'), X = this.BODY_X, Y = this.BASE_Y, t = g.time, ink = '#0b0907';
+    const R = (x, y, w, h, col) => { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), w, h); };
+    if (!built) {
+      // Ventanas tapiadas y oscuras (las de la planta baja y la alta)
+      for (const [wx, wy] of [[33, -47], [147, -47], [140, -19]]) { R(X + wx - 9, Y + wy - 9, 18, 18, '#140e0a'); for (const k of [-5, 0, 5]) { R(X + wx - 11, Y + wy + k - 1, 22, 3, ink); R(X + wx - 10, Y + wy + k - 1, 20, 2, k ? '#7a5632' : '#8e6a3e'); } }
+      // Puerta atrancada
+      R(X + 70, Y - 31, 20, 31, '#140e0a'); R(X + 66, Y - 22, 28, 4, ink); R(X + 67, Y - 21, 26, 2, '#6a4a2c'); R(X + 66, Y - 12, 28, 4, ink); R(X + 67, Y - 11, 26, 2, '#6a4a2c');
+      // Techo hundido: agujeros con vigas a la vista
+      for (const [hx, hy, hw, hh] of [[52, -104, 34, 14], [124, -96, 26, 11]]) {
+        c.fillStyle = '#100b08'; c.beginPath(); c.ellipse(X + hx, Y + hy, hw / 2, hh / 2, -.1, 0, Math.PI * 2); c.fill();
+        R(X + hx - hw / 2, Y + hy - 1, hw, 3, '#5a3c22'); R(X + hx - 2, Y + hy - hh / 2, 3, hh, '#4a3220');
+      }
+      // Andamio de palos a un lado y escombros delante
+      for (const px of [8, 98, 184]) { R(X + px, Y - 92, 6, 96, ink); R(X + px + 1, Y - 91, 4, 94, '#8a6238'); R(X + px + 1, Y - 91, 1, 94, '#a87c48'); }
+      for (const py of [-66, -30]) { R(X + 4, Y + py, 190, 5, ink); R(X + 5, Y + py + 1, 188, 3, '#9a7442'); }
+      for (const [a0, a1] of [[8, 98], [98, 184]]) { c.strokeStyle = ink; c.lineWidth = 4; c.beginPath(); c.moveTo(X + a0 + 3, Y - 30); c.lineTo(X + a1 + 3, Y - 66); c.stroke(); c.strokeStyle = '#8a6238'; c.lineWidth = 2; c.stroke(); }
+      for (const [rx, ry, rr] of [[110, 6, 6], [118, 3, 5], [102, 4, 4], [126, 7, 4], [20, 6, 5]]) { c.fillStyle = ink; c.beginPath(); c.arc(X + rx, Y + ry, rr + 1, 0, Math.PI * 2); c.fill(); c.fillStyle = '#7d756a'; c.beginPath(); c.arc(X + rx, Y + ry, rr, 0, Math.PI * 2); c.fill(); }
+      if (g.player && Math.hypot(g.player.x - (X + 96), g.player.y - Y) < 140) g.renderer.label('Casa en ruinas', X + 96, Y - 128, '#cdbf9c', 8);
+      return;
+    }
+    // Forja: resplandor de la fragua por la puerta, humo en la chimenea, yunque, chispas y rótulo del martillo
+    const k = .55 + .25 * Math.sin(t * 7) + .1 * Math.sin(t * 13);
+    c.globalAlpha = .35 * k; c.fillStyle = '#ff7a2a'; c.beginPath(); c.ellipse(X + 80, Y - 8, 34, 14, 0, 0, Math.PI * 2); c.fill(); c.globalAlpha = 1;
+    R(X + 71, Y - 29, 18, 29, '#2a120a'); c.globalAlpha = .75 + .2 * k; R(X + 73, Y - 18, 14, 16, '#ff8a34'); R(X + 76, Y - 12, 8, 10, '#ffd27a'); c.globalAlpha = 1;
+    for (let i = 0; i < 4; i++) { const q = ((t * .35 + i / 4) % 1), sx = X + 161 + Math.sin(t + i) * 4 + q * 10, sy = Y - 112 - q * 46; c.globalAlpha = .45 * (1 - q); c.fillStyle = '#9a948c'; c.beginPath(); c.arc(sx, sy, 5 + q * 9, 0, Math.PI * 2); c.fill(); }
+    c.globalAlpha = 1;
+    // Yunque y cubo de agua delante de la puerta
+    const ax = X + 162, ay = Y + 16;
+    R(ax - 13, ay - 15, 26, 7, ink); R(ax - 12, ay - 14, 24, 5, '#5a5e66'); R(ax - 12, ay - 14, 24, 1, '#8a8e96'); R(ax - 5, ay - 9, 10, 9, ink); R(ax - 4, ay - 9, 8, 8, '#44474e'); R(ax - 9, ay - 1, 18, 4, ink); R(ax - 8, ay - 1, 16, 3, '#3a3d44');
+    if (Math.sin(t * 2.3) > .86) for (let i = 0; i < 5; i++) R(ax + Math.sin(t * 40 + i) * 10, ay - 18 - ((t * 60 + i * 7) % 12), 2, 2, i % 2 ? '#ffd27a' : '#ff8a34');
+    R(X + 34, Y + 4, 14, 12, ink); R(X + 35, Y + 5, 12, 10, '#6a4a2c'); R(X + 36, Y + 6, 10, 3, '#5a9ad0');
+    // Rótulo colgante con el martillo
+    R(X + 104, Y - 50, 2, 10, ink); R(X + 96, Y - 42, 22, 16, ink); R(X + 97, Y - 41, 20, 14, '#8e6a3e'); R(X + 103, Y - 38, 8, 4, '#2a2c30'); R(X + 106, Y - 34, 2, 7, '#5a3c22');
+    if (g.player && Math.hypot(g.player.x - (X + 96), g.player.y - Y) < 160) g.renderer.label('FORJA DE BRASA', X + 96, Y - 132, '#ffcf8a', 8, { weight: 700 });
+  },
+};
+
 const TownScene = {
   /** Construye (una vez) todos los sprites de la aldea a partir del mapa. */
   build(W, g) {
@@ -7559,7 +7838,9 @@ const TownScene = {
       deco: (P, o) => { o.sign(P, o.bx + 128, o.baseY - 44, 'mug'); for (const bxx of [o.bx + 50, o.bx + 136]) { } } });   // taberna
     house(16, 6, 18, 8, { roof: 'roofB', floors: 2, groundH: 34, upperH: 28, windowsUp: [48], windowsDown: [], door: { x: 48, w: 18, h: 28 }, lit: true, flowers: true, chimney: 70 });
     house(24, 6, 27, 8, { roof: 'roofR', floors: 2, groundH: 36, upperH: 28, windowsUp: [30, 98], windowsDown: [100], shutters: 'cloth2', door: { x: 44, w: 18, h: 28 }, lit: true, flowers: true, chimney: 14 });
-    house(4, 20, 9, 22, { roof: 'thatch', floors: 2, groundH: 38, upperH: 30, windowsUp: [36, 156], windowsDown: [150], shutters: 'wood', door: { x: 80, w: 20, h: 30 }, lit: true, chimney: 168, moss: .2, ivy: [4] });
+    // Casa del sur: en ruinas hasta que se construye la forja (mejora de la aldea); después, la forja de Brasa
+    const forge = house(4, 20, 9, 22, { roof: 'thatch', floors: 2, groundH: 38, upperH: 30, windowsUp: [36, 156], windowsDown: [150], shutters: 'wood', door: { x: 80, w: 20, h: 30 }, lit: true, chimney: 168, moss: .2, ivy: [4] });
+    forge.extra = (c, g) => TownForge.draw(c, g, forge);
     house(17, 25, 22, 27, { roof: 'roofG', floors: 2, groundH: 38, upperH: 30, windowsUp: [40, 152], windowsDown: [34, 158], shutters: 'cloth1', door: { x: 96, w: 22, h: 30 }, lit: true, flowers: true, chimney: 30,
       gable: { x: 96, w: 64, window: true, lit: true } });
     house(36, 19, 40, 20, { roof: 'roofB', floors: 1, groundH: 40, windowsDown: [30, 130], shutters: 'cloth3', door: { x: 80, w: 20, h: 30 }, lit: true, chimney: 140, lift: 30, flowers: true });
@@ -7858,8 +8139,9 @@ class VillageRT {
     for (const [id, st] of Object.entries(STATIONS)) {
       if (id === 'shop' && !MerchantIntro.met(g.save)) continue;   // el mercader llega a la aldea tras conocerlo en el Bosque Brumoso
       if (id === 'board' && !CourierIntro.met(g.save)) continue;  // el cartero Lino cuelga su tablón tras escoltarlo por la Gruta
+      if (st.requires && !st.requires(g.save)) continue;           // vecinos que llegan con una mejora de la aldea (Brasa, con la forja)
       const kindDef = st.npc === 'tendero' ? NPC_KINDS.tendero : Object.assign({ type: 'normal', base: { hp: 50, atk: 10, def: 50, spa: 10, spd: 50, spe: 10 }, speed: 0, radius: 11, height: 34, aggro: 0, barW: 0, pal: {}, brain: () => STOP }, VILLAGE_NPCS[st.npc]);
-      const off = { guild: [0, -.6], shop: [0, -.6], rest: [.3, -.1], board: [1.2, 0], gate: [-1.2, .3], camp: [0, 1], mayor: [-.7, .2] }[id];
+      const off = { guild: [0, -.6], shop: [0, -.6], rest: [.3, -.1], board: [1.2, 0], gate: [-1.2, .3], camp: [0, 1], mayor: [-.7, .2], forge: [1.1, .3] }[id];
       const e = new Enemy(Object.assign({ id: st.npc }, kindDef), (st.at[0] + .5 + off[0]) * TS, (st.at[1] + .5 + off[1]) * TS, {});
       e.team = 'neutral'; e.npc = st.npc; e.nameTag = (VILLAGE_NPCS[st.npc] || NPC_KINDS.tendero).name; e.station = id;
       this.npcs[id] = e; g.actors.push(e);
@@ -7872,6 +8154,14 @@ class VillageRT {
       const step = () => { if (g.village !== this || !list.length) return; const [cx, cy] = list.shift(); TownGround.chunkCanvas(W, cx, cy); setTimeout(step, 40); };
       setTimeout(step, 300);
     }
+  }
+  /** Una mejora de la aldea acaba de construirse: llegan sus vecinos (sin salir de la aldea). */
+  refreshTown() {
+    const g = this.g, before = Object.keys(this.npcs).length;
+    for (const e of Object.values(this.npcs)) { e.alive = false; }
+    g.actors = g.actors.filter(a => !a.station); this.npcs = {};
+    this.spawn();
+    return Object.keys(this.npcs).length - before;
   }
   /** Compañeros que no van en el grupo (o debilitados): pasean o duermen en el campamento. */
   spawnIdleAllies() {
@@ -8815,7 +9105,7 @@ const UI = {
     this.set('ctop', this.el('controls'), 'top', `calc(${this.hudPanel.offsetHeight + 22}px + env(safe-area-inset-top,0px))`);
     const near = g.mode === 'village' && g.village && !g.paused ? g.village.near : null;
     this.set('prompth', this.el('prompt'), 'hidden', !near);
-    if (near) this.set('promptt', this.el('prompt'), 'html', near === 'shop' && !MerchantIntro.met(g.save) ? 'Puesto vacío · todavía no hay nadie' : near === 'board' && !CourierIntro.met(g.save) ? 'Tablón vacío · todavía no hay misiones' : `<span class="kbd">E</span> ${STATIONS[near].name} · ${esc(STATIONS[near].desc)}`);
+    if (near) this.set('promptt', this.el('prompt'), 'html', near === 'shop' && !MerchantIntro.met(g.save) ? 'Puesto vacío · todavía no hay nadie' : near === 'board' && !CourierIntro.met(g.save) ? 'Tablón vacío · todavía no hay misiones' : near === 'forge' && !Town.built(g.save, 'forja') ? '<span class="kbd">E</span> Casa en ruinas · techo hundido y ventanas tapiadas' : `<span class="kbd">E</span> ${STATIONS[near].name} · ${esc(STATIONS[near].desc)}`);
     const boss = g.floorRT && g.floorRT.boss && g.floorRT.boss.alive && g.floorRT.boss.aggro ? g.floorRT.boss : null;
     this.set('bossh', this.el('bossbar'), 'hidden', !boss);
     if (boss) {
@@ -9016,7 +9306,11 @@ const UI = {
   renderGuild(g) {
     const s = g.save, rk = rankOf(s.points), next = RANKS[RANKS.indexOf(rk) + 1];
     this.el('guild-rank').textContent = `Rango ${rk.name}`;
-    this.el('guild-info').innerHTML = `<p class="hint-line">${s.points} puntos de rango${next ? ` · ${next.name} con ${next.pts} (más casillas de inventario y misiones a la vez)` : ' · rango máximo'}. Casillas: ${rk.bag} · misiones a la vez: ${rk.jobs}.</p>`;
+    const ri = RANKS.indexOf(rk), ev = s.events && s.events.active;
+    this.el('guild-info').innerHTML = `<p class="hint-line"><b>${esc(Guild.title(s))}</b> · reputación del gremio: ${s.points}${next ? ` · ${next.name} con ${next.pts}` : ' · rango máximo'}. Casillas: ${rk.bag} · misiones a la vez: ${rk.jobs}.</p>`
+      + (next ? `<p class="hint-line" id="guild-next">Con el rango ${next.name}: ${Guild.PERKS[ri + 1].map(esc).join(' · ')}.</p>` : '')
+      + (ev ? `<p class="hint-line" id="guild-event" style="color:#f2b84b">Evento regional: ${esc(RegionEvents.describe(Object.assign({ left: RegionEvents.left(s) }, ev)))}</p>` : '')
+      + (Town.built(s, 'forja') ? '' : Guild.rankIndex(s) >= 1 && s.cleared.includes('gruta') ? '<p class="hint-line">La herrera Brasa busca ayuda para reparar la casa en ruinas del sur: busca su contrato en el tablón.</p>' : '');
     const done = s.jobs.filter(j => !isLegacyJob(j) && j.state === 'done');
     this.el('guild-done').innerHTML = done.length ? done.map(j => `<li style="--c:#7dffa0"><span class="stars">${j.stars}</span><span class="t">${esc(Jobs.title(j))}<small>Recompensa: ${j.reward.gems} monedas, ${j.reward.exp} EXP, ${ITEMS[j.reward.item].name}, ${j.reward.points} puntos</small></span><span class="acts"><button class="btn-sm main" data-deliver="${j.id}">Entregar</button></span></li>`).join('')
       : '<li><span></span><span class="t">No tienes misiones terminadas. Acepta misiones en el tablón de la plaza.</span><span></span></li>';
@@ -9231,6 +9525,10 @@ const Game = {
     if (id === 'shop' && !MerchantIntro.met(this.save)) { UI.toast('Un puesto vacío… Quizá alguien lo ocupe algún día. (Completa el Bosque Brumoso)', '#cdbf9c'); return false; }
     if (id === 'board' && !CourierIntro.met(this.save)) { UI.toast('Un tablón vacío, sin un solo aviso… Quizá alguien lo llene algún día. (Completa la Gruta de Cuarzo)', '#cdbf9c'); return false; }
     if (id === 'mayor') { VillageIntro.mayorTalk(this); return true; }       // el alcalde solo charla
+    if (id === 'forge') {
+      if (!Town.built(this.save, 'forja')) { UI.toast('Una casa en ruinas: techo hundido y ventanas tapiadas. Una herrera de paso busca quien la ayude a repararla (contrato del tablón con rango Bronce, tras la Gruta de Cuarzo).', '#cdbf9c'); return false; }
+      ForgeShop.open(this); return true;
+    }
     this.paused = true; this.input.clear(); this.station = id; Sfx.play('open');
     UI.openStation(this, id);
     return true;
@@ -9326,11 +9624,13 @@ const Game = {
     if (!j || isLegacyJob(j) || j.state !== 'done') return false;     // solo misiones terminadas y una sola vez
     s.jobs = s.jobs.filter(x => x !== j);
     s.bank += j.reward.gems; s.points += j.reward.points; s.delivered = (s.delivered || 0) + 1; logJob(s, j);
+    const built = Town.delivered(s, j);                               // proyecto de la aldea: la mejora queda construida
     const inv = this.player ? this.player.bag : this.baseInv();
     const got = inv.add(j.reward.item) > 0; if (!got) s.bank += sellPrice(j.reward.item);
     this.gainExp(j.reward.exp || 30);
     Save.write(s);
     UI.toast(`${j.client}: «¡Gracias!» +${j.reward.gems} monedas, +${j.reward.exp} EXP, ${ITEMS[j.reward.item].name}${got ? '' : ' (vendido: inventario lleno)'}, +${j.reward.points} puntos`, '#ffd166');
+    if (built.length) { setTimeout(() => UI.toast(built[0], '#f2b84b'), 2600); if (this.village && this.village.refreshTown) this.village.refreshTown(); }
     UI.renderBase(this);
     return true;
   },
@@ -9399,7 +9699,7 @@ const Game = {
     return ok;
   },
   quickUse(ids) { const p = this.player; for (const id of ids) { const st = p.bag.stacks.find(s => s.id === id); if (st && this.useStack(st.uid)) return true; } UI.toast('No llevas ningún objeto de ese tipo que sirva ahora'); return false; },
-  buyItem(id) { if (this.account) return this.account.op('buy', { id }); const s = this.save, it = ITEMS[id], inv = this.baseInv(); if (!MerchantIntro.met(s) || !it || !shopStock(s).includes(id) || s.bank < it.price || inv.room(id) < 1) return false; s.bank -= it.price; inv.add(id); s.bought = (s.bought || 0) + 1; Save.write(s); UI.renderBase(this); return true; },
+  buyItem(id) { if (this.account) return this.account.op('buy', { id }); const s = this.save, it = ITEMS[id], inv = this.baseInv(); if (!MerchantIntro.met(s) || !it || !(shopStock(s).includes(id) || forgeStock(s).includes(id)) || s.bank < it.price || inv.room(id) < 1) return false; s.bank -= it.price; inv.add(id); s.bought = (s.bought || 0) + 1; Save.write(s); UI.renderBase(this); return true; },
   craft(i) {
     if (this.account) return this.account.op('craft', { i });
     const r = RECIPES[i], s = this.save, inv = this.baseInv();
@@ -9481,6 +9781,9 @@ const Game = {
     const jobs = kind === 'normal' ? this.save.jobs.filter(j => j.dungeon === dng.id && j.floor === st.floorNo && !run.jobsDone.includes(j.id)) : [];
     const gen = FloorGen.generate(run.seed, dng, st.floorNo + (kind === 'secret' ? 300 : kind === 'waypoint' ? 200 : 0), kind, jobs);
     this.lastAttempts = gen.attempts;
+    // Evento regional: el invasor de este piso (con su propia semilla: no cambia el piso)
+    const inv = kind === 'normal' ? RegionEvents.spawnFor(this.save, dng, st.floorNo, gen.layout, gen.world) : null;
+    if (inv) gen.layout.enemies.push(inv);
     applyTheme(gen.biome); this.setWorld(gen.world);
     this.resetCombatState(); this.fx.list.length = 0;
     const p = this.player; this.actors.push(p);
@@ -9557,6 +9860,7 @@ const Game = {
       for (const id of r.jobsDone) { const j0 = (r.jobInfo || {})[id]; if (j0) this.gainExp(j0.reward.exp || 30); }
       if (r.jobsDone.length) lines.push(`Los encargos te dan ${r.jobsDone.reduce((t, id) => t + (((r.jobInfo || {})[id] || {}).reward || { exp: 30 }).exp || 30, 0)} EXP extra.`);
       if (result === 'clear') { const bonus = 80 + 60 * DUNGEONS.indexOf(r.dng); this.gainExp(bonus); lines.push(`Recompensa por vencer al guardián: ${bonus} EXP.`); if (!r.bossGranted) { r.bossGranted = true; lines.push(...BossKit.grant(s, r.dng.boss, p.bag)); } }
+      if (result === 'clear') lines.push(...Guild.bossDefeated(s, r.dng));   // primera victoria contra este guardián: reputación, una vez
       if (result === 'clear' && !s.cleared.includes(r.dng.id)) {
         s.cleared.push(r.dng.id); s.points += 50; lines.push(`¡Primera vez que completas ${r.dng.name}! +50 puntos de rango.`);
         if (r.dng.id === 'bosque') lines.push('El mercader Tobías ha montado su puesto en la aldea: ya puedes comprar, vender y fabricar.');
@@ -9578,6 +9882,7 @@ const Game = {
     const foundIds = Object.keys(found).sort((a, b) => RARITY_ORDER.indexOf(ITEMS[a].rarity) - RARITY_ORDER.indexOf(ITEMS[b].rarity));
     if (foundIds.length) lines.push(`Botín encontrado: ${foundIds.map(id => `${ITEMS[id].name}${found[id] > 1 ? ' ×' + found[id] : ''} (${RARITIES[ITEMS[id].rarity].name.toLowerCase()})`).join(', ')}.`);
     s.runs++; s.activeRun = null;
+    lines.push(...RegionEvents.tick(s));                              // eventos regionales: caducan o aparecen al volver
     s.boardSeed = (s.boardSeed * 31 + s.runs * 7919 + 13) % 1e7; s.board = Jobs.board(s, s.boardSeed);
     Save.write(s);
     const titles = { clear: `¡${r.dng.name} completada!`, escape: 'Has escapado de la mazmorra', return: 'De vuelta en la aldea', faint: 'Has caído debilitado', wind: 'El viento te ha expulsado' };
@@ -9619,7 +9924,7 @@ const Game = {
     // Misiones, experiencia del grupo y reclutamiento: una sola vez por enemigo
     if (!e.partyDone && this.run && e.team === 'enemy') {
       e.partyDone = true;
-      Quests.progress(this, 'defeat', { dungeon: this.run.dng.id, kind: e.kindId, boss: !!e.kind.isBoss });
+      Quests.progress(this, 'defeat', { dungeon: this.run.dng.id, kind: e.kindId, boss: !!e.kind.isBoss, elite: !!e.elite });
       for (const a of this.allies) if (a.alive) a.gainExp(this, expYield(e, a.level));
       this.tryRecruit(e);
     }
@@ -11465,6 +11770,16 @@ const VillagerArt = (() => {
       S.rc(add(pk, upD([4, 8, -1])), add(pk, upD([5, 13, -1.5])), .5, .5, M.wood);                                               // un palo con un farolillo
       S.ell(add(pk, upD([5.2, 13.4, -1.6])), [1.2, 1.4, 1.2], M.glint);
     },
+    /* Herrera Brasa: camisa remangada, delantal de cuero, moño y martillo de forja */
+    npc_herrera(C) {
+      const { S, up, upD, aR } = C;
+      body(C, { top: M.linen, coat: M.leathD, legs: M.wool, sleeve: M.linen, belt: M.leathD, glove: M.leather, brows: M.hairB });
+      S.sheet(up([0, 7.6, 5.8]), norm(upD([0, -1, .2])), upD([0, 0, 1]), 14, 5, 6, .5, M.leather, { wrap: .04, deco: l => (l.y > 12.8 ? { s: -1 } : null) });   // delantal de cuero
+      hair(C, M.ochre, 'bun');
+      const h = aR.ha, tip = add(h, upD([0, -8.5, 1.2]));
+      S.rc(h, tip, .8, .8, M.wood);                                                                                              // mango
+      S.box(tip, [3, 1.8, 1.8], M.steelD, { r: .4, y: upD([1, 0, 0]), zh: upD([0, 0, 1]) });                                    // cabeza del martillo
+    },
     /* Cliente de las tiendas de las mazmorras: viajero con capa de capucha y bastón */
     npc_cliente(C) {
       const { S, P, up, upD, aR } = C;
@@ -11516,9 +11831,10 @@ const VillagerArt = (() => {
     npc_cuidadora(P) { P.scale = .94; P.lean += .08; P.hL = [5.4, 28, 6]; },
     npc_centinela(P, anim) { P.hR = add(P.hR, [-.6, 2.4, 2.4]); P.wR = norm([-.04, 1, .08 - (anim === 'walk' ? P.stride * .15 : 0)]); },
     npc_cuidador(P) { P.scale = .86; P.hR = add(P.hR, [-.6, 2.4, 2.6]); P.wR = norm([-.06, 1, .12]); },
+    npc_herrera(P) { P.scale = 1.02; P.hR = add(P.hR, [-.4, 1.2, 2.4]); },
   });
   Object.assign(HM.BUILD, BUILD);
-  const IDS = { alcalde: 1, gremial: 1, cartero: 1, tendero: 1, cliente: 1, cuidadora: 1, centinela: 1, cuidador: 1 };
+  const IDS = { alcalde: 1, gremial: 1, cartero: 1, tendero: 1, cliente: 1, cuidadora: 1, centinela: 1, cuidador: 1, herrera: 1 };
   return {
     IDS,
     /** Dibuja al vecino k (pies en 0,0): deshace la escala y el reflejo del dibujo antiguo y elige su vista. */
@@ -11948,6 +12264,7 @@ class NetPlay {
       case 'down': UI.toast(ev.id === this.me ? 'Has caído' : `${this.nameOf(ev.id)} ha caído: quédate a su lado para reanimarlo`, '#ef8b7b'); Sfx.play('hurt'); break;
       case 'revived': UI.toast(ev.id === this.me ? `${this.nameOf(ev.by)} te ha reanimado` : `${this.nameOf(ev.id)} vuelve a la lucha`, '#9be36b'); break;
       case 'codex': if (ev.to === this.me) UI.toast(ev.kind === 'secrets' ? 'Sala secreta descubierta: queda anotada en tu registro' : 'Texto anotado en tu registro', '#d8c79a'); break;
+      case 'regionEvent': if (ev.to === this.me) UI.toast(ev.lines[0], ev.won ? '#f2b84b' : '#9be36b'); break;
       case 'resumed': UI.toast(`Continuáis la expedición interrumpida: ${ev.label || ev.dungeon}`, '#9be36b'); break;
       case 'saved': if (ev.reason !== 'floor') UI.toast(ev.reason === 'boss' ? 'Progreso guardado: guardián vencido' : ev.reason === 'shutdown' ? 'Expedición guardada' : 'Progreso guardado', '#9be36b'); this.lastSaved = ev; break;
       case 'saveFailed': UI.toast('No se ha podido guardar el progreso ahora; se volverá a intentar en el siguiente punto seguro', '#ff9a4a'); break;

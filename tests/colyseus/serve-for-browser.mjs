@@ -62,7 +62,8 @@ const control = {
   /** Jefes de BossKit: fase, estado, choques, motivo y rocas según el servidor. */
   bk() { const X = playing().exp, b = X.boss, S = X.E.BossKit.st(b); return { alive: b.alive, hp: b.hp, maxHp: b.maxHp, phase: S.phase, stage: S.stage, hits: S.hits, why: S.why, state: b.state, pattern: b.pattern || '', vuln: b.vuln || 1, rocks: (X.g.boulders || []).filter(o => o.solid).map(o => ({ id: o.id, tx: o.tx, ty: o.ty, hp: o.hp })).sort((a, c) => a.id - c.id), zones: X.g.zones.filter(z => z.owner === b).length }; },
   /** Gromgar delante de una roca, `name` detrás (el compañero pegado al jefe) y la carga ya avisada contra `name`. */
-  bkChargeAtRock({ name }) { const X = playing().exp, b = X.boss, K = X.E.BossKit, m = [...X.members.values()].find(x => x.name === name);
+  bkChargeAtRock({ name, hits }) { const X = playing().exp, b = X.boss, K = X.E.BossKit, m = [...X.members.values()].find(x => x.name === name);
+    if (Number.isInteger(hits)) K.st(b).hits = hits;   // las cargas propias del jefe durante la espera también chocan a veces: se cuenta desde aquí
     X.g.zones.length = 0; X.g.projectiles.length = 0;
     for (const rk of X.g.boulders.filter(o => o.solid)) for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const bx = rk.cx - dx * 120, by = rk.cy - dy * 120, px = rk.cx + dx * 96, py = rk.cy + dy * 96;

@@ -1,14 +1,13 @@
 {
-  "build": 42,
-  "version": "0.42",
+  "build": 43,
+  "version": "0.43",
   "date": "2026-11-09",
   "notes": [
-    "Expediciones que se pueden continuar: si el servidor se reinicia o se cae, la expedición queda guardada en el último punto seguro. Ese punto es cada piso, cada jefe vencido y cada objetivo cumplido.",
-    "Al volver, continuáis la MISMA expedición en el mismo piso. Los enemigos vencidos, los cofres abiertos y lo recogido no vuelven, y cada uno cobra una sola vez.",
-    "Mientras tengas una expedición interrumpida, la tienda y las misiones esperan. Puedes continuarla con tu grupo o cerrarla quedándote con lo conseguido; a los 7 días se cierra sola.",
-    "El juego solo dice «guardado» cuando el servidor lo ha confirmado. Si el guardado falla, lo avisa y lo reintenta solo.",
-    "Las compras y ventas se pueden reintentar sin peligro: una misma petición nunca se aplica dos veces.",
-    "Nuevo registro en tu perfil: textos y salas secretas descubiertos, reliquias (objetos épicos, legendarios y únicos que has tenido), misiones cumplidas e historia vivida.",
-    "Las partidas antiguas se actualizan solas al formato nuevo sin perder nada, y el original se guarda como copia."
+    "La Aldea Raíz cambia con lo que haces. Con rango Bronce y la Gruta superada, la herrera Brasa ofrece un contrato para reparar la casa en ruinas del sur. Al entregarlo, la casa se convierte en su forja, con fragua, humo y yunque, y Brasa vende equipo especial según tu rango.",
+    "Reputación del gremio: subes de rango con contratos, expediciones y la primera victoria contra cada guardián (+40). Tu título (de Explorador novato a Explorador de Diamante) aparece en el gremio, junto a lo que desbloquea el siguiente rango.",
+    "Contratos nuevos: caza de élites, investigación (leer textos antiguos) y cámaras secretas. Solo salen donde se pueden cumplir y con tu rango, y el tablón no repite los recientes.",
+    "Eventos regionales: a veces un élite con nombre invade un piso de una región que ya has liberado. Tienes 3 expediciones para echarlo y cobras una sola vez; si se escapa, pierdes algo de reputación, pero nunca de rango.",
+    "En grupo, quien tiene el evento lo resuelve y quien ayuda gana reputación. Reconectarse o cambiar de líder no lo repite.",
+    "El alcalde Bartolo comenta lo que ha pasado: la forja, los guardianes vencidos y los invasores echados."
   ]
 }

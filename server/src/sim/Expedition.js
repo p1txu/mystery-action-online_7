@@ -99,7 +99,7 @@ export class Expedition {
     p.bag = new E.Inventory(save.inv, () => E.rankOf(save.points).bag);
     p.netId = id;
     const rewards = { gems: 0, exp: 0, loot: [], defeated: 0, assists: 0, damage: 0, floors: 0, maxFloor: 0, quests: [], rooms: new Set() };
-    this.members.set(id, { id, accountId, companion: !!companion, name: String(name || sp.name).slice(0, 20), profile: save, save, player: p, rewards, run: rewards, queue: [], ack: 0, nextSeq: 0, lastAct: -1, stats: { casts: 0, rejected: 0, duplicates: 0 }, connected: true, downed: false, revive: 0, left: false, boonOffers: [] });
+    this.members.set(id, { id, accountId, read: new Set(), companion: !!companion, name: String(name || sp.name).slice(0, 20), profile: save, save, player: p, rewards, run: rewards, queue: [], ack: 0, nextSeq: 0, lastAct: -1, stats: { casts: 0, rejected: 0, duplicates: 0 }, connected: true, downed: false, revive: 0, left: false, boonOffers: [] });
   }
   /** Lo compartido por todo el grupo (no pertenece a ningún perfil). */
   shared() {
@@ -161,11 +161,19 @@ export class Expedition {
     this.g.onBossEvent = (e, what, info) => this.emit('bossEvent', { id: e.netId, what, hits: (info && info.hits) || 0, need: (info && info.need) || 0, why: (info && info.why) || '' });
     // Enemigos del piso (como FloorRT.spawnInitial; los forajidos y vecinos de misiones no van online)
     const lvl = E.enemyLevel(this.dng, st.floorNo);
+    // Evento regional: el invasor de este piso, si algún integrante lo tiene en curso (uno por evento)
+    if (kind === 'normal') for (const m of this.members.values()) {
+      const inv = !m.left && E.RegionEvents.spawnFor(m.save, this.dng, st.floorNo, this.L, this.world);
+      if (inv && !this.L.enemies.some(q => q.invader === inv.invader)) this.L.enemies.push(inv);
+    }
+    for (const m of this.members.values()) m.read = new Set();       // textos leídos en este piso (contrato de investigación)
     for (const [spawnIdx, s] of this.L.enemies.entries()) {
       if (s.outlaw || this.floor.killed.has(spawnIdx) || (s.boss && this.floor.bossDown)) continue;   // al reanudar, los ya vencidos no vuelven
       const kindObj = s.boss ? E.makeBossKind(s.boss) : E.makeKind(s.variant);
-      const e = new E.Enemy(kindObj, (s.tx + .5) * TS, (s.ty + .5) * TS, { level: s.boss ? E.enemyLevel(this.dng, this.dng.floors) + 2 : lvl, elite: s.boss ? s.elite : this.rollElite(s.elite), final: s.final, hpMul: (this.dng.hpMul || 1) * (s.mini || 1) });
+      const INV = s.invader ? E.REGION_EVENTS.invasor : null;
+      const e = new E.Enemy(kindObj, (s.tx + .5) * TS, (s.ty + .5) * TS, { level: s.boss ? E.enemyLevel(this.dng, this.dng.floors) + 2 : lvl + (INV ? INV.levelUp : 0), elite: s.boss || s.invader ? s.elite : this.rollElite(s.elite), final: s.final, hpMul: (this.dng.hpMul || 1) * (s.mini || 1) * (INV ? INV.hpMul : 1) });
       if (s.mini) { e.mini = true; e.nameTag = s.name; }
+      if (s.invader) { e.invader = s.invader; e.nameTag = s.name; }
       e.spawnIdx = spawnIdx;
       this.addEnemy(e, s.boss ? 'b:' + s.boss : 'v:' + s.variant);
       if (s.boss) {
@@ -409,8 +417,13 @@ export class Expedition {
       if (room && !m.rewards.rooms.has(room.id)) {
         m.rewards.rooms.add(room.id); if (f.kind === 'normal') this.quest(m, 'room', {});
         if (room.role === 'secret' && room.prefab && this.E.Codex.add(m.save, 'secrets', `${this.dng.id}:${room.prefab}`)) this.emit('codex', { to: m.id, kind: 'secrets', id: room.prefab });   // sala secreta: al códice de quien entra
+        if (room.role === 'secret') this.quest(m, 'secret', {});        // contrato de cámara secreta (de quien entra)
       }
-      for (const l of this.L.lore || []) if (Math.hypot((l.tx + .5) * TS - p.x, (l.ty + .5) * TS - p.y) <= LORE_R && this.E.Codex.add(m.save, 'lore', l.id)) this.emit('codex', { to: m.id, kind: 'lore', id: l.id });
+      for (const l of this.L.lore || []) {
+        if (m.read.has(l.id) || Math.hypot((l.tx + .5) * TS - p.x, (l.ty + .5) * TS - p.y) > LORE_R) continue;
+        m.read.add(l.id); this.quest(m, 'lore', {});                      // contrato de investigación: cada texto leído en este piso, una vez
+        if (this.E.Codex.add(m.save, 'lore', l.id)) this.emit('codex', { to: m.id, kind: 'lore', id: l.id });
+      }
       if (!f.mh && this.L.mhRoom >= 0 && room && room.id === this.L.mhRoom) this.triggerMonsterHouse(room, p);
     }
     // Reanimar: un compañero junto al caído (REVIVE_RULES). Si nadie llega a tiempo, fuera de combate hasta el piso siguiente.
@@ -524,6 +537,24 @@ export class Expedition {
     this.quest(m, 'item', { id: it.id, n });
     this.emit('pickup', { by: m.id, id: it.id, n, x: it.x, y: it.y });
   }
+  /**
+   * Invasor de un evento regional vencido. Cada integrante que tenga ESE evento lo resuelve en su perfil
+   * (una vez: event:<id> en guild.claims). Quien ayudó sin tenerlo gana +5 de reputación, una vez por
+   * expedición. Reconectarse o cambiar de líder no lo repite: el enemigo ya no existe y los perfiles
+   * (con sus claims) son los de la expedición.
+   */
+  invaderDown(e, dmg) {
+    const E = this.E;
+    for (const m of this.members.values()) {
+      if (m.left) continue;
+      const r = E.RegionEvents.resolve(m.save, e.invader);
+      if (r) { if (m.player.bag.add(r.item) < 1) m.save.bank += Math.round(E.ITEMS[r.item].price / 2); this.emit('regionEvent', { to: m.id, won: true, lines: r.lines }); continue; }
+      if (E.Guild.claimed(m.save, 'event:' + e.invader)) continue;   // ya lo resolvió (reconexión, cambio de líder…): nada más
+      const helped = (dmg[m.id] || 0) > 0 || (m.player.alive && Math.hypot(m.player.x - e.x, m.player.y - e.y) <= ASSIST_R);
+      if (helped && !m.helpedEvent) { m.helpedEvent = true; E.Guild.addRep(m.save, E.GUILD_REP.help); this.emit('regionEvent', { to: m.id, won: false, lines: [`Has ayudado a echar a ${e.nameTag || 'un invasor'}: +${E.GUILD_REP.help} de reputación.`] }); }
+    }
+    this.safepoint('objective');
+  }
   /** Integrantes que reciben su parte del botín: los que siguen en la expedición (también un desconectado: puede volver). */
   get looters() { return [...this.members.values()].filter(q => !q.left); }
   openChest(m, o) {
@@ -564,8 +595,9 @@ export class Expedition {
       if (!share) continue;
       if (hit) { m.rewards.defeated++; m.rewards.damage += dmg[m.id]; } else m.rewards.assists++;
       this.gainExp(m, Math.max(1, Math.round(E.expYield(e, m.player.level) * share)));
-      if (e.team === 'enemy') this.quest(m, 'defeat', { kind: e.kindId, boss: !!e.kind.isBoss });
+      if (e.team === 'enemy') this.quest(m, 'defeat', { kind: e.kindId, boss: !!e.kind.isBoss, elite: !!e.elite });
     }
+    if (e.invader) this.invaderDown(e, dmg);
     this.emit('enemyDown', { id: e.netId, x: e.x, y: e.y, boss: !!e.kind.isBoss });
     if (e.mini) { this.floor.miniDown = true; for (const o of this.objects) if (o.hiddenUntil === 'mini') o.revealed = true; this.emit('miniDown', { id: e.netId, name: e.nameTag || '' }); this.safepoint('objective'); }
     if (e.kind.isBoss) {
@@ -651,6 +683,7 @@ export class Expedition {
       if (result === 'clear') {
         const bonus = 80 + 60 * E.DUNGEONS.indexOf(this.dng); this.gainExp(m, bonus); lines.push(`Recompensa por vencer al guardián: ${bonus} EXP.`);
         if (!m.bossGranted) { if (!dry) m.bossGranted = true; lines.push(...E.BossKit.grant(s, this.dng.boss, p.bag)); }   // trofeo único y progreso, una vez
+        lines.push(...E.Guild.bossDefeated(s, this.dng));               // primera victoria contra este guardián: reputación, una vez (boss:<id>)
         // Acompañante (no tenía la región desbloqueada): se lleva EXP, botín y trofeo, pero no se salta la campaña
         if (m.companion && !E.dungeonOpen(s, this.dng)) lines.push(`Has ido como acompañante: ${this.dng.name} contará como superada cuando la desbloquees tú.`);
         else if (!s.cleared.includes(this.dng.id)) { s.cleared.push(this.dng.id); s.points += 50; lines.push(`¡Primera vez que completas ${this.dng.name}! +50 puntos de rango.`); }
@@ -668,6 +701,7 @@ export class Expedition {
     p.bag.take('llave', p.bag.count('llave'));
     s.inv = p.bag.stacks.map(x => ({ uid: x.uid, id: x.id, qty: x.qty }));
     s.equip = p.equip; s.runs = (s.runs || 0) + 1; s.activeRun = null;
+    lines.push(...E.RegionEvents.tick(s));                              // eventos regionales: caducan o aparecen (como Game.endRun)
     s.boardSeed = (s.boardSeed * 31 + s.runs * 7919 + 13) % 1e7; s.board = E.Jobs.board(s, s.boardSeed);   // como Game.endRun
     const clean = E.Save.sanitize(s);
     const r = m.rewards;

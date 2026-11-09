@@ -23,24 +23,24 @@ const enemies = x => x.g.actors.filter(a => a instanceof x.E.Enemy && a.alive);
 const resume = (snap, accounts = ['A', 'B']) => new Expedition({ restore: JSON.parse(JSON.stringify(snap)), members: accounts.map((a, i) => ({ id: 's' + i, accountId: a, name: a })) });
 const byAcc = (x, a) => [...x.members.values()].find(m => m.accountId === a);
 
-test('perfil v7: partida nueva con registro, códice e historia vacíos', () => {
+test('perfil v7+: partida nueva con registro, códice e historia vacíos', () => {
   const s = freshSave('arquero');
-  assert.equal(s.v, E.SAVE_VERSION); assert.equal(E.SAVE_VERSION, 7);
+  assert.equal(s.v, E.SAVE_VERSION); assert.ok(E.SAVE_VERSION >= 7);
   assert.deepEqual(s.codex, { lore: [], secrets: [], relics: [] }); assert.deepEqual(s.log, { jobs: [] }); assert.deepEqual(s.story, { flags: [], endings: [] });
 });
 
-test('migración 6 → 7: no se pierde nada; reliquias que ya tenía e historia vivida se apuntan; repetirla no cambia nada', () => {
+test('migración 6 → 7 (y siguientes): no se pierde nada; reliquias que ya tenía e historia vivida se apuntan; repetirla no cambia nada', () => {
   const v6 = structuredClone(veteran('guerrero', { bank: 777, points: 340, runs: 12, delivered: 4, bosses: { gromgar: { kills: 2, trophy: true } } }));
   v6.v = 6; delete v6.codex; delete v6.log; delete v6.story;
   v6.inv.push({ uid: 'x1', id: 'colmilloGromgar', qty: 1 }, { uid: 'x2', id: 'pocion', qty: 3 });
   const r = E.Save.sanitize(v6);
-  assert.ok(r.ok); assert.equal(r.from, 6); assert.equal(r.data.v, 7);
+  assert.ok(r.ok); assert.equal(r.from, 6); assert.equal(r.data.v, E.SAVE_VERSION);
   for (const k of ['species', 'bank', 'points', 'runs', 'delivered', 'cleared', 'bosses', 'equip', 'prog']) assert.deepEqual(r.data[k], E.Save.sanitize(Object.assign({}, v6, { v: 7 })).data[k], k + ' se conserva');
   assert.deepEqual(r.data.inv.map(x => [x.id, x.qty]), E.Save.sanitize(Object.assign({}, v6, { v: 7 })).data.inv.map(x => [x.id, x.qty]), 'inventario intacto');
   assert.ok(r.data.codex.relics.includes('colmilloGromgar'), 'el trofeo que ya tenía cuenta como reliquia');
   assert.deepEqual(r.data.story.flags.sort(), ['llegada', 'mercader', 'tablon'], 'llegada, mercader (Bosque) y tablón (Gruta) ya vividos');
   const again = E.Save.sanitize(r.data);
-  assert.equal(again.from, 7); assert.deepEqual(again.data, r.data, 'idempotente');
+  assert.equal(again.from, E.SAVE_VERSION); assert.deepEqual(again.data, r.data, 'idempotente');
   // Sin número de versión pero con clase: se trata como 6
   const nov = structuredClone(v6); delete nov.v; assert.equal(E.Save.sanitize(nov).from, 6);
   // De una versión más nueva: no se toca (no se pierde al abrirlo con un juego antiguo)
