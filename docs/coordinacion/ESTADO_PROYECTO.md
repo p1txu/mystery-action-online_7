@@ -42,7 +42,7 @@ Queda pendiente la **prueba manual por una persona** de:
 
 ## 3. En desarrollo
 
-Nada en curso.
+Nada en curso. Esperando la evaluación visual de ChatGPT (INF-008).
 
 ## 4. Pendiente de revisión o fusión
 
@@ -50,6 +50,7 @@ Nada en curso.
 |---|---|---|---|---|
 | `tarea/interfaz-mmo` | `a3972ab`, `00d6d8f` | Barra de consumibles (X, Z, C) e inventario en dos paneles, común a aldea y expedición (INF-004, `docs/INTERFAZ_INVENTARIO.md` en la rama) | Batería completa correcta. Nuevas: inventario sin conexión 18/18 y en línea 8/8 | **Pendiente de revisión y de autorización de fusión** |
 | `tarea/arquero-apuntado` | `94afb02` | Apuntado del Arquero: al sprite (pies), asistencia de 12° opcional, destellos confirmados por el servidor (INF-007, `docs/ARQUERO_APUNTADO.md` en la rama) | Batería completa correcta. Nuevas: 12/12 sin conexión y 5/5 en línea con 280 ms | **Pendiente de revisión y de autorización de fusión** |
+| `tarea/auditoria-visual` | `3b9885d` | Auditoría visual: 39 capturas reales e informe `docs/AUDITORIA_VISUAL_ELDORIA.md` (INF-008). Solo documentación | No aplica (sin cambios de código); `split-prototype --check` correcto | **Pendiente de la evaluación de ChatGPT**. Propuesta: no fusionar las imágenes en `main` (peso de las actualizaciones) |
 
 **Aviso de fusión:** las dos ramas parten de `0.46` y modifican `prototype/mystery-action.html` (en zonas distintas) y los archivos que se generan a partir de él:
 

@@ -18,6 +18,61 @@ Los informes INF-001 a INF-007 se redactaron el 2026-11-10, al crear esta carpet
 
 ---
 
+## INF-008 · Auditoría visual: capturas reales del juego (sin cambios en el juego)
+
+- **Fecha:** 2026-11-10.
+- **Rama:** `tarea/auditoria-visual`, commit `3b9885d` sobre `main` 0.46. Subida a GitHub y **sin fusionar**. Solo documentación e imágenes.
+- **Informe:** `docs/AUDITORIA_VISUAL_ELDORIA.md` y capturas en `docs/capturas/auditoria-visual/` (en la rama).
+
+**Objetivo.** Que ChatGPT pueda evaluar el aspecto real y actual del juego.
+
+**Qué se hizo**
+
+- **39 capturas** del juego en ejecución, a 1600 × 900, sin retoques:
+  - mundo de `main` 0.46;
+  - interfaz publicada y la del rediseño de `tarea/interfaz-mmo`;
+  - indicador de `tarea/arquero-apuntado`.
+- **Ampliaciones por vecino más próximo.**
+- **Inventario de recursos gráficos.** No hay imágenes en el repositorio: todo el arte se genera por código en el prototipo.
+- **Clasificación:** propio, reutilizado y provisional.
+- **11 problemas visuales observados**, entre ellos:
+  - mezcla de pixel art y dibujo vectorial (jefes y 15 variantes de enemigos);
+  - el Linde no parece exterior;
+  - suelos con ruido;
+  - mazmorras oscuras;
+  - HUD cargado;
+  - título «Mystery Action».
+- **Limitaciones técnicas:**
+  - no hay canal de recursos;
+  - la escala de píxel no es entera;
+  - conviven dos sistemas de dibujo;
+  - las fuentes dependen de Google Fonts.
+
+**Archivos nuevos**
+
+- `docs/AUDITORIA_VISUAL_ELDORIA.md`;
+- `docs/capturas/auditoria-visual/*.png` (39, unos 13 MB);
+- `docs/capturas/auditoria-visual/capturas.py` (guion para repetir las capturas).
+
+**Archivos modificados:** ninguno. El juego no cambia.
+
+**Pruebas**
+
+- `node tools/split-prototype.mjs --check`: los archivos generados siguen al día.
+- No se ejecutó la batería porque no hay cambios de código.
+
+**Cómo se capturó**
+
+- **Navegador:** Chromium sin GPU, controlado con Playwright.
+- **Fuentes:** Cinzel y Alegreya Sans, instaladas localmente desde `google/fonts` (OFL), porque Google Fonts no es accesible desde este entorno.
+
+**Pendiente**
+
+- Evaluación independiente de ChatGPT, que se transcribirá como REV.
+- **Propuesta:** no fusionar las capturas en `main`. El lanzador descarga el repositorio y cada actualización de los jugadores pesaría unos 13 MB más. Bastaría fusionar solo el informe o mantenerlo en la rama. Lo decide el director.
+
+---
+
 ## INF-007 · Apuntado del Arquero: corrección y asistencia
 
 - **Fecha:** 2026-11-10.

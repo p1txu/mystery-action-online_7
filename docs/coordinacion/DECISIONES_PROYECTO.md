@@ -247,6 +247,15 @@
 - **Propuesta:** limitar la recompensa repetida de la zona; por ejemplo, el élite fijo da botín una vez al día.
 - **Alternativa:** dejarlo como está.
 
+### D-014 · Capturas de la auditoría visual fuera de `main`
+
+- **Estado:** propuesta.
+- **Autor:** Claude (INF-008).
+- **Propuesta:** no fusionar en `main` las 39 capturas (unos 13 MB) de `tarea/auditoria-visual`, porque el lanzador descarga el repositorio en cada actualización. Fusionar solo el informe, o dejarlo todo en su rama.
+- **Alternativas:**
+  - fusionarlo todo;
+  - mover las imágenes a un almacenamiento aparte (por ejemplo, adjuntas a una Release de GitHub).
+
 ---
 
 ## C. Asuntos sin decidir (sin propuesta concreta todavía)
@@ -257,3 +266,4 @@
 - Qué hacen en grupo los orbes que hoy solo funcionan sin conexión (por ejemplo, si el Orbe de escape saca a todo el grupo).
 - Dificultad de Robletón en solitario: necesita pruebas con personas.
 - Versión con la que se publicarán los cambios pendientes de fusión.
+- Dirección artística: seguir con arte generado por código o pasar a arte dibujado (propio o con licencia compatible). Pendiente de la evaluación visual de ChatGPT (INF-008).
