@@ -33,7 +33,7 @@
 | Lugar | Estado | Qué es |
 |---|---|---|
 | **Aldea Raíz** | **[CANON]** | Antiguo pueblo minero en el linde del Bosque. Hoy vive de los exploradores del gremio. Piedra vieja y tejados de paja. |
-| **Bosque Brumoso** | **[CANON]** mazmorra | Robles viejos y niebla. En el centro está el roble más viejo, al que llegan las raíces de cuarzo. |
+| **Bosque de Brumaverde** | **[CANON]** mazmorra | Robles viejos y niebla. En el centro está el roble más viejo, al que llegan las raíces de cuarzo. |
 | **Gruta de Cuarzo** | **[CANON]** mazmorra | Galerías de cristal y pisos sin luz. Es la herida más antigua de la Fractura, explotada por la Mina en tiempos de los abuelos. |
 | **Ciénaga Sombría** | **[CANON]** mazmorra | Charcas, niebla verde y esporas. Su agua guarda memoria. |
 | **Mina Olvidada** | **[CANON]** mazmorra | La mina de la Aldea Raíz, cerrada tras el derrumbe. Túneles a oscuras con raíles y puntales. |

@@ -50,7 +50,7 @@ La Orden falsificó el séptimo lema. Al leer los siete verdaderos en orden, dic
 | Fundadora | **Mirla Robleda**, jardinera velidia que hablaba con los árboles |
 | Significado | Contiene el **crecimiento** del Origen: su cuerpo no se extiende |
 | Poder | Las raíces vivas obedecen al sello: se abren, se cierran y atrapan |
-| Ubicación | **[CANON]** Bosque Brumoso. Bajo el roble más viejo, en el centro del bosque |
+| Ubicación | **[CANON]** Bosque de Brumaverde. Bajo el roble más viejo, en el centro del bosque |
 | Guardián | **[CANON]** **Robletón, el Guardián de Espinas** |
 | Lema | «Lo que crece, espera.» |
 

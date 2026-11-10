@@ -34,7 +34,7 @@ Este es el primer capítulo jugable de la campaña de Eldoria, y sirve de modelo
 
    Detalles en [JEFES.md](JEFES.md).
 8. **Entrega a Ulula.**
-   - Recompensa: 320 EXP, 260 gemas, el Broche de roble y +30 de reputación.
+   - Recompensa: 320 EXP, 260 monedas, el Broche de roble y +30 de reputación.
    - Activa la marca `c1_done`.
    - Cambio visible en la aldea: los árboles enfermos del oeste sanan. Persiste al recargar y en el servidor.
 
@@ -42,11 +42,11 @@ Este es el primer capítulo jugable de la campaña de Eldoria, y sirve de modelo
 
 | Id | Quién | Qué pide | Recompensa |
 |---|---|---|---|
-| `c1_main` | Ulula | Hablar con Nara, leer 3 rastros, volver a Nara, leer la Estela tibia y vencer a Robletón | 320 EXP, 260 gemas, Broche de roble, +30 rep. |
-| `c1_poda` «Poda de urgencia» | Nara | 12 criaturas en Brumaverde (Linde o Bosque) | 120 EXP, 90 gemas, 2 pociones, +10 rep. |
-| `c1_elite` «Espinas negras» | Nara | 1 élite en Brumaverde (la Zarza negra del Linde) | 150 EXP, 120 gemas, tónico de energía, +10 rep. |
-| `c1_lenador` «El leñador perdido» | Bartolo | Encontrar el campamento de Gil (Linde) y su refugio (Bosque, piso 1, escondido) | 140 EXP, 110 gemas, 2 manzanas, poción, +10 rep. |
-| `c1_irene` «La exploradora del gremio» | Ulula | La marca de Irene, la conversación con Ulula y la página 1 | 110 EXP, 80 gemas, tónico de energía, +10 rep. |
+| `c1_main` | Ulula | Hablar con Nara, leer 3 rastros, volver a Nara, leer la Estela tibia y vencer a Robletón | 320 EXP, 260 monedas, Broche de roble, +30 rep. |
+| `c1_poda` «Poda de urgencia» | Nara | 12 criaturas en Brumaverde (Linde o Bosque) | 120 EXP, 90 monedas, 2 pociones, +10 rep. |
+| `c1_elite` «Espinas negras» | Nara | 1 élite en Brumaverde (la Zarza negra del Linde) | 150 EXP, 120 monedas, tónico de energía, +10 rep. |
+| `c1_lenador` «El leñador desaparecido» | Bartolo | Encontrar el campamento de Gil (Linde) y su refugio (Bosque, piso 1, escondido) | 140 EXP, 110 monedas, 2 manzanas, poción, +10 rep. |
+| `c1_irene` «La marca de Irene» (SQ-01) | Ulula | La marca de Irene, la conversación con Ulula y la página 1 | 110 EXP, 80 monedas, tónico de energía, +10 rep. |
 
 ### Reglas de las misiones
 
@@ -55,6 +55,12 @@ Este es el primer capítulo jugable de la campaña de Eldoria, y sirve de modelo
 - **Estados:** bloqueada → disponible → activa → lista → entregada.
 - **Recompensa una vez:** el gremio la reclama como `quest:<id>`. Si la bolsa está llena, el objeto se vende al precio de venta.
 - **Contadores:** `c1_kills` y `c1_elites` cuentan siempre en las regiones del capítulo (`bosque` y `linde`), sin conexión y en el servidor. Cada jugador del grupo suma en su propio perfil.
+
+### Seguimiento (0.46)
+
+- **En pantalla:** durante la exploración, el panel muestra el siguiente paso de la principal y, después, las misiones listas para entregar (como máximo dos líneas), encima de los contratos del tablón.
+- **En línea:** el servidor manda a cada jugador su progreso durante la expedición (evento `campaign`: contadores, textos, páginas y marcas). El perfil se sigue guardando en el servidor al terminar.
+- **Rastros con peligro cerca:** no se leen mientras haya un enemigo en alerta a menos de 320 px. Se avisa una vez: «Aquí hay algo… cuando no haya peligro».
 
 ## En grupo (1 a 4 jugadores)
 

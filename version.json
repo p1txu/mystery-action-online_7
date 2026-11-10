@@ -1,14 +1,14 @@
 {
-  "build": 45,
-  "version": "0.45",
+  "build": 46,
+  "version": "0.46",
   "date": "2026-11-10",
   "notes": [
-    "Capítulo 1 «Las raíces enfermas»: el Alcalde Bartolo te recibe, la Maestra Ulula organiza la investigación y Nara Vey, la guardabosques, te espera en su campamento del camino del oeste.",
-    "Nueva zona de exploración, el Linde de Brumaverde: un piso sin guardián con rastros de la podredumbre, el campamento abandonado de Gil, un mecanismo del bosque y la Zarza negra, un élite. Se sale por el sendero cuando quieras.",
-    "Misión principal del capítulo y cuatro secundarias: «Poda de urgencia», «Espinas negras», «El leñador perdido» y «La exploradora del gremio». Lo que hayas hecho antes de aceptarlas también cuenta, y ninguna bloquea la principal.",
-    "En el primer piso del Bosque te esperan la Estela tibia y un refugio escondido.",
-    "Al completar el capítulo, los árboles enfermos del oeste de la aldea sanan.",
-    "El Bosque Brumoso pasa a llamarse Bosque de Brumaverde.",
-    "Registro del capítulo en el gremio, con los pasos de cada misión. En grupo, cada jugador acepta, avanza y cobra sus misiones con su propia partida."
+    "Revisión del capítulo 1 «Las raíces enfermas»: no hay contenido nuevo, pero el capítulo se entiende mejor y no hay cambios en las recompensas.",
+    "Durante la exploración, el panel muestra el siguiente paso de la misión principal y las misiones que ya puedes entregar, con su progreso (por ejemplo, 5/12 criaturas).",
+    "En línea, ahora te avisa en plena expedición cuando una misión queda lista para entregar, y tu progreso del capítulo se ve antes de volver a la aldea.",
+    "Si intentas examinar un rastro con un enemigo cerca, el juego te avisa de que esperes a que no haya peligro (antes no pasaba nada).",
+    "Nara Vey ya no escucha tus conclusiones sobre los rastros antes de haberos presentado.",
+    "Corregido: en línea, el aviso de que la aldea ha cambiado salía dos veces.",
+    "Corregido: si el servidor no podía apuntar la introducción del capítulo, se repetía cada vez que volvías a la aldea."
   ]
 }

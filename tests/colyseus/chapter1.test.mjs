@@ -81,6 +81,9 @@ test('capítulo 1 en línea: dos jugadores exploran el Linde juntos; cada perfil
   A.player.placeAt(el.x + 30, el.y); B.player.placeAt(el.x - 30, el.y);
   X.E.Combat.hit(X.g, el, { team: 'player', fixed: 1e9, src: A.player }); await wait(300);
   for (const m of [A, B]) assert.equal(m.save.story.counters.c1_elites, 1, m.name);
+  // (0.46) El progreso llega a cada cliente durante la expedición: Ana tenía «Espinas negras» aceptada; Beto no
+  await until(() => ev(ana, 'campaign').some(e => (e.ready || []).includes('c1_elite')) && ev(beto, 'campaign').some(e => e.counters && e.counters.c1_elites === 1), 4000, 'progreso de la campaña en los clientes');
+  assert.ok(!ev(beto, 'campaign').some(e => (e.ready || []).length), 'a Beto no se le anuncia una misión que no tiene');
   X.g.actors = X.g.actors.filter(e => !(e instanceof X.E.Enemy));
   for (const s0 of X.story) { A.player.placeAt(s0.x, s0.y); B.player.placeAt(s0.x + 4, s0.y); await wait(150); }
   await until(() => ev(ana, 'story').length === 4 && ev(beto, 'story').length === 4, 4000, 'los 4 rastros para cada uno');

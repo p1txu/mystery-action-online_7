@@ -33,7 +33,7 @@
 
 ---
 
-## 1. Bosque Brumoso (capítulo 1)
+## 1. Bosque de Brumaverde (capítulo 1)
 
 | Campo | Contenido |
 |---|---|

@@ -113,7 +113,7 @@ También son canon y se conservan todos los textos, diálogos, vecinos, mazmorra
 | **P-12** | Hilos de vecinos | Irene viva en el hielo; Doña Musgo, antigua novicia; Lino, correo secreto; Tobías, engañado; Tito guarda el colgante | Cualquiera de ellos por separado |
 | **P-13** | Decisiones en grupo | Votación; cada perfil guarda su voto; desempate a favor del juramento | Decide el líder del grupo |
 | **P-14** | Nara Vey | Guardabosques de Brumaverde, aliada del capítulo 1, con campamento en el camino del oeste. Da las secundarias de combate | Que su papel lo cumpla un vecino existente (Centinela Roco) |
-| **P-15** | Gil, el leñador | Vecino que desaparece en el Linde; su refugio escondido en el Bosque abre la secundaria de Bartolo | Sin leñador: la secundaria de Bartolo busca otra pista |
+| **P-15** | Gil, el leñador | Vecino que desaparece en el Linde; su refugio escondido en el Bosque abre la secundaria de Bartolo. Es el autor del «Diario de un leñador» (`f_lenador`, **[CANON]**): Bartolo lo menciona al dar la misión | Sin leñador: la secundaria de Bartolo busca otra pista |
 
 ## 5. Lo que ya está en el juego (0.44)
 
@@ -168,3 +168,4 @@ En la 0.44 entró en el juego una parte de las propuestas. Se tomó la biblia co
 | 2026-11-09 | E | El Custodio pasa a antagonista con motivos comprensibles (en el borrador del documento compartido era un guardián neutral) | Pendiente (P-01) |
 | 2026-11-10 | 5 (nuevo), C, H, I, J | La cadena de Irene en los capítulos 1 a 5, las ruedas, los recuerdos 1 y 2, Bernardo, las ofrendas 1 a 3, Raíces Hondas y el Eco de Robletón entran en el juego (0.44). Textos nuevos: páginas 1 a 5, lemas, recuerdos, conversaciones y textos de Raíces Hondas. Las páginas 2 a 5 son anteriores a la emboscada | Implementado; pendiente de aprobación como canon |
 | 2026-11-10 | 4, 5, Nombres | Capítulo 1 «Las raíces enfermas» jugable (0.45). El Bosque Brumoso pasa a llamarse Bosque de Brumaverde, por decisión del autor. Nuevos: Linde de Brumaverde, Nara Vey (P-14), Gil el leñador (P-15) | Implementado. El cambio de nombre es canon; P-14 y P-15 están pendientes de aprobación |
+| 2026-11-10 | Capítulos, lore | Auditoría del capítulo 1 (0.46): el capítulo 1 se titula «Las raíces enfermas» en `lore/06_capitulos.md` (antes, «El linde del bosque»); «Bosque de Brumaverde» en todos los archivos de `lore/`; Gil, autor del diario del leñador (P-15) | Documentación al día con el juego |

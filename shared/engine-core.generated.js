@@ -1,4 +1,4 @@
-// GENERADO por tools/split-prototype.mjs a partir de prototype/mystery-action.html (sha256 17e3ac3891ef5ee5).
+// GENERADO por tools/split-prototype.mjs a partir de prototype/mystery-action.html (sha256 d97d8d8367b3183f).
 // No lo edites a mano: cambia el prototipo y vuelve a ejecutar «npm run split».
 /* eslint-disable */
 /**
@@ -4557,7 +4557,7 @@ const STORY_TALKS = {
   c1_intro: { station: 'intro', npc: 'Alcalde Bartolo', label: 'Capítulo 1', when: s => !!s.arrived && !s.story.flags.includes('c1_intro'), lines: s => CHAPTERS.c1.intro.map(l => l[1]), flags: ['c1_intro'] },
   nara_c1: { station: 'nara', npc: 'Nara Vey', label: 'Preguntar por el bosque', when: s => s.story.flags.includes('c1_intro'),
     lines: ['Nara Vey, guardabosques de Brumaverde. Llevo diez años cuidando ese bosque y nunca lo había visto así.', 'Los robles se pudren por dentro, la savia sale negra y las criaturas huyen cuesta arriba. En el Linde, el borde del bosque, hay rastros por todas partes: una raíz podrida, charcos de savia, huellas. Míralos tú misma, o tú mismo, y dime qué ves.'] },
-  nara_rastros: { station: 'nara', npc: 'Nara Vey', label: 'Contarle lo que has visto en el Linde', when: s => C1_RASTROS.every(id => s.codex.lore.includes(id)),
+  nara_rastros: { station: 'nara', npc: 'Nara Vey', label: 'Contarle lo que has visto en el Linde', when: s => s.codex.talks.includes('nara_c1') && C1_RASTROS.every(id => s.codex.lore.includes(id)),
     lines: ['Raíces podridas que siguen latiendo, savia negra que corre hacia el centro, huellas que huyen de él… No es una plaga. Algo, en el corazón del bosque, está enfermando la tierra.', 'Las raíces apuntan a una estela antigua en el primer claro del bosque, y más allá, a la guarida del Guardián de Espinas. Si el guardián ha enloquecido, todo el bosque lo hará con él.'] },
   ulula_tercera: { station: 'guild', npc: 'Maestra Ulula', label: 'Hablar del diario completo', when: s => s.story.flags.includes('tercera_via'),
     lines: ['Ulula cierra el libro de registro. «Irene escribió "abrir". No romper ni encerrar: abrir.»', '«Si alguien puede encontrar esa puerta, eres tú. Y cuando la encuentres, la quiero de vuelta. A ella, digo.»'] },
@@ -4860,6 +4860,21 @@ const Campaign = {
   ready(s, id) { return this.steps(s, id).every(p => p.ok); },
   /** Misiones de un puesto que se pueden aceptar, están en curso o se pueden entregar. */
   at(s, station) { return Object.keys(CQUESTS).filter(id => CQUESTS[id].giver === station && ['available', 'active', 'ready'].includes(this.state(s, id))); },
+  /** Misiones listas para entregar (para avisar al jugador cuando una lo queda). */
+  readyIds(s) { return s && s.story ? Object.keys(CQUESTS).filter(id => this.state(s, id) === 'ready') : []; },
+  /** ¿Es una región de algún capítulo? (sus criaturas cuentan para los contadores). */
+  inRegion(dungeonId) { return Object.values(CHAPTERS).some(c => c.regions.includes(dungeonId)); },
+  /** Seguimiento en pantalla: el siguiente paso de cada misión en curso (la principal primero) o a quién entregarla. */
+  tracker(s, max = 2) {
+    if (!s || !s.story || !s.story.quests) return [];
+    const ids = Object.keys(CQUESTS).filter(id => ['active', 'ready'].includes(this.state(s, id))).map(id => [id, (CQUESTS[id].main ? 2 : 0) + (this.state(s, id) === 'ready' ? 1 : 0)]).sort((a, b) => b[1] - a[1]).map(x => x[0]);   // la principal, después las listas para entregar
+    return ids.slice(0, max).map(id => {
+      const Q = CQUESTS[id];
+      if (this.state(s, id) === 'ready') return { id, title: Q.title, text: `Entrégala a ${Q.npc}`, ready: true };
+      const p = this.steps(s, id).find(x => !x.ok);
+      return { id, title: Q.title, text: p.text + (p.need > 1 ? ` (${p.have}/${p.need})` : ''), ready: false };
+    });
+  },
   /** Misiones del capítulo (para el diario). */
   of(ch) { return Object.keys(CQUESTS).filter(id => CQUESTS[id].chapter === ch); },
   accept(s, id) {
@@ -4885,7 +4900,7 @@ const Campaign = {
   /** Sucesos de las expediciones (los mismos que Quests.progress): contadores de la región del capítulo. */
   event(s, kind, info) {
     if (!s || !s.story || kind !== 'defeat' || info.boss || !info.dungeon) return [];
-    if (!Object.values(CHAPTERS).some(c => c.regions.includes(info.dungeon))) return [];
+    if (!this.inRegion(info.dungeon)) return [];
     this.ensure(s);
     const wasReady = Object.keys(CQUESTS).filter(id => this.state(s, id) === 'ready');
     const c = s.story.counters; c.c1_kills = Math.min(9999, (c.c1_kills || 0) + 1); if (info.elite) c.c1_elites = Math.min(9999, (c.c1_elites || 0) + 1);
@@ -6355,4 +6370,4 @@ const Quests = {
 
   return { CONFIG, U, T, SOLID, TILE_NAMES, World, Particles, CLASSES, CLASS_STATS, ELITE, eliteChance, floorEnemies, FAMILIES, Deco, Terrain, ALLY_ABILITY, canEquip, OLD_EQUIP_SLOTS, FRACTION_STATS, fmtStat, DMG, classMoves, groundTarget, SPECIES, EVOLVED, FORMS, Progress, EVOLUTIONS, EVO_ITEM_MIN_LEVEL, Combat, Effects, Projectile, Zone, BLOCKS_SHOT, TYPES, TYPE_CHART, typeEff, calcStats, MAX_LEVEL, expNeed, expYield, MOVES, BossKit, BossArena, GROMGAR, BOSS_MIN_TELE, DungeonPlan, Prefabs, MechSolver, Mechs, LORE, SOLVER_TILES_PER_S, BOONS, Boons, BOSS_RAGE, GEODA, Geoda, Boulder, Actor, Player, Enemy, STOP, ENEMIES, ENEMY_VARIANTS, makeKind, BOSSES, makeBossKind, BIOMES, RARITIES, CATEGORIES, EQUIP_SLOTS, ITEMS, QUICK, RARITY_ORDER, STAT_NAMES, BASE_SHOP, SHOP_TIERS, shopStock, sellPrice, RECIPES, newUid, LOOT, Loot, Inventory, finalStats, freshEquip, equipRegen, TRAPS, DUNGEONS, dungeonById, dungeonOpen, COURIER_INTRO, enemyLevel, RANKS, rankOf, weighted, Jobs, ECONOMY, SAVE_VERSION, SAVE_MIGRATIONS, checksum, Save, FloorGen, hashStr, Codex, Story, STORY, logJob, isRelic, LOG_MAX, Guild, Town, TOWN_UPGRADES, FORGE_STOCK, forgeStock, RegionEvents, REGION_EVENTS, RANK_STARS, RANK_TITLES, GUILD_REP, SEAL_LEMAS, SEAL_OF, STORY_PAGES, STORY_MEMORIES, OFFERINGS, STORY_CHOICES, STORY_TALKS, STORY_TITLES, STORY_SITES, STORY_RELIC, StoryChain, CHAPTERS, CQUESTS, STORY_COUNTERS, Campaign, RECRUIT, ORDERS, gridPath, Companion, LEGACY_JOBS, isLegacyJob, Quests };
 }
-export const SOURCE_HASH = '17e3ac3891ef5ee5';
+export const SOURCE_HASH = 'd97d8d8367b3183f';

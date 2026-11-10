@@ -109,7 +109,10 @@ export class Expedition {
   }
   /** Avance de una misión del perfil de un jugador (las mismas reglas que Quests.progress). */
   quest(m, kind, info) {
+    const C = this.E.Campaign, region = kind === 'defeat' && !info.boss && this.E.Campaign.inRegion(this.dng.id);
+    const before = region ? C.readyIds(m.save) : null;
     const done = this.E.Quests.progress({ save: m.save }, kind, Object.assign({ dungeon: this.dng.id }, info));
+    if (region) this.campaignNote(m, C.readyIds(m.save).filter(id => !before.includes(id)));   // contadores del capítulo y misiones que quedan listas
     for (const j of done) { m.rewards.quests.push(j.id); this.emit('quest', { to: m.id, id: j.id, jobType: j.type, title: this.E.Jobs.title(j) }); }
     if (done.length && this.floor) this.safepoint('objective');
   }
@@ -166,7 +169,7 @@ export class Expedition {
       const inv = !m.left && E.RegionEvents.spawnFor(m.save, this.dng, st.floorNo, this.L, this.world);
       if (inv && !this.L.enemies.some(q => q.invader === inv.invader)) this.L.enemies.push(inv);
     }
-    for (const m of this.members.values()) { m.read = new Set(); m.storyRead = new Set(); m.pendingChoice = null; }   // textos y sitios de la historia leídos en este piso
+    for (const m of this.members.values()) { m.read = new Set(); m.storyRead = new Set(); m.storyWarned = new Set(); m.pendingChoice = null; }   // textos y sitios de la historia leídos en este piso
     for (const [spawnIdx, s] of this.L.enemies.entries()) {
       if (s.outlaw || this.floor.killed.has(spawnIdx) || (s.boss && this.floor.bossDown)) continue;   // al reanudar, los ya vencidos no vuelven
       const kindObj = s.boss ? E.makeBossKind(s.boss) : E.makeKind(s.variant);
@@ -277,11 +280,22 @@ export class Expedition {
   }
   /** El jugador elige un don de SU oferta pendiente; cualquier otro id se rechaza. */
   /** Sitio fijo o rueda de un sello: lo lee cada jugador con SU perfil (requisitos y recompensas), sin enemigos cerca. */
+  /** Progreso de la campaña de ESE jugador durante la expedición (el cliente lo muestra; el perfil lo guarda el servidor al terminar). */
+  campaignNote(m, ready = []) {
+    const s = m.save; if (!s.story) return;
+    this.emit('campaign', { to: m.id, counters: Object.assign({}, s.story.counters), lore: s.codex.lore.slice(), pages: s.codex.pages.slice(), flags: s.story.flags.slice(), ready });
+  }
   readStory(m, st) {
     const p = m.player;
-    if (this.g.actors.some(a => a.team === 'enemy' && a.alive && a.aggro && Math.hypot(a.x - p.x, a.y - p.y) < 320)) return;   // como sin red: cuando no haya peligro
+    if (this.g.actors.some(a => a.team === 'enemy' && a.alive && a.aggro && Math.hypot(a.x - p.x, a.y - p.y) < 320)) {   // como sin red: cuando no haya peligro
+      m.storyWarned = m.storyWarned || new Set();
+      if (!m.storyWarned.has(st.id)) { m.storyWarned.add(st.id); this.emit('storyNote', { to: m.id, lines: ['Aquí hay algo… cuando no haya peligro'] }); }
+      return;
+    }
     m.storyRead.add(st.id);
+    const before = this.E.Campaign.readyIds(m.save);
     const res = this.E.StoryChain.visit(m.save, st.id); if (!res) return;
+    this.campaignNote(m, this.E.Campaign.readyIds(m.save).filter(id => !before.includes(id)));
     if (res.relic) { if (p.bag.add(res.relic) < 1) { m.save.bank += this.E.ITEMS[res.relic].price; res.gains.push(`(inventario lleno: te pagan ${this.E.ITEMS[res.relic].price} monedas)`); } this.E.Codex.relicsIn(m.save, [res.relic]); }
     m.pendingChoice = res.choice || null;
     this.emit('story', { to: m.id, res });

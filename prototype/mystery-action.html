@@ -5202,7 +5202,7 @@ const STORY_TALKS = {
   c1_intro: { station: 'intro', npc: 'Alcalde Bartolo', label: 'Capítulo 1', when: s => !!s.arrived && !s.story.flags.includes('c1_intro'), lines: s => CHAPTERS.c1.intro.map(l => l[1]), flags: ['c1_intro'] },
   nara_c1: { station: 'nara', npc: 'Nara Vey', label: 'Preguntar por el bosque', when: s => s.story.flags.includes('c1_intro'),
     lines: ['Nara Vey, guardabosques de Brumaverde. Llevo diez años cuidando ese bosque y nunca lo había visto así.', 'Los robles se pudren por dentro, la savia sale negra y las criaturas huyen cuesta arriba. En el Linde, el borde del bosque, hay rastros por todas partes: una raíz podrida, charcos de savia, huellas. Míralos tú misma, o tú mismo, y dime qué ves.'] },
-  nara_rastros: { station: 'nara', npc: 'Nara Vey', label: 'Contarle lo que has visto en el Linde', when: s => C1_RASTROS.every(id => s.codex.lore.includes(id)),
+  nara_rastros: { station: 'nara', npc: 'Nara Vey', label: 'Contarle lo que has visto en el Linde', when: s => s.codex.talks.includes('nara_c1') && C1_RASTROS.every(id => s.codex.lore.includes(id)),
     lines: ['Raíces podridas que siguen latiendo, savia negra que corre hacia el centro, huellas que huyen de él… No es una plaga. Algo, en el corazón del bosque, está enfermando la tierra.', 'Las raíces apuntan a una estela antigua en el primer claro del bosque, y más allá, a la guarida del Guardián de Espinas. Si el guardián ha enloquecido, todo el bosque lo hará con él.'] },
   ulula_tercera: { station: 'guild', npc: 'Maestra Ulula', label: 'Hablar del diario completo', when: s => s.story.flags.includes('tercera_via'),
     lines: ['Ulula cierra el libro de registro. «Irene escribió "abrir". No romper ni encerrar: abrir.»', '«Si alguien puede encontrar esa puerta, eres tú. Y cuando la encuentres, la quiero de vuelta. A ella, digo.»'] },
@@ -5505,6 +5505,21 @@ const Campaign = {
   ready(s, id) { return this.steps(s, id).every(p => p.ok); },
   /** Misiones de un puesto que se pueden aceptar, están en curso o se pueden entregar. */
   at(s, station) { return Object.keys(CQUESTS).filter(id => CQUESTS[id].giver === station && ['available', 'active', 'ready'].includes(this.state(s, id))); },
+  /** Misiones listas para entregar (para avisar al jugador cuando una lo queda). */
+  readyIds(s) { return s && s.story ? Object.keys(CQUESTS).filter(id => this.state(s, id) === 'ready') : []; },
+  /** ¿Es una región de algún capítulo? (sus criaturas cuentan para los contadores). */
+  inRegion(dungeonId) { return Object.values(CHAPTERS).some(c => c.regions.includes(dungeonId)); },
+  /** Seguimiento en pantalla: el siguiente paso de cada misión en curso (la principal primero) o a quién entregarla. */
+  tracker(s, max = 2) {
+    if (!s || !s.story || !s.story.quests) return [];
+    const ids = Object.keys(CQUESTS).filter(id => ['active', 'ready'].includes(this.state(s, id))).map(id => [id, (CQUESTS[id].main ? 2 : 0) + (this.state(s, id) === 'ready' ? 1 : 0)]).sort((a, b) => b[1] - a[1]).map(x => x[0]);   // la principal, después las listas para entregar
+    return ids.slice(0, max).map(id => {
+      const Q = CQUESTS[id];
+      if (this.state(s, id) === 'ready') return { id, title: Q.title, text: `Entrégala a ${Q.npc}`, ready: true };
+      const p = this.steps(s, id).find(x => !x.ok);
+      return { id, title: Q.title, text: p.text + (p.need > 1 ? ` (${p.have}/${p.need})` : ''), ready: false };
+    });
+  },
   /** Misiones del capítulo (para el diario). */
   of(ch) { return Object.keys(CQUESTS).filter(id => CQUESTS[id].chapter === ch); },
   accept(s, id) {
@@ -5530,7 +5545,7 @@ const Campaign = {
   /** Sucesos de las expediciones (los mismos que Quests.progress): contadores de la región del capítulo. */
   event(s, kind, info) {
     if (!s || !s.story || kind !== 'defeat' || info.boss || !info.dungeon) return [];
-    if (!Object.values(CHAPTERS).some(c => c.regions.includes(info.dungeon))) return [];
+    if (!this.inRegion(info.dungeon)) return [];
     this.ensure(s);
     const wasReady = Object.keys(CQUESTS).filter(id => this.state(s, id) === 'ready');
     const c = s.story.counters; c.c1_kills = Math.min(9999, (c.c1_kills || 0) + 1); if (info.elite) c.c1_elites = Math.min(9999, (c.c1_elites || 0) + 1);
@@ -10143,7 +10158,7 @@ const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;'
 /** Introducción de un capítulo en la aldea: rótulo, el alcalde cuenta lo que pasa y aparece quien lo trae (Nara Vey). */
 const ChapterIntro = {
   maybe(g) {
-    const s = g && g.save; if (!s || g.mode !== 'village' || !s.arrived || g.cine || g.paused || g.state !== 'play') return false;
+    const s = g && g.save; if (!s || g.mode !== 'village' || !s.arrived || g.cine || g.paused || g.state !== 'play' || g.introLater) return false;
     if (!StoryChain.talks(s, 'intro').includes('c1_intro')) return false;
     this.start(g); return true;
   },
@@ -10155,7 +10170,7 @@ const ChapterIntro = {
     g.laterT.push(setTimeout(go, 1400));
   },
   async finish(g) {
-    if (g.account) { const r = await g.account.op('talk', { id: 'c1_intro' }); if (!r) return; }
+    if (g.account) { const r = await g.account.op('talk', { id: 'c1_intro' }); if (!r) { g.introLater = true; return; } }   // no se pudo apuntar: no se repite en esta sesión
     else { StoryChain.talk(g.save, 'c1_intro'); Save.write(g.save); }
     if (g.village && g.village.refreshTown) g.village.refreshTown();
     UI.toast('Nueva misión en el gremio: «Las raíces enfermas». Nara Vey ha montado su campamento en el camino del oeste.', '#7dffa0');
@@ -10392,7 +10407,8 @@ const UI = {
     const allies = g.allies || [];
     this.set('party', this.el('hud-party'), 'html', allies.length ? allies.map(a => `<span class="pm ${a.alive ? '' : 'off'}"><span>${esc(a.data.name)} Nv ${a.data.level}${a.alive ? '' : ' · debilitado'}</span><i><b style="width:${(a.alive ? a.hp / a.maxHp * 100 : 0).toFixed(0)}%"></b></i></span>`).join('') + `<span>Orden: <b style="color:var(--ink)">${ORDERS[g.order || 'follow']}</b> <span class="kbd">1</span><span class="kbd">2</span><span class="kbd">3</span></span>` : '');
     const qs = g.save ? g.save.jobs.filter(j => !isLegacyJob(j) && (g.mode !== 'dungeon' || j.dungeon === g.run.dng.id)).slice(0, 3) : [];
-    this.set('quests', this.el('hud-quests'), 'html', qs.map(j => `<span>${esc(Jobs.title(j).split(' · ')[0])} <b>${Quests.label(j)}</b></span>`).join(''));
+    const cq = Campaign.tracker(g.save);   // misiones de la campaña: el siguiente paso, también durante la exploración
+    this.set('quests', this.el('hud-quests'), 'html', cq.map(q => `<span>${esc(q.title)} · <b style="${q.ready ? '' : 'color:#f2d38b'}">${esc(q.text)}</b></span>`).join('') + qs.map(j => `<span>${esc(Jobs.title(j).split(' · ')[0])} <b>${Quests.label(j)}</b></span>`).join(''));
     this.hudPanel = this.hudPanel || document.querySelector('.hud-panel');
     this.set('ctop', this.el('controls'), 'top', `calc(${this.hudPanel.offsetHeight + 22}px + env(safe-area-inset-top,0px))`);
     const near = g.mode === 'village' && g.village && !g.paused ? g.village.near : null;
@@ -10917,7 +10933,7 @@ const Game = {
       Codex.relicsIn(s, r.items); this.gainExp(r.exp); Save.write(s);
     }
     this.questSay(id, r.lines, [`+${r.exp} EXP`, `+${r.gems} monedas`].concat(r.got && r.got.length ? r.got : r.items.map(i => ITEMS[i].name), r.rep ? [`+${r.rep} de reputación`] : []));
-    if (r.built && r.built.length) { setTimeout(() => UI.toast(r.built[0], '#f2b84b'), 1800); if (this.village && this.village.refreshTown) this.village.refreshTown(); }
+    if (!this.account && r.built && r.built.length) { setTimeout(() => UI.toast(r.built[0], '#f2b84b'), 1800); if (this.village && this.village.refreshTown) this.village.refreshTown(); }   // en línea lo hace account.op
     return true;
   },
   questSay(id, lines, gains) {
@@ -13674,6 +13690,12 @@ class NetPlay {
       case 'courierNoise': if (this.floorInfo && f && g.run && !g.run.courier) CourierIntro.start(g, false); break;
       case 'down': UI.toast(ev.id === this.me ? 'Has caído' : `${this.nameOf(ev.id)} ha caído: quédate a su lado para reanimarlo`, '#ef8b7b'); Sfx.play('hurt'); break;
       case 'revived': UI.toast(ev.id === this.me ? `${this.nameOf(ev.by)} te ha reanimado` : `${this.nameOf(ev.id)} vuelve a la lucha`, '#9be36b'); break;
+      case 'campaign': if (ev.to === this.me && g.save && g.save.story) {   // progreso de la campaña durante la expedición (el servidor manda; al terminar se adopta su perfil)
+        Campaign.ensure(g.save); Object.assign(g.save.story.counters, ev.counters || {});
+        for (const id of ev.lore || []) Codex.add(g.save, 'lore', id); for (const id of ev.pages || []) Codex.add(g.save, 'pages', id);
+        for (const f0 of ev.flags || []) if (!g.save.story.flags.includes(f0)) g.save.story.flags.push(f0);
+        for (const id of ev.ready || []) if (CQUESTS[id]) UI.toast(`Misión lista para entregar: ${CQUESTS[id].title} (${CQUESTS[id].npc})`, '#7dffa0');
+      } break;
       case 'codex': if (ev.to === this.me) UI.toast(ev.kind === 'secrets' ? 'Sala secreta descubierta: queda anotada en tu registro' : 'Texto anotado en tu registro', '#d8c79a'); break;
       case 'story': if (ev.to === this.me && ev.res) {   // sitio fijo, rueda o decisión de la historia (lo decide el servidor con TU perfil)
         const f = this.g.floorRT, id = ev.res.id;

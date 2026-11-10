@@ -84,6 +84,7 @@ npm run test:all       # todo, incluidos los navegadores y HTTPS/WSS (requiere p
 ```
 
 - **Capítulo 1 «Las raíces enfermas»** (Linde de Brumaverde, Nara Vey, misiones del capítulo, Robletón y cambio en la aldea; plantilla para los capítulos siguientes): [`docs/CAPITULO_1.md`](docs/CAPITULO_1.md).
+- **Auditoría del capítulo 1** (problemas, pruebas, riesgos y recomendaciones para el capítulo 2): [`docs/AUDITORIA_CAPITULO_1.md`](docs/AUDITORIA_CAPITULO_1.md).
 - **Secretos, cadena oculta de Irene, finales, poscampaña (Raíces Hondas) y dificultad**: [`docs/SECRETOS.md`](docs/SECRETOS.md).
 - **Historia de Eldoria** (fuente de verdad narrativa: canon, propuestas, capítulos, misiones, jefes y cronología): [`docs/BIBLIA_NARRATIVA_ELDORIA.md`](docs/BIBLIA_NARRATIVA_ELDORIA.md) y `docs/lore/`.
 - **Mazmorras, movimientos por nivel, guardianes (Reina Geoda), Topo Mercader y Pico Cartero**: `docs/PROGRESION.md`.

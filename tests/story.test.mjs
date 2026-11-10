@@ -182,10 +182,14 @@ test('Raíces Hondas: se abre tras el Cráter, jefe opcional con BossKit y trofe
   // El Eco persigue: sus raíces nacen hacia donde está ahora el héroe
   const x = new Expedition({ dungeonId: 'raices', seed: 4, members: party([freshSave('guerrero')]), random: seeded(3) }); x.loadStep(x.seq.length - 1);
   const b = x.boss, p = [...x.members.values()][0].player; p.maxHp = p.hp = 1e6; b.aggro = true; run(x, .3);
-  p.placeAt(b.x + 200, b.y); E.BossArena.unstick(p, x.g);
+  // (0.46) Dirección despejada: la cadena de raíces se corta al llegar a una pared, y con la misma semilla el jefe no
+  // siempre está en el mismo sitio (combate con azar), así que se busca un lado libre de muros en 280 px
+  const free = (ax, ay) => { for (let d = 0; d <= 280; d += 8) if (x.g.world.isSolid(Math.floor((b.x + ax * d) / 32), Math.floor((b.y + ay * d) / 32))) return false; return true; };
+  const dir = [[1, 0], [-1, 0], [0, 1], [0, -1], [.7, .7], [-.7, .7], [.7, -.7], [-.7, -.7]].find(([ax, ay]) => free(ax, ay)) || [1, 0];
+  p.placeAt(b.x + dir[0] * 200, b.y + dir[1] * 200); E.BossArena.unstick(p, x.g);
   E.BossKit.begin(b, x.g, E.BossKit.DEFS.ecoEspinas.moves.persecucion, E.BossKit.st(b), E.BossKit.DEFS.ecoEspinas, p);
   run(x, 1.2); const z0 = x.g.zones.filter(z => z.owner === b).length; assert.ok(z0 >= 1, 'raíz avisada');
-  run(x, 1.6); assert.ok(x.g.zones.some(z => z.owner === b), 'la siguiente raíz sale tras la anterior');
+  run(x, 1.6); assert.ok(x.g.zones.some(z => z.owner === b), 'la siguiente raíz sale tras la anterior ' + JSON.stringify({ st: E.BossKit.st(b).stage, mv: E.BossKit.st(b).mv && E.BossKit.st(b).mv.id, z0, b: [Math.round(b.x), Math.round(b.y), b.alive], p: [Math.round(p.x), Math.round(p.y), p.alive], dir }));
 });
 
 test('trofeo de Robletón: la Corona de Espinas se da de verdad (antes no la encontraba por su id) y se valida al cargar', () => {

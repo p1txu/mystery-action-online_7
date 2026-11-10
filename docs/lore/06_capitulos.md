@@ -8,7 +8,7 @@
 
 | Cap. | Nombre | Región | Jefe final | Sello | Qué aporta |
 |---|---|---|---|---|---|
-| 1 | El linde del bosque | Bosque Brumoso | Robletón | Raíz | Algo late; existe una Orden; Irene estuvo aquí |
+| 1 | Las raíces enfermas | Bosque de Brumaverde | Robletón | Raíz | Algo late; existe una Orden; Irene estuvo aquí |
 | 2 | Bajo el cuarzo | Gruta de Cuarzo | Reina Geoda | Luz | Hay sellos; una Hermandad caza personas |
 | 3 | Aguas que recuerdan | Ciénaga Sombría | Ciénago | Memoria | El Corazón Primordial; ocho fundadores |
 | 4 | La mina que se tragó a los suyos | Mina Olvidada | Gromgar | Peso | Portadores; el Custodio en persona |
@@ -21,11 +21,11 @@ Las misiones con identificador (MQ-, SQ-) están en [H](07_misiones_principales.
 
 ---
 
-## Capítulo 1 · El linde del bosque
+## Capítulo 1 · Las raíces enfermas
 
-1. **Nombre:** El linde del bosque.
+1. **Nombre:** Las raíces enfermas (en el juego desde la 0.45; antes, «El linde del bosque»). Lo jugable se describe en [CAPITULO_1.md](../CAPITULO_1.md).
 2. **Región y ambientación:**
-   - **[CANON]** Aldea Raíz y Bosque Brumoso.
+   - **[CANON]** Aldea Raíz y Bosque de Brumaverde.
    - Atardecer cálido en la aldea. Niebla, robles viejos y ruinas cubiertas de musgo en el bosque.
 3. **Situación inicial:** **[CANON]** el héroe despierta tras casi dos semanas inconsciente. Bartolo le acoge.
 4. **Objetivo narrativo:** ganarse un sitio en la aldea y entender qué enferma al bosque.
@@ -36,7 +36,7 @@ Las misiones con identificador (MQ-, SQ-) están en [H](07_misiones_principales.
    - MQ-1.3 «El mercader escondido» **[CANON]**;
    - MQ-1.4 «El Guardián de Espinas» **[CANON]**.
 7. **Secundarias:** SQ-01 «La marca de Irene», SQ-02 «Lo que se llevaron los cuervos», SQ-03 «Madera de roble viejo» (parte 1), SQ-08 «Flores sin huellas» y SQ-12 «Criaturas que suben» (parte 1).
-8. **Mazmorras:** **[CANON]** Bosque Brumoso (5 pisos), con el minijefe Zarzal Madre.
+8. **Mazmorras:** **[CANON]** Bosque de Brumaverde (5 pisos), con el minijefe Zarzal Madre.
 9. **Jefe final:** **[CANON]** Robletón, el Guardián de Espinas.
 10. **Mecánicas del jefe:** **[CANON]** tocones que lo enredan al caer su salto, brotes de savia que le curan y protegen, y fases Despertar, Savia y Furia.
 11. **Pistas y secretos:**

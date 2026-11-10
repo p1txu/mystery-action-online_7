@@ -37,7 +37,7 @@ Formato de cada misión: **Inicia**, **Lugar**, **Requisitos**, **Contexto**, **
 - **Consecuencias:** se abre el Bosque.
 
 ### MQ-1.3 · El mercader escondido **[CANON]**
-- **Inicia:** ninguno: se encuentra en la guarida · **Lugar:** Bosque Brumoso, guarida · **Requisitos:** MQ-1.2.
+- **Inicia:** ninguno: se encuentra en la guarida · **Lugar:** Bosque de Brumaverde, guarida · **Requisitos:** MQ-1.2.
 - **Contexto / objetivo:** rescatar a quien se esconde del guardián.
 - **Pasos:** vencer a Robletón; hablar con Tobías; escoltarle a la aldea.
 - **Enemigos:** Robletón · **Recompensas:** **[CANON]** se abre la tienda y el taller (marca `mercader`).

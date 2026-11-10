@@ -128,3 +128,32 @@ test('guarida: Robletón vencido en grupo de tres; cada perfil elegible cuenta e
     const again = x.settle(m, 'clear', true); assert.equal(new E.Inventory(again.profile.inv, () => 99).count('coronaEspinas'), 1, 'una vez');
   }
 });
+
+test('auditoría 0.46: seguimiento en pantalla, orden de las conversaciones con Nara y progreso de la campaña en línea durante la expedición', () => {
+  // Contar los rastros a Nara exige haberla conocido antes
+  const s = vecina(); SC.talk(s, 'c1_intro'); for (const z of ['z_raiz', 'z_savia', 'z_huellas']) E.Codex.add(s, 'lore', z);
+  assert.deepEqual(SC.talks(s, 'nara'), ['nara_c1']);
+  SC.talk(s, 'nara_c1'); assert.ok(SC.talks(s, 'nara').includes('nara_rastros'));
+  // Seguimiento: la principal primero, con su siguiente paso; si está lista, a quién entregarla
+  C.accept(s, 'c1_poda'); C.accept(s, 'c1_main');
+  let t = C.tracker(s); assert.equal(t[0].id, 'c1_main'); assert.match(t[0].text, /Cuéntale a Nara/); assert.match(t[1].text, /\(0\/12\)/);
+  for (let i = 0; i < 12; i++) C.event(s, 'defeat', { dungeon: 'linde' });
+  t = C.tracker(s); assert.equal(t[1].text, 'Entrégala a Nara Vey'); assert.ok(t[1].ready);
+  assert.deepEqual(C.tracker(vecina()), []);
+  // En línea: el servidor manda el progreso al jugador (contadores, misión lista) y avisa si un rastro no se puede leer aún
+  const a = vecina(); SC.talk(a, 'c1_intro'); SC.talk(a, 'nara_c1'); C.accept(a, 'c1_elite');
+  const x = new Expedition({ dungeonId: 'linde', seed: 9, members: party([a, vecina('mago')]), random: seeded(2) });
+  const [A, B] = [...x.members.values()]; for (const m of [A, B]) m.player.maxHp = m.player.hp = 1e6; x.drainEvents();
+  const el = x.g.actors.find(e => e instanceof x.E.Enemy && e.elite && e.alive);
+  A.player.placeAt(el.x + 20, el.y); B.player.placeAt(el.x - 20, el.y);
+  x.E.Combat.hit(x.g, el, { team: 'player', fixed: 1e9, src: A.player }); run(x, .2);
+  const ev = x.drainEvents().filter(e => e.type === 'campaign');
+  const toA = ev.find(e => e.to === A.id), toB = ev.find(e => e.to === B.id);
+  assert.ok(toA && toB, 'cada jugador recibe su progreso'); assert.equal(toA.counters.c1_elites, 1); assert.deepEqual(toA.ready, ['c1_elite']); assert.deepEqual(toB.ready, []);
+  // Rastro con un enemigo en alerta cerca: un aviso (una vez), sin leerlo
+  const st = x.story[0], foe = x.g.actors.find(e => e instanceof x.E.Enemy && e.alive);
+  assert.ok(foe, 'hay criaturas en el Linde');
+  foe.aggro = true; A.player.placeAt(st.x, st.y); foe.x = st.x + 60; foe.y = st.y; x.readStory(A, x.story[0]); x.readStory(A, x.story[0]);
+  const notes = x.drainEvents().filter(e => e.type === 'storyNote' && e.to === A.id);
+  assert.equal(notes.length, 1, 'un solo aviso'); assert.ok(!A.storyRead.has(st.id), 'se podrá leer después');
+});
