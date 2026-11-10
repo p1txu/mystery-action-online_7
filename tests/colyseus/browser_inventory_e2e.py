@@ -69,7 +69,7 @@ async def main():
             st.ctl('bag', name='Ana', hp=20); await A.wait_for_timeout(300)
             await A.keyboard.down('x'); await A.wait_for_timeout(500); await A.keyboard.up('x'); await A.wait_for_timeout(700)
             s2 = st.ctl('bag', name='Ana'); qa = await A.evaluate("() => MysteryAction.quickStatus('heal')")
-            check('expedición en línea: X mantenida gasta UNA poción en el servidor (+35 PS) y la casilla coincide', s2['inv'].get('pocion') == 2 and s2['hp'] == 55 and qa['count'] == 2, {'servidor': s2['inv'], 'ps': s2['hp'], 'cliente': qa})
+            check('expedición en línea: X mantenida gasta UNA poción en el servidor (+35 PS, más la regeneración natural) y la casilla coincide', s2['inv'].get('pocion') == 2 and 55 <= s2['hp'] < 55 + 35 and qa['count'] == 2, {'servidor': s2['inv'], 'ps': s2['hp'], 'cliente': qa})
             # Abrir el inventario: el mundo sigue (reloj del servidor y compañero que se mueve)
             await A.keyboard.press('Tab'); await A.wait_for_selector('#bagpanel:not([hidden])')
             t0 = st.ctl('bag', name='Ana')['time']; b0 = st.ctl('bag', name='Beto')
