@@ -31,6 +31,7 @@ if command -v python3 >/dev/null && python3 -c "import playwright" 2>/dev/null; 
   python3 tests/e2e/town_e2e.py tests/.tmp/prototype.html                             # aldea que evoluciona: ruinas → forja, Brasa, evento resuelto; cerrar y volver a cargar
   python3 tests/e2e/save_offline.py tests/.tmp/prototype.html                          # guardado sin conexión: migración 6 → 7 con copia del original, copia de seguridad, registro
   SHOT_DIR=tests/.tmp python3 tests/e2e/story_e2e.py tests/.tmp/prototype.html            # secretos y cadena de Irene: marca, Ulula, página 1, registro, rueda y Bernardo, título, Raíces Hondas; cerrar y volver a cargar
+  SHOT_DIR=tests/.tmp python3 tests/e2e/chapter1_e2e.py tests/.tmp/prototype.html          # capítulo 1 «Las raíces enfermas»: intro, Ulula/Bartolo/Nara, misiones, Linde, rastros, Robletón, cambio en la aldea; recargar
   python3 tests/e2e/boss_gromgar.py tests/.tmp/prototype.html                          # Gromgar sin red: avisos, furia, aturdido, derribado, muerte limpia, trofeo una vez
   python3 tests/e2e/dungeon_ch1.py tests/.tmp/prototype.html                          # mazmorra del capítulo 1 jugada: palancas, puentes, placas de tiempo, paredes falsas, emboscada, minijefe, textos; mismo piso en navegador y Node
   python3 tests/e2e/hero_sprites.py tests/.tmp/prototype.html                          # héroes en pixel art: 920 fotogramas, sin cortes, pies anclados, 8 direcciones, paleta

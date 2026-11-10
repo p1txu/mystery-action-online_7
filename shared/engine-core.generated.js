@@ -1,4 +1,4 @@
-// GENERADO por tools/split-prototype.mjs a partir de prototype/mystery-action.html (sha256 6b35b39eb0b0cfd6).
+// GENERADO por tools/split-prototype.mjs a partir de prototype/mystery-action.html (sha256 17e3ac3891ef5ee5).
 // No lo edites a mano: cambia el prototipo y vuelve a ejecutar «npm run split».
 /* eslint-disable */
 /**
@@ -757,7 +757,7 @@ const Deco = {
     for (const m of L.mechs || []) { if (m.tx != null) mark(m.tx, m.ty, 1); for (const i of m.tiles || []) mark(i % W, (i / W) | 0, 1); }   // mecanismos: siempre a la vista
     for (const l of L.lore || []) mark(l.tx, l.ty, 1);
     for (const st of L.story || []) mark(st.tx, st.ty, 1);
-    for (const a of L.alcoves || []) for (let y = a.y; y < a.y + a.h; y++) for (let x = a.x; x < a.x + a.w; x++) mark(x, y, 0);
+    for (const a of L.alcoves || []) { for (let y = a.y; y < a.y + a.h; y++) for (let x = a.x; x < a.x + a.w; x++) mark(x, y, 0); for (const i of a.mouth || []) mark(i % W, (i / W) | 0, 0); }   // nicho y su boca
     for (const n of L.npcs) mark(n.tx, n.ty, 1);
     for (const e of L.enemies) mark(e.tx, e.ty, e.boss ? 3 : 1);
     const solid = (x, y) => SOLID[world.get(x, y)] === 1;
@@ -2436,7 +2436,7 @@ for (const [id, f] of Object.entries(FAMILIES)) { f.family = id; f.pixel = true;
 
 /* --- Variantes por bioma (5 mazmorras) --- */
 const SMALL_VARIANTS = {
-  // Bosque Brumoso
+  // Bosque de Brumaverde
   rataRaiz: { base: 'rata', name: 'Rata de raíz', pal: { body: '#6a5440', belly: '#9a8268', accent: '#3a2a1a', eye: '#e84a3a', tail: '#b08070' } },
   limoMusgo: { base: 'limo', name: 'Limo de musgo', pal: { body: '#5a8a3a', light: '#a8d878', core: '#2e5420', eye: '#102008' } },
   setaBruma: { base: 'hongo', name: 'Seta brumosa', slowSpore: true, pal: { cap: '#7a4a9a', spot: '#d8b8ff', stem: '#d8ccb0', spore: '#c79bff', eye: '#1a1020' } },
@@ -3324,7 +3324,7 @@ BossKit.DEFS.gromgar = {
   reward: { item: 'colmilloGromgar' },
 };
 
-/* --- Robletón, el Guardián de Espinas (Bosque Brumoso), sobre BossKit ------------------------------
+/* --- Robletón, el Guardián de Espinas (Bosque de Brumaverde), sobre BossKit ------------------------------
    Desde el principio hay tocones en su guarida (2×2, colisión real). Si su SALTO acaba junto a un tocón,
    lo revienta y se le enredan las raíces: VULNERABLE 6 s, defensa −35 %. Ponte al lado de un tocón y
    apártate cuando veas la sombra.
@@ -3811,7 +3811,7 @@ const ITEMS = {
   espadaHierro: { name: 'Espada de hierro', cat: 'equipo', slot: 'arma', classes: ['guerrero'], rarity: 'comun', icon: 'sword', color: '#b4bec9', price: 80, mods: { flat: { atk: 3 } }, desc: 'Hoja recta, fiable y algo mellada.' },
   espadaAcero: { name: 'Espada de acero', cat: 'equipo', slot: 'arma', classes: ['guerrero'], req: { level: 5 }, rarity: 'pococomun', icon: 'sword', color: '#d8dde3', price: 190, mods: { flat: { atk: 5 }, pct: { atk: .05 } }, desc: 'Forjada en la aldea por los topos.' },
   mandobleRunico: { name: 'Mandoble rúnico', cat: 'equipo', slot: 'arma', classes: ['guerrero'], req: { level: 9 }, rarity: 'rara', icon: 'sword', color: '#8ab4ff', price: 420, mods: { flat: { atk: 8 }, pct: { atk: .08, def: .04 } }, desc: 'Las runas brillan al golpear.' },
-  arcoTejo: { name: 'Arco de tejo', cat: 'equipo', slot: 'arma', classes: ['arquero'], rarity: 'comun', icon: 'bow', color: '#9a6630', price: 80, mods: { flat: { atk: 3 } }, desc: 'Madera flexible del Bosque Brumoso.' },
+  arcoTejo: { name: 'Arco de tejo', cat: 'equipo', slot: 'arma', classes: ['arquero'], rarity: 'comun', icon: 'bow', color: '#9a6630', price: 80, mods: { flat: { atk: 3 } }, desc: 'Madera flexible del Bosque de Brumaverde.' },
   arcoCompuesto: { name: 'Arco compuesto', cat: 'equipo', slot: 'arma', classes: ['arquero'], req: { level: 5 }, rarity: 'pococomun', icon: 'bow', color: '#c89a48', price: 190, mods: { flat: { atk: 4 }, pct: { aspd: .06 } }, desc: 'Asta, tendón y madera: tensa más rápido.' },
   arcoEspino: { name: 'Arco de espino negro', cat: 'equipo', slot: 'arma', classes: ['arquero'], req: { level: 9 }, rarity: 'rara', icon: 'bow', color: '#5a3a4a', price: 420, mods: { flat: { atk: 7, crit: .04 } }, desc: 'Sus flechas buscan los puntos débiles.' },
   bastonRoble: { name: 'Bastón de roble', cat: 'equipo', slot: 'arma', classes: ['mago'], rarity: 'comun', icon: 'staff', color: '#7e5430', price: 80, mods: { flat: { spa: 3 } }, desc: 'Un nudo de roble con una piedra pulida.' },
@@ -3839,6 +3839,7 @@ const ITEMS = {
   escudoRoble: { name: 'Escudo de roble', cat: 'equipo', slot: 'accesorio', classes: ['guerrero'], rarity: 'pococomun', icon: 'shield', color: '#8e5c30', price: 150, mods: { flat: { def: 5 } }, desc: 'Un buen escudo de repuesto, reforzado con hierro.' },
   anilloMana: { name: 'Anillo de maná', cat: 'equipo', slot: 'accesorio', classes: ['mago'], rarity: 'rara', icon: 'ring', color: '#5aa8e8', price: 330, mods: { flat: { mp: 25 } }, desc: 'Guarda reservas de maná.', regenNote: true },
 
+  brocheRoble: { name: 'Broche de roble', cat: 'equipo', slot: 'accesorio', rarity: 'rara', unique: true, icon: 'ring', color: '#9be36b', price: 260, mods: { flat: { hp: 8, def: 2 }, pct: { spd: .05 } }, desc: 'Premio del capítulo «Las raíces enfermas»: una hoja de roble tallada en madera viva. Nara Vey dice que aún respira.' },
   corazonRaiz: { name: 'Corazón de raíz', cat: 'equipo', slot: 'accesorio', rarity: 'legendaria', unique: true, icon: 'gem', color: '#9fd8ff', price: 900, mods: { flat: { hp: 14 }, pct: { def: .08, spd: .08 } }, desc: 'Reliquia de Raíces Hondas: una raíz cristalizada con forma de corazón. Late, despacio, al ritmo de algo mucho más grande.' },
   cortezaEco: { name: 'Corteza del Eco', cat: 'equipo', slot: 'accesorio', rarity: 'epica', unique: true, icon: 'ring', color: '#7fd0c0', price: 700, mods: { flat: { atk: 5, def: 4 }, pct: { hp: .05 } }, desc: 'Trofeo único: un trozo de corteza del Eco de Robletón. Brilla como el cuarzo cuando se acerca un enemigo.' },
   coronaEspinas: { name: 'Corona de Espinas', cat: 'equipo', slot: 'accesorio', rarity: 'epica', unique: true, icon: 'ring', color: '#9be36b', price: 500, mods: { flat: { atk: 4 }, pct: { def: .06 } }, desc: 'Trofeo único: una corona de raíces vivas del Guardián de Espinas. Aún huele a savia.' },
@@ -4126,7 +4127,7 @@ const TRAPS = {
  *  ≈ nivel base + mitad de los pisos + 2: 7 · 9 · 13 · 16 · 20). */
 const DUNGEONS = [
   {
-    id: 'bosque', name: 'Bosque Brumoso', biome: 'forest', floors: 5, waypoint: 0, boss: 'robleton', level: 3, unlock: null, color: '#5aa64b',
+    id: 'bosque', name: 'Bosque de Brumaverde', biome: 'forest', floors: 5, waypoint: 0, boss: 'robleton', level: 3, unlock: null, color: '#5aa64b',
     desc: 'Senderos entre árboles y niebla. Ideal para empezar.',
     enemies: { rataRaiz: 38, limoMusgo: 30, setaBruma: 14, zarza: 10, cuervo: 8 }, enemyFloors: { zarza: 2, cuervo: 3 }, enemyBase: 3,
     traps: [0, 2], trapPool: { purificadora: 4, pinchos: 3, rafaga: 2, hambre: 2, somnifera: 1 },
@@ -4159,6 +4160,14 @@ const DUNGEONS = [
     enemies: { rataCeniza: 20, lagartoBrasa: 26, limoMagma: 20, aveCeniza: 18, cardoIgneo: 16 }, enemyFloors: { cardoIgneo: 2 }, enemyBase: 5,
     traps: [3, 5], trapPool: { purificadora: 2, pinchos: 3, veneno: 2, somnifera: 2, teletransporte: 2, rafaga: 2, hambre: 2, explosiva: 3, invocacion: 2, agujero: 2 },
     monsterHouse: .14, shop: .10, hiddenStairs: .25, dark: .2, treasure: .18, wind: 330,
+  },
+  {
+    id: 'linde', name: 'Linde de Brumaverde', biome: 'forest', zone: true, floors: 1, waypoint: 0, boss: null, level: 2, unlock: null, color: '#8ab65a',
+    desc: 'Zona de exploración junto a la aldea: el borde del bosque, sin guardián ni prisa. Rastros de la podredumbre, un campamento abandonado y una zarza que ronda. Sal por el sendero cuando quieras.',
+    enemies: { rataRaiz: 40, limoMusgo: 34, setaBruma: 26 }, enemyBase: 4, enemyStep: 9,
+    traps: [0, 1], trapPool: { purificadora: 3, pinchos: 2 },
+    monsterHouse: 0, shop: 0, hiddenStairs: 0, dark: 0, treasure: .2, wind: 1200,
+    fixedElite: 'zarza', force: { 1: [['esporas', 'raices_punzantes', 'raices_rompibles']] },   // élite fijo (misión «Espinas negras») y mecanismo ambiental garantizado
   },
   {
     id: 'raices', name: 'Raíces Hondas', biome: 'roots', floors: 6, waypoint: 3, boss: 'ecoRobleton', level: 17, unlock: 'crater', color: '#7fd0c0', optional: true,
@@ -4208,7 +4217,7 @@ const Jobs = {
   sig(j) { return `${j.type}:${j.dungeon}:${j.target || ''}`; },
   board(save, seed) {
     const rnd = U.rng(seed), jobs = [], rank = RANKS.indexOf(rankOf(save.points || 0));
-    const open = DUNGEONS.filter(d => dungeonOpen(save, d));
+    const open = DUNGEONS.filter(d => dungeonOpen(save, d) && !d.zone);   // las zonas de exploración no tienen contratos
     const recent = new Set([...(save.jobs || []), ...((save.log && save.log.jobs) || []).slice(-6)].map(j => this.sig(j)));
     const project = Town.projectJob(save, seed);                       // contrato especial que construye una mejora de la aldea
     if (project) jobs.push(project);
@@ -4315,7 +4324,7 @@ const Guild = {
     ['Contratos hasta ★A', 'Título: Explorador de Oro'],
     ['Contratos hasta ★S', 'Título: Explorador de Diamante'],
   ],
-  sanitize(g) { const out = Guild.fresh(); if (g && typeof g === 'object') { out.claims = [...new Set(Array.isArray(g.claims) ? g.claims : [])].filter(x => typeof x === 'string' && /^(boss|event|project|story|relic):[\w:.-]{1,60}$/.test(x)).slice(-CLAIMS_MAX); out.title = RANK_TITLES.includes(g.title) || Object.values(STORY_TITLES).includes(g.title) ? g.title : ''; } return out; },
+  sanitize(g) { const out = Guild.fresh(); if (g && typeof g === 'object') { out.claims = [...new Set(Array.isArray(g.claims) ? g.claims : [])].filter(x => typeof x === 'string' && /^(boss|event|project|story|relic|quest):[\w:.-]{1,60}$/.test(x)).slice(-CLAIMS_MAX); out.title = RANK_TITLES.includes(g.title) || Object.values(STORY_TITLES).includes(g.title) ? g.title : ''; } return out; },
 };
 
 /** Mejoras de la aldea: se construyen con un contrato especial y se guardan en town.upgrades. */
@@ -4432,10 +4441,11 @@ const RegionEvents = {
 const SAVE_KEY = 'mystery-action-save-v1';
 const BACKUP_KEY = 'mystery-action-save-backup';
 const OPTIONS_KEY = 'mystery-action-options';
-const SAVE_VERSION = 9;   // 6: clases (Guerrero, Arquero, Mago, Asesino) en lugar de especies; las partidas anteriores no son compatibles
+const SAVE_VERSION = 10;   // 6: clases (Guerrero, Arquero, Mago, Asesino) en lugar de especies; las partidas anteriores no son compatibles
                           // 7 (0.42): registro del perfil — códice (textos, secretos, reliquias), misiones cumplidas e historia
                           // 8 (0.43): gremio (recompensas únicas, título), mejoras de la aldea y eventos regionales
                           // 9 (0.44): registro de descubrimientos (páginas, lemas, recuerdos, conversaciones, ofrendas) y decisiones
+                          // 10 (0.45): campaña — misiones de historia (story.quests) y contadores del capítulo (story.counters)
 /* --- Registro del perfil (v7) ---------------------------------------------------------------------
    codex.lore     textos del escenario leídos (ids de LORE)
    codex.secrets  salas secretas descubiertas («mazmorra:plantilla», p. ej. «bosque:muro_agrietado»)
@@ -4448,6 +4458,7 @@ const LOG_MAX = 100, CODEX_MAX = 300;
 const STORY = {
   flags: { llegada: 'Llegada a la Aldea Raíz', mercader: 'El mercader Tobías abre su puesto', tablon: 'El cartero Lino cuelga el tablón de misiones',
     hebilla: 'Hebilla de Irene (sol entero, con una «I»)', codigo_tiza: 'Clave del código de tiza de Irene (Ulula)', rueda_raiz: 'Rueda del Bosque (aún ilegible)',
+    c1_intro: 'Capítulo 1: Las raíces enfermas', c1_done: 'El Linde de Brumaverde sana', gil_rescatado: 'Gil, el leñador, vuelve a la aldea',
     juramento: '«Velar sin atar» (Doña Musgo)', bernardo_visto: 'Bernardo, el portador del Peso', tercera_via: 'Tercera vía descubierta: «no hay que romper ni encerrar, hay que abrir»' },
   endings: { restaurar: 'Restaurar los sellos', destruir: 'Destruir los sellos', liberar: 'Liberar el Corazón Primordial' },   // finales (capítulo 8, aún no jugable): se guardan y validan desde ya
 };
@@ -4481,7 +4492,7 @@ const Story = {
   sanitize(st, s) {
     const flags = new Set([...(st && Array.isArray(st.flags) ? st.flags : []), ...Story.derived(s)].filter(id => STORY.flags[id]));
     const endings = (st && Array.isArray(st.endings) ? [...new Set(st.endings)] : []).filter(id => STORY.endings[id]);
-    return { flags: [...flags], endings, choices: StoryChain.sanitizeChoices(st && st.choices) };
+    return Object.assign({ flags: [...flags], endings, choices: StoryChain.sanitizeChoices(st && st.choices) }, Campaign.sanitize(st));
   },
 };
 /** Misión entregada al registro (la más reciente al final; como mucho LOG_MAX). */
@@ -4543,6 +4554,11 @@ const STORY_TALKS = {
     lines: s => s.story.choices.bernardo === 'liberar'
       ? ['¡Mi hermano! Veinte años y sigue contando el chiste del pico. No sé cómo darte las gracias.', 'Esta noche no se cierra la taberna. Y mañana… mañana bajamos juntos a ver la mina. Sin cavar.']
       : ['Dicen que lo has visto. Que está bien.', 'No me lo creo, pero gracias por decírmelo. Si un día se puede hacer algo por él, avísame.'] },
+  c1_intro: { station: 'intro', npc: 'Alcalde Bartolo', label: 'Capítulo 1', when: s => !!s.arrived && !s.story.flags.includes('c1_intro'), lines: s => CHAPTERS.c1.intro.map(l => l[1]), flags: ['c1_intro'] },
+  nara_c1: { station: 'nara', npc: 'Nara Vey', label: 'Preguntar por el bosque', when: s => s.story.flags.includes('c1_intro'),
+    lines: ['Nara Vey, guardabosques de Brumaverde. Llevo diez años cuidando ese bosque y nunca lo había visto así.', 'Los robles se pudren por dentro, la savia sale negra y las criaturas huyen cuesta arriba. En el Linde, el borde del bosque, hay rastros por todas partes: una raíz podrida, charcos de savia, huellas. Míralos tú misma, o tú mismo, y dime qué ves.'] },
+  nara_rastros: { station: 'nara', npc: 'Nara Vey', label: 'Contarle lo que has visto en el Linde', when: s => C1_RASTROS.every(id => s.codex.lore.includes(id)),
+    lines: ['Raíces podridas que siguen latiendo, savia negra que corre hacia el centro, huellas que huyen de él… No es una plaga. Algo, en el corazón del bosque, está enfermando la tierra.', 'Las raíces apuntan a una estela antigua en el primer claro del bosque, y más allá, a la guarida del Guardián de Espinas. Si el guardián ha enloquecido, todo el bosque lo hará con él.'] },
   ulula_tercera: { station: 'guild', npc: 'Maestra Ulula', label: 'Hablar del diario completo', when: s => s.story.flags.includes('tercera_via'),
     lines: ['Ulula cierra el libro de registro. «Irene escribió "abrir". No romper ni encerrar: abrir.»', '«Si alguien puede encontrar esa puerta, eres tú. Y cuando la encuentres, la quiero de vuelta. A ella, digo.»'] },
 };
@@ -4556,6 +4572,13 @@ const STORY_SITES = {
   irene_p1: { dungeon: 'bosque', floor: 4, hidden: true, title: 'Detrás de la pared hueca' },
   archivo_fieles: { dungeon: 'gruta', floor: 4, hidden: true, title: 'Archivo de los Fieles' },
   raiz_corazon: { dungeon: 'raices', floor: 5, hidden: true, title: 'Cámara del latido' },
+  // Capítulo 1 · Las raíces enfermas: el Linde (zona de exploración) y el primer piso del Bosque de Brumaverde
+  z_raiz: { dungeon: 'linde', floor: 1, hidden: false, title: 'Raíz podrida', lore: 'z_raiz' },
+  z_savia: { dungeon: 'linde', floor: 1, hidden: false, title: 'Savia negra', lore: 'z_savia' },
+  z_huellas: { dungeon: 'linde', floor: 1, hidden: false, title: 'Huellas cuesta arriba', lore: 'z_huellas' },
+  z_campamento: { dungeon: 'linde', floor: 1, hidden: false, title: 'Campamento de Gil', lore: 'z_campamento' },
+  estela_tibia: { dungeon: 'bosque', floor: 1, hidden: false, title: 'Estela tibia', lore: 'f_estela' },
+  refugio_gil: { dungeon: 'bosque', floor: 1, hidden: true, title: 'Refugio entre raíces' },
 };
 /** Reliquia de la poscampaña (una vez por perfil: guild claim relic:<id>). */
 const STORY_RELIC = { site: 'raiz_corazon', item: 'corazonRaiz' };
@@ -4568,7 +4591,7 @@ const StoryChain = {
    * en un nicho tras una pared falsa si se puede; si no, a la vista en una sala. Nunca falta.
    */
   place(ctx) {
-    const ids = this.sitesFor(ctx.dng.id, ctx.floorNo); ctx.L.story = ctx.L.story || [];
+    const ids = this.sitesFor(ctx.dng.id, ctx.floorNo).sort((a, b) => (STORY_SITES[b].hidden ? 1 : 0) - (STORY_SITES[a].hidden ? 1 : 0)); ctx.L.story = ctx.L.story || [];   // los ocultos primero (necesitan nicho)
     if (!ids.length) return;
     const rnd = ctx.storyRnd || ctx.rnd, c2 = Object.assign({}, ctx, { rnd });
     for (const id of ids) {
@@ -4677,7 +4700,15 @@ const StoryChain = {
         give('lemas', 'fuego'); give('memories', 'r2');
         if (has('pages', 'p4') && !has('pages', 'p5')) { out.text += ' Bajo el molde partido, una hoja chamuscada. ' + STORY_PAGES.p5.text; page('p5'); }
         break;
-      default: return null;
+      case 'refugio_gil':
+        out.title = STORY_SITES[id].title;
+        out.text = flagged(s, 'gil_rescatado') ? 'El refugio está vacío: Gil ya volvió a la aldea.'
+          : 'Detrás de las raíces, un hombre flaco con un hacha abrazada: Gil, el leñador. «¿Me buscaba Bartolo? Llevo cuatro días aquí. Las raíces se movían y no me dejaban salir… hasta que has roto esa pared.» Le indicas el camino de vuelta y se va corriendo hacia la aldea.';
+        give('flag', 'gil_rescatado'); break;
+      default: {
+        const S0 = STORY_SITES[id]; if (!S0 || !S0.lore) return null;
+        const l = Object.values(LORE).flat().find(q => q.id === S0.lore); out.title = l.title; out.text = l.text; give('lore', S0.lore); break;
+      }
     }
     out.gains.push(...this.check(s));
     return out;
@@ -4735,6 +4766,148 @@ const StoryChain = {
   titles(s) { const f = (s.story && s.story.flags) || []; return Object.keys(STORY_TITLES).filter(k => f.includes(k)).map(k => STORY_TITLES[k]); },
   sanitizeChoices(raw) { const out = {}; if (raw && typeof raw === 'object') for (const [k, v] of Object.entries(raw)) if (STORY_CHOICES[k] && typeof v === 'string' && STORY_CHOICES[k].options[v]) out[k] = v; return out; },
 };
+/* --- Campaña de Eldoria: capítulos y misiones de historia (0.45; diseño en docs/CAPITULO_1.md) ---------------
+   Un capítulo = introducción en la aldea, misión principal y secundarias. Cada paso se comprueba con HECHOS
+   guardados en la partida (textos leídos, conversaciones, jefes vencidos, contadores de la región), así lo que
+   se hizo ANTES de aceptar una misión también cuenta y no hay que repetir nada por no haber aceptado una
+   secundaria. Aceptar y entregar: operaciones del perfil (servidor: questAccept/questTurnIn) o la partida local.
+   Las recompensas se dan una sola vez por perfil (gremio: quest:<id>). Es el modelo para los capítulos siguientes. */
+const CHAPTERS = {
+  c1: { n: 1, title: 'Las raíces enfermas', region: 'bosque', zone: 'linde', regions: ['bosque', 'linde'], start: 'c1_intro', done: 'c1_done',
+    intro: [
+      ['Alcalde Bartolo', '¿Ya te tienes en pie? Bien, porque hacía falta. Esta mañana ha llegado una guardabosques del Bosque de Brumaverde, Nara Vey, con las botas negras de savia.'],
+      ['Alcalde Bartolo', 'Dice que los robles se pudren por dentro y que las criaturas bajan del bosque sin mirar a nadie. Si el bosque enferma, la aldea se queda sin leña, sin caza y sin camino.'],
+      ['Alcalde Bartolo', 'Ve al gremio. La Maestra Ulula está organizando una investigación y le falta gente. Nara Vey ha montado su campamento junto al camino del oeste.'],
+    ] },
+};
+/** Contadores del capítulo (criaturas de la región): cuentan siempre, aceptada o no la misión. */
+const STORY_COUNTERS = { c1_kills: 'Criaturas abatidas en Brumaverde', c1_elites: 'Élites abatidos en Brumaverde' };
+const lored = (s, id) => s.codex.lore.includes(id), talked = (s, id) => s.codex.talks.includes(id), flagged = (s, id) => s.story.flags.includes(id);
+const C1_RASTROS = ['z_raiz', 'z_savia', 'z_huellas'];
+/**
+ * Misiones de historia. giver: puesto donde se aceptan y entregan (guild = Ulula, nara = Nara Vey, mayor = Bartolo).
+ * offer(s): cuándo se ofrece. steps: { text, have(s), need }. reward: { exp, gems, items, rep }. flags: al entregarla.
+ */
+const CQUESTS = {
+  c1_main: { chapter: 'c1', main: true, giver: 'guild', npc: 'Maestra Ulula', title: 'Las raíces enfermas',
+    summary: 'El Bosque de Brumaverde se pudre por dentro. Investiga con Nara Vey, encuentra el origen y detenlo.',
+    offer: s => flagged(s, 'c1_intro'),
+    accept: ['El bosque se muere desde dentro y no sabemos por qué. No quiero héroes: quiero ojos.', 'Habla con Nara Vey en su campamento del camino del oeste. Ella conoce el Linde mejor que nadie. Busca rastros, apúntalo todo y vuelve con algo que pueda creerme.'],
+    steps: [
+      { text: 'Habla con Nara Vey en su campamento (camino del oeste)', have: s => talked(s, 'nara_c1') ? 1 : 0 },
+      { text: 'Examina los rastros de corrupción del Linde de Brumaverde', have: s => C1_RASTROS.filter(id => lored(s, id)).length, need: 3 },
+      { text: 'Cuéntale a Nara Vey lo que has encontrado', have: s => talked(s, 'nara_rastros') ? 1 : 0 },
+      { text: 'Encuentra la estela tibia en el primer piso del Bosque de Brumaverde', have: s => lored(s, 'f_estela') ? 1 : 0 },
+      { text: 'Vence al Guardián de Espinas en el corazón del bosque', have: s => s.cleared.includes('bosque') || ((s.bosses || {}).robleton || {}).kills > 0 ? 1 : 0 },
+    ],
+    done: ['Así que algo late bajo la estela y el guardián del bosque estaba enloquecido… No me gusta nada.', 'Has hecho buen trabajo. El gremio te paga, y la aldea te debe algo más que monedas: mira el camino del oeste.'],
+    reward: { exp: 320, gems: 260, items: ['brocheRoble'], rep: 30 }, flags: ['c1_done'] },
+  c1_poda: { chapter: 'c1', giver: 'nara', npc: 'Nara Vey', title: 'Poda de urgencia',
+    summary: 'Las criaturas enloquecidas bajan hacia la aldea. Nara Vey necesita que el Linde y el bosque respiren.',
+    offer: s => talked(s, 'nara_c1'),
+    accept: ['Las criaturas no atacan por hambre: huyen de algo y arrollan lo que encuentran.', 'Despeja doce de ellas en el Linde o en el bosque. No te pido que disfrutes; te pido que la aldea duerma tranquila.'],
+    steps: [{ text: 'Abate criaturas en Brumaverde (Linde o Bosque)', have: s => s.story.counters.c1_kills || 0, need: 12 }],
+    done: ['Doce menos. Las demás ya bajan con menos prisa. Gracias.'],
+    reward: { exp: 120, gems: 90, items: ['pocion', 'pocion'], rep: 10 } },
+  c1_elite: { chapter: 'c1', giver: 'nara', npc: 'Nara Vey', title: 'Espinas negras',
+    summary: 'Una zarza enorme, negra de savia, ronda el Linde. Nara Vey quiere saber si la podredumbre la ha hecho más fuerte.',
+    offer: s => talked(s, 'nara_c1'),
+    accept: ['Hay una zarza en el Linde que no es como las demás: más grande, más rápida, negra por dentro.', 'Si la abates, sabremos que la podredumbre no solo enferma: también endurece. Ten cuidado con sus espinas.'],
+    steps: [{ text: 'Abate a un élite en Brumaverde (ronda el Linde)', have: s => s.story.counters.c1_elites || 0, need: 1 }],
+    done: ['Tenía savia negra hasta en la raíz. Lo sospechaba. Toma: te lo has ganado.'],
+    reward: { exp: 150, gems: 120, items: ['tonicoEnergia'], rep: 10 } },
+  c1_lenador: { chapter: 'c1', giver: 'mayor', npc: 'Alcalde Bartolo', title: 'El leñador desaparecido',
+    summary: 'Gil, el leñador de la aldea, no ha vuelto del Linde. Bartolo teme lo peor.',
+    offer: s => flagged(s, 'c1_intro'),
+    accept: ['Gil, nuestro leñador, salió hace cuatro días hacia el Linde y no ha vuelto. Era el que escribía en ese diario que siempre llevaba encima.', 'Su campamento está en el Linde. Si lo encuentras… vivo o como sea, tráeme noticias.'],
+    steps: [
+      { text: 'Encuentra el campamento de Gil en el Linde de Brumaverde', have: s => lored(s, 'z_campamento') ? 1 : 0 },
+      { text: 'Busca a Gil en el primer piso del Bosque de Brumaverde', have: s => flagged(s, 'gil_rescatado') ? 1 : 0 },
+    ],
+    done: ['¡Gil está vivo! Escondido entre raíces, dice, como un conejo. Ya le he echado la bronca y le he dado de comer.', 'Esto es tuyo. Y Gil dice que te debe una carga de leña.'],
+    reward: { exp: 140, gems: 110, items: ['manzana', 'manzana', 'pocion'], rep: 10 } },
+  c1_irene: { chapter: 'c1', giver: 'guild', npc: 'Maestra Ulula', title: 'La marca de Irene',
+    summary: 'Una exploradora del gremio, Irene, desapareció en el bosque. Dejó marcas de tiza.',
+    offer: s => flagged(s, 'c1_intro'),
+    accept: ['Irene, una de las mías, bajó al bosque hace unas semanas y no volvió. Si ves una marca de tiza del gremio, léela.', 'Y después vienes a contármelo. Ella nunca escribía nada por escribir.'],
+    steps: [
+      { text: 'Lee la marca del gremio de Irene (Bosque, piso 3)', have: s => lored(s, 'f_explorador') ? 1 : 0 },
+      { text: 'Pregunta a Ulula por la marca', have: s => talked(s, 'ulula_irene') ? 1 : 0 },
+      { text: 'Encuentra lo que Irene escondió (Bosque, piso 4)', have: s => s.codex.pages.includes('p1') ? 1 : 0 },
+    ],
+    done: ['Así que estaba viva cuando escribió esto… y alguien la seguía.', 'Gracias. Guarda esas hojas; las vas a necesitar.'],
+    reward: { exp: 110, gems: 80, items: ['tonicoEnergia'], rep: 10 } },
+};
+
+const Campaign = {
+  fresh() { return { quests: {}, counters: {} }; },
+  ensure(s) {
+    StoryChain.ensure(s);
+    if (!s.story.quests || typeof s.story.quests !== 'object') s.story.quests = {};
+    if (!s.story.counters || typeof s.story.counters !== 'object') s.story.counters = {};
+    if (!Array.isArray(s.cleared)) s.cleared = [];
+    return s;
+  },
+  /** 'locked' · 'available' · 'active' · 'ready' (lista para entregar) · 'done'. */
+  state(s, id) {
+    this.ensure(s); const Q = CQUESTS[id]; if (!Q) return 'locked';
+    const st = s.story.quests[id];
+    if (st === 'done') return 'done';
+    if (st === 'active') return this.ready(s, id) ? 'ready' : 'active';
+    return Q.offer(s) ? 'available' : 'locked';
+  },
+  steps(s, id) { this.ensure(s); return CQUESTS[id].steps.map(p => { const need = p.need || 1, have = Math.min(need, p.have(s) || 0); return { text: p.text, have, need, ok: have >= need }; }); },
+  ready(s, id) { return this.steps(s, id).every(p => p.ok); },
+  /** Misiones de un puesto que se pueden aceptar, están en curso o se pueden entregar. */
+  at(s, station) { return Object.keys(CQUESTS).filter(id => CQUESTS[id].giver === station && ['available', 'active', 'ready'].includes(this.state(s, id))); },
+  /** Misiones del capítulo (para el diario). */
+  of(ch) { return Object.keys(CQUESTS).filter(id => CQUESTS[id].chapter === ch); },
+  accept(s, id) {
+    if (this.state(s, id) !== 'available') return null;
+    s.story.quests[id] = 'active';
+    const Q = CQUESTS[id];
+    return { id, npc: Q.npc, lines: Q.accept.slice(), ready: this.ready(s, id) };
+  },
+  /**
+   * Entregar: aplica monedas y reputación (una vez: quest:<id>) y devuelve lo que el que llama da en su sitio:
+   * la experiencia (gainExp) y los objetos (a la mochila; si no caben, su valor en monedas).
+   */
+  turnIn(s, id) {
+    if (this.state(s, id) !== 'ready') return null;
+    const Q = CQUESTS[id], first = Guild.claim(s, 'quest:' + id);
+    s.story.quests[id] = 'done';
+    for (const f of Q.flags || []) Story.flag(s, f);
+    const r = first ? Q.reward : { exp: 0, gems: 0, items: [], rep: 0 };
+    s.bank += r.gems; if (r.rep) Guild.addRep(s, r.rep);
+    const built = (Q.flags || []).includes('c1_done') ? ['El camino del oeste vuelve a estar verde: los árboles del Linde se recuperan y Nara Vey se queda en la aldea.'] : [];
+    return { id, npc: Q.npc, lines: Q.done.slice(), exp: r.exp, gems: r.gems, items: r.items.slice(), rep: r.rep, built };
+  },
+  /** Sucesos de las expediciones (los mismos que Quests.progress): contadores de la región del capítulo. */
+  event(s, kind, info) {
+    if (!s || !s.story || kind !== 'defeat' || info.boss || !info.dungeon) return [];
+    if (!Object.values(CHAPTERS).some(c => c.regions.includes(info.dungeon))) return [];
+    this.ensure(s);
+    const wasReady = Object.keys(CQUESTS).filter(id => this.state(s, id) === 'ready');
+    const c = s.story.counters; c.c1_kills = Math.min(9999, (c.c1_kills || 0) + 1); if (info.elite) c.c1_elites = Math.min(9999, (c.c1_elites || 0) + 1);
+    const now = Object.keys(CQUESTS).filter(id => this.state(s, id) === 'ready' && !wasReady.includes(id));
+    for (const id of now) UI.toast(`Misión lista para entregar: ${CQUESTS[id].title} (${CQUESTS[id].npc})`, '#7dffa0');
+    return now;
+  },
+  sanitize(st) {
+    const out = this.fresh(); if (!st || typeof st !== 'object') return out;
+    if (st.quests && typeof st.quests === 'object') for (const [k, v] of Object.entries(st.quests)) if (CQUESTS[k] && (v === 'active' || v === 'done')) out.quests[k] = v;
+    if (st.counters && typeof st.counters === 'object') for (const [k, v] of Object.entries(st.counters)) if (STORY_COUNTERS[k]) out.counters[k] = toInt(v, 0, 0, 9999);
+    return out;
+  },
+  /** Lo que comenta el alcalde según el capítulo. */
+  news(s) {
+    const n = []; if (!s.story) return n; const f = s.story.flags || [];
+    if (f.includes('c1_done')) n.push('¿Has visto el camino del oeste? Los árboles vuelven a echar hojas. Nara Vey dice que se queda una temporada: le gusta nuestra sopa.');
+    else if (f.includes('c1_intro')) n.push('Los árboles del camino del oeste están grises, como si les hubieran sacado la sangre. Ulula y Nara Vey están en ello.');
+    if (f.includes('gil_rescatado')) n.push('Gil ha vuelto a cortar leña, pero ahora solo de árboles muertos. Dice que los vivos «escuchan».');
+    return n;
+  },
+};
 /**
  * Migraciones del formato del perfil: MIGRATIONS[n] convierte una partida de la versión n en la n+1.
  * Se aplican en orden al leer (en el navegador y en el servidor) y nunca borran datos conocidos.
@@ -4767,6 +4940,12 @@ const SAVE_MIGRATIONS = {
     const out = Object.assign({}, s, { v: 9 });
     out.codex = Object.assign(Codex.fresh(), s.codex || {});
     out.story = Object.assign({ flags: [], endings: [] }, s.story || {}, { choices: {} });
+    return out;
+  },
+  // 9 → 10 (0.45): misiones de la campaña y contadores del capítulo (vacíos: lo ya hecho cuenta al comprobar cada paso)
+  9(s) {
+    const out = Object.assign({}, s, { v: 10 });
+    out.story = Object.assign({}, s.story || {}, { quests: {}, counters: {} });
     return out;
   },
 };
@@ -5375,6 +5554,7 @@ const FloorGen = {
     { const ids = (L.mechs || []).map(m => m.id); c.mechIdsUnique = new Set(ids).size === ids.length; }
     c.mechsInside = (L.mechs || []).every(m => (m.tx == null || (!solid(m.tx, m.ty) && roomOf(m.tx, m.ty))) && (m.type === 'ambush' || m.type === 'spikes' || m.type === 'hazard' || (m.tiles || []).every(i => world.tiles[i] !== T.STAIRS)));
     c.loreReachable = (L.lore || []).every(l => !solid(l.tx, l.ty) && R0[idx(l.tx, l.ty)]);
+    c.forcedPlaced = !(L.forceMissing && L.forceMissing.length);
     c.storyPlaced = StoryChain.sitesFor(L.dngId || '', L.floorNo || 0).every(id => (L.story || []).some(st => st.id === id)) && (L.story || []).every(st => !solid(st.tx, st.ty) && (st.hidden || R0[idx(st.tx, st.ty)]));
     const okAll = Object.entries(c).every(([k, v]) => k === 'mechDetail' || Boolean(v));
     return { ok: okAll, checks: c };
@@ -5402,6 +5582,12 @@ const LORE = {
   ],
 };
 
+LORE.zona = [
+  { id: 'z_raiz', title: 'Raíz podrida', text: 'Una raíz del grosor de un brazo sale de la tierra. Por fuera parece sana; al pisarla se hunde como fruta pasada. Dentro, algo late despacio y deja un olor dulce y frío.' },
+  { id: 'z_savia', title: 'Savia negra', text: 'Charcos de savia negra entre la hojarasca. No se secan. Si los sigues con la mirada, todos se estiran hacia el mismo sitio: el centro del bosque.' },
+  { id: 'z_huellas', title: 'Huellas cuesta arriba', text: 'Huellas de ratas, limos y hasta de un cuervo, todas en la misma dirección: alejándose del bosque. Ninguna vuelve. Algo las ha asustado más que el hambre.' },
+  { id: 'z_campamento', title: 'Campamento de Gil', text: 'Una hoguera apagada, una manta y un hacha clavada en un tocón. En la corteza alguien grabó con prisa: «Las raíces se mueven de noche. Me escondo en el primer claro. — Gil».' },
+];
 LORE.roots = [
   { id: 'r_latido', title: 'Raíz que late', text: 'Una raíz más gruesa que un tronco cruza la sala. Al apoyar la mano, late: despacio, muy despacio, como un corazón dormido del tamaño de una montaña.' },
   { id: 'r_tiza', title: 'Rayas de tiza', text: 'Rayas largas y cortas, el código de Irene, casi borradas: «Bajé hasta aquí. Las raíces llevan al centro. No las cortes: duele».' },
@@ -5419,12 +5605,41 @@ const DungeonPlan = {
   MINI: { roots: { variant: 'zarza', name: 'Zarza del Corazón', hp: 4 }, forest: { variant: 'zarza', name: 'Zarzal Madre', hp: 3 }, marsh: { variant: 'musgon', name: 'Musgón Viejo', hp: 3 }, cave: { variant: 'geodon', name: 'Geodón Antiguo', hp: 3 }, mine: { variant: 'ferron', name: 'Ferrón Capataz', hp: 3 }, volcano: { variant: 'basalton', name: 'Basaltón Ígneo', hp: 3 } },
   table(biome) { return this.ROLES[biome] || null; },   // etapa 1: solo Brumaverde; los demás biomas siguen con el generador de siempre hasta su etapa
 
+  /** Élite fijo de una zona (dng.fixedElite): en la sala libre más alejada de la entrada, con sitio a su alrededor. */
+  placeElite(ctx) {
+    const { rooms, start, stairsRoom, dng, L } = ctx, c2 = Object.assign({}, ctx, { rnd: ctx.storyRnd || ctx.rnd });
+    const byDist = list => list.sort((a, b) => Math.hypot(b.cx - start.cx, b.cy - start.cy) - Math.hypot(a.cx - start.cx, a.cy - start.cy));
+    const tries = [[r => r.type === 'normal' && !r.role && r !== stairsRoom, 2, 9], [r => r.type === 'normal' && r !== stairsRoom, 1, 8], [r => r !== start, 1, 7]];
+    for (const [ok, pad, dmin] of tries) for (const r of byDist(rooms.filter(q => q !== start && ok(q)))) {
+      for (let k = 0; k < 6; k++) {
+        const sp = Prefabs.spot(c2, r, pad); if (!sp) break;
+        if (Math.hypot(sp.tx - start.cx, sp.ty - start.cy) < dmin) continue;
+        L.enemies.push({ variant: dng.fixedElite, tx: sp.tx, ty: sp.ty, room: r.id, elite: true, eliteRoom: true, fixed: true }); if (!r.role) r.role = 'elite'; return true;
+      }
+    }
+    return false;
+  },
   /** Da papeles y aplica plantillas. Se llama dentro de FloorGen.buildNormal con su propio generador aleatorio. */
   apply(ctx) {
     const { rooms, start, stairsRoom, dng, floorNo, biome, rnd, L } = ctx;
     const T0 = this.table(biome.id), pick = a => a[Math.floor(rnd() * a.length)];
     L.mechs = L.mechs || []; L.lore = L.lore || []; L.alcoves = L.alcoves || []; L.events = L.events || [];
-    StoryChain.place(ctx);   // sitios fijos de la historia: antes que nada, en todos los biomas (docs/SECRETOS.md)
+    // Plantillas obligatorias del piso (dng.force): p. ej. el mecanismo ambiental garantizado del Linde. Van primero (piden salas grandes)
+    const free0 = () => rooms.filter(r => r.type === 'normal' && !r.role && r !== start && r !== stairsRoom);
+    for (const want of (dng.force && dng.force[floorNo]) || []) {   // cada entrada: una plantilla o una lista de alternativas (la primera que quepa)
+      let placed = false;
+      for (const pid of [].concat(want)) {
+        const P = Prefabs.list.find(p => p.id === pid); if (!P || placed) continue;
+        for (const r of free0().filter(q => q.w >= P.min[0] && q.h >= P.min[1]).sort((a, b) => b.w * b.h - a.w * a.h)) {
+          const snap = Prefabs.snapshot(ctx);
+          if (P.build(Object.assign({}, ctx, { room: r, P }))) { r.role = P.role; r.prefab = P.id; placed = true; break; }
+          Prefabs.restore(ctx, snap);
+        }
+      }
+      if (!placed) L.forceMissing = (L.forceMissing || []).concat([[].concat(want).join('|')]);
+    }
+    StoryChain.place(ctx);   // sitios fijos de la historia: en todos los biomas (docs/SECRETOS.md)
+    if (dng.fixedElite) this.placeElite(ctx);   // élite fijo de una zona (misión «Espinas negras»): siempre aparece
     if (!T0) { for (const r of rooms) r.role = r.type === 'start' ? 'start' : r.type === 'treasure' ? 'treasure' : r.type === 'shop' ? 'shop' : r.type === 'monsterhouse' ? 'ambush' : 'combat'; return; }
     const free = () => rooms.filter(r => r.type === 'normal' && !r.role && r !== start);
     const tryRole = (role, list) => {
@@ -6110,7 +6325,8 @@ const isLegacyJob = j => LEGACY_JOBS.includes(j.type);
 const Quests = {
   /** Registra un suceso y avanza las misiones aceptadas que encajan. Devuelve las misiones completadas ahora. */
   progress(g, kind, info) {
-    const s = g.save; if (!s || !s.jobs) return [];
+    const s = g.save; if (s) Campaign.event(s, kind, info);   // contadores de la campaña (cuentan siempre)
+    if (!s || !s.jobs) return [];
     const done = [];
     for (const j of s.jobs) {
       if (isLegacyJob(j) || j.state === 'done') continue;
@@ -6137,6 +6353,6 @@ const Quests = {
 };
 
 
-  return { CONFIG, U, T, SOLID, TILE_NAMES, World, Particles, CLASSES, CLASS_STATS, ELITE, eliteChance, floorEnemies, FAMILIES, Deco, Terrain, ALLY_ABILITY, canEquip, OLD_EQUIP_SLOTS, FRACTION_STATS, fmtStat, DMG, classMoves, groundTarget, SPECIES, EVOLVED, FORMS, Progress, EVOLUTIONS, EVO_ITEM_MIN_LEVEL, Combat, Effects, Projectile, Zone, BLOCKS_SHOT, TYPES, TYPE_CHART, typeEff, calcStats, MAX_LEVEL, expNeed, expYield, MOVES, BossKit, BossArena, GROMGAR, BOSS_MIN_TELE, DungeonPlan, Prefabs, MechSolver, Mechs, LORE, SOLVER_TILES_PER_S, BOONS, Boons, BOSS_RAGE, GEODA, Geoda, Boulder, Actor, Player, Enemy, STOP, ENEMIES, ENEMY_VARIANTS, makeKind, BOSSES, makeBossKind, BIOMES, RARITIES, CATEGORIES, EQUIP_SLOTS, ITEMS, QUICK, RARITY_ORDER, STAT_NAMES, BASE_SHOP, SHOP_TIERS, shopStock, sellPrice, RECIPES, newUid, LOOT, Loot, Inventory, finalStats, freshEquip, equipRegen, TRAPS, DUNGEONS, dungeonById, dungeonOpen, COURIER_INTRO, enemyLevel, RANKS, rankOf, weighted, Jobs, ECONOMY, SAVE_VERSION, SAVE_MIGRATIONS, checksum, Save, FloorGen, hashStr, Codex, Story, STORY, logJob, isRelic, LOG_MAX, Guild, Town, TOWN_UPGRADES, FORGE_STOCK, forgeStock, RegionEvents, REGION_EVENTS, RANK_STARS, RANK_TITLES, GUILD_REP, SEAL_LEMAS, SEAL_OF, STORY_PAGES, STORY_MEMORIES, OFFERINGS, STORY_CHOICES, STORY_TALKS, STORY_TITLES, STORY_SITES, STORY_RELIC, StoryChain, RECRUIT, ORDERS, gridPath, Companion, LEGACY_JOBS, isLegacyJob, Quests };
+  return { CONFIG, U, T, SOLID, TILE_NAMES, World, Particles, CLASSES, CLASS_STATS, ELITE, eliteChance, floorEnemies, FAMILIES, Deco, Terrain, ALLY_ABILITY, canEquip, OLD_EQUIP_SLOTS, FRACTION_STATS, fmtStat, DMG, classMoves, groundTarget, SPECIES, EVOLVED, FORMS, Progress, EVOLUTIONS, EVO_ITEM_MIN_LEVEL, Combat, Effects, Projectile, Zone, BLOCKS_SHOT, TYPES, TYPE_CHART, typeEff, calcStats, MAX_LEVEL, expNeed, expYield, MOVES, BossKit, BossArena, GROMGAR, BOSS_MIN_TELE, DungeonPlan, Prefabs, MechSolver, Mechs, LORE, SOLVER_TILES_PER_S, BOONS, Boons, BOSS_RAGE, GEODA, Geoda, Boulder, Actor, Player, Enemy, STOP, ENEMIES, ENEMY_VARIANTS, makeKind, BOSSES, makeBossKind, BIOMES, RARITIES, CATEGORIES, EQUIP_SLOTS, ITEMS, QUICK, RARITY_ORDER, STAT_NAMES, BASE_SHOP, SHOP_TIERS, shopStock, sellPrice, RECIPES, newUid, LOOT, Loot, Inventory, finalStats, freshEquip, equipRegen, TRAPS, DUNGEONS, dungeonById, dungeonOpen, COURIER_INTRO, enemyLevel, RANKS, rankOf, weighted, Jobs, ECONOMY, SAVE_VERSION, SAVE_MIGRATIONS, checksum, Save, FloorGen, hashStr, Codex, Story, STORY, logJob, isRelic, LOG_MAX, Guild, Town, TOWN_UPGRADES, FORGE_STOCK, forgeStock, RegionEvents, REGION_EVENTS, RANK_STARS, RANK_TITLES, GUILD_REP, SEAL_LEMAS, SEAL_OF, STORY_PAGES, STORY_MEMORIES, OFFERINGS, STORY_CHOICES, STORY_TALKS, STORY_TITLES, STORY_SITES, STORY_RELIC, StoryChain, CHAPTERS, CQUESTS, STORY_COUNTERS, Campaign, RECRUIT, ORDERS, gridPath, Companion, LEGACY_JOBS, isLegacyJob, Quests };
 }
-export const SOURCE_HASH = '6b35b39eb0b0cfd6';
+export const SOURCE_HASH = '17e3ac3891ef5ee5';

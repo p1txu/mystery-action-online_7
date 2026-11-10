@@ -1,16 +1,14 @@
 {
-  "build": 44,
-  "version": "0.44",
+  "build": 45,
+  "version": "0.45",
   "date": "2026-11-10",
   "notes": [
-    "Secretos de la historia: la marca de Irene, un nido de cuervo y una pared hueca en el Bosque, y el Archivo de los Fieles en la Gruta. Siempre están en el mismo piso, en cualquier partida; lo que cambia es si ya sabes leerlos.",
-    "Cadena oculta «El diario de Irene»: pregunta a Ulula por la marca, encuentra las cinco páginas del diario y descubre la tercera vía. Da un título nuevo, «Lector del diario de Irene», que se elige en el gremio.",
-    "Al vencer a cada guardián aparece la rueda de su sello junto a la salida, con su lema. Algunas guardan un recuerdo del pasado y una página.",
-    "En la Mina conocerás a Bernardo, el hermano del alcalde, y tendrás que decidir qué hacer con él. Bartolo lo recordará.",
-    "Ofrendas de los guardianes: vence a Robletón enredado, a la Reina Geoda aturdida o a Gromgar derribado para conseguirlas.",
-    "Registro de descubrimientos en el gremio: diario, sellos, recuerdos, ofrendas, decisiones y lo que falta para la tercera vía.",
-    "Nueva mazmorra opcional tras el Cráter: Raíces Hondas, con más élites, pisos oscuros, la Cámara del latido (reliquia «Corazón de raíz») y el Eco de Robletón, cuyas raíces te persiguen.",
-    "Corregido: la Corona de Espinas, el trofeo de Robletón, ahora se entrega al vencerle por primera vez.",
-    "En grupo, cada jugador lee los secretos y decide con su propia partida. Todo se puede hacer en solitario."
+    "Capítulo 1 «Las raíces enfermas»: el Alcalde Bartolo te recibe, la Maestra Ulula organiza la investigación y Nara Vey, la guardabosques, te espera en su campamento del camino del oeste.",
+    "Nueva zona de exploración, el Linde de Brumaverde: un piso sin guardián con rastros de la podredumbre, el campamento abandonado de Gil, un mecanismo del bosque y la Zarza negra, un élite. Se sale por el sendero cuando quieras.",
+    "Misión principal del capítulo y cuatro secundarias: «Poda de urgencia», «Espinas negras», «El leñador perdido» y «La exploradora del gremio». Lo que hayas hecho antes de aceptarlas también cuenta, y ninguna bloquea la principal.",
+    "En el primer piso del Bosque te esperan la Estela tibia y un refugio escondido.",
+    "Al completar el capítulo, los árboles enfermos del oeste de la aldea sanan.",
+    "El Bosque Brumoso pasa a llamarse Bosque de Brumaverde.",
+    "Registro del capítulo en el gremio, con los pasos de cada misión. En grupo, cada jugador acepta, avanza y cobra sus misiones con su propia partida."
   ]
 }

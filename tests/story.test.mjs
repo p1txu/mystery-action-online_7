@@ -112,7 +112,7 @@ test('servidor: dos jugadores en el piso 4 del Bosque; cada uno lee el sitio con
   let x = null;
   for (let seed = 1; seed < 40 && !x; seed++) { const y = new Expedition({ dungeonId: 'bosque', seed, members: party([a, b]), random: seeded(3) }); const i = y.seq.findIndex(q => q.kind === 'normal' && q.floorNo === 4); if (i < 0) continue; y.loadStep(i); x = y; }
   assert.ok(x); assert.equal(x.story.length, 1);
-  x.g.actors = x.g.actors.filter(e => !(e instanceof E.Enemy)); x.drainEvents();
+  x.g.actors = x.g.actors.filter(e => !(e instanceof x.E.Enemy)); x.drainEvents();
   const st = x.story[0], [ma, mb] = [...x.members.values()];
   // La pared falsa se rompe a golpes (es de todos)
   const fw = x.mechs.list.find(m => m.type === 'falsewall'), W = x.L.w;

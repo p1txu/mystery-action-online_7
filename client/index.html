@@ -179,7 +179,7 @@ h1 span{display:block;color:var(--amber)}
 .rankbar div{height:100%;background:var(--amber)}
 .base-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:16px;align-items:start}
 #base[data-st] .box[data-in]{display:none}
-#base[data-st="guild"] .box[data-in~="guild"],#base[data-st="shop"] .box[data-in~="shop"],#base[data-st="rest"] .box[data-in~="rest"],#base[data-st="board"] .box[data-in~="board"],#base[data-st="gate"] .box[data-in~="gate"],#base[data-st="camp"] .box[data-in~="camp"]{display:grid}
+#base[data-st="guild"] .box[data-in~="guild"],#base[data-st="shop"] .box[data-in~="shop"],#base[data-st="rest"] .box[data-in~="rest"],#base[data-st="board"] .box[data-in~="board"],#base[data-st="gate"] .box[data-in~="gate"],#base[data-st="camp"] .box[data-in~="camp"],#base[data-st="nara"] .box[data-in~="nara"]{display:grid}
 .npc-line{color:var(--ink);font-size:.9rem;font-style:italic}
 .qbar{display:block;height:5px;border-radius:3px;background:#24362b;overflow:hidden;margin-top:4px}
 .qbar i{display:block;height:100%;background:#7dffa0}
@@ -471,6 +471,8 @@ h2{color:var(--gold)}
         <div class="box" data-in="board"><h3>Tablón de misiones <small>Se renueva tras cada expedición</small></h3><ul class="rowlist" id="jobs-board"></ul></div>
         <div class="box" data-in="gate"><h3>Mazmorras <small>Cada visita genera pisos nuevos</small></h3><div id="dng-list" style="display:grid;gap:8px"></div></div>
         <div class="box" data-in="camp gate" id="camp-box"><h3>Compañeros <small id="camp-count"></small></h3><p class="hint-line">En la mazmorra: <span class="kbd">1</span> seguir · <span class="kbd">2</span> atacar al enemigo apuntado · <span class="kbd">3</span> mantener posición.</p><ul class="rowlist" id="camp-list"></ul></div>
+        <div class="box" data-in="nara" id="nara-box"><h3>Nara Vey <small>Guardabosques de Brumaverde</small></h3><p class="hint-line">Conoce el Linde y el bosque mejor que nadie. Pregúntale por los rastros que encuentres.</p><div id="nara-talks"></div><div id="nara-quests"></div></div>
+        <div class="box codex" data-in="guild" id="chapter-box"><h3 id="chapter-h">Campaña</h3><div id="guild-quests"></div><div id="chapter-log"></div></div>
         <div class="box" data-in="rest" id="rest-box"><h3>Zona de descanso <small>Gratis</small></h3><p class="hint-line">Descansar recupera los PS y la energía del líder y reanima a los compañeros debilitados. El progreso se guarda.</p><ul class="relic-list" id="rest-status"></ul><div id="rest-talks"></div><button id="btn-rest" class="btn-main" style="justify-self:start">Descansar junto al fuego</button></div>
         <div class="box" data-in="rest" id="team-box">
           <h3><span id="team-name">Equipo</span> <small id="team-level"></small></h3>

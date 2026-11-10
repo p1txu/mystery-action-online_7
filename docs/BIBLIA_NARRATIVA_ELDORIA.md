@@ -36,7 +36,7 @@ En cada archivo, lo que no lleva etiqueta toma la que indica la cabecera del arc
 
 ## 1. La historia en una página
 
-**[CANON]** Un desconocido aparece medio muerto en el linde del Bosque Brumoso y despierta en la Aldea Raíz, un antiguo pueblo minero que vive de sus exploradores. El bosque se pudre por dentro, las criaturas huyen cuesta arriba y bajo una estela algo late. Un carro quemado lleva un sol de siete rayos con uno tachado a cuchillo. Irene, del gremio, bajó al bosque y no volvió, y su hebilla de la Orden acabó en un nido. En un claro, siete piedras rodean a una más pequeña, con flores frescas y sin huellas. Siete sellos contienen el Corazón Primordial, y el Custodio Sin Rostro es el antagonista.
+**[CANON]** Un desconocido aparece medio muerto en el linde del Bosque de Brumaverde y despierta en la Aldea Raíz, un antiguo pueblo minero que vive de sus exploradores. El bosque se pudre por dentro, las criaturas huyen cuesta arriba y bajo una estela algo late. Un carro quemado lleva un sol de siete rayos con uno tachado a cuchillo. Irene, del gremio, bajó al bosque y no volvió, y su hebilla de la Orden acabó en un nido. En un claro, siete piedras rodean a una más pequeña, con flores frescas y sin huellas. Siete sellos contienen el Corazón Primordial, y el Custodio Sin Rostro es el antagonista.
 
 **[PROPUESTA]** El origen de todo:
 
@@ -112,6 +112,8 @@ También son canon y se conservan todos los textos, diálogos, vecinos, mazmorra
 | **P-11** | Regiones nuevas | Abadía Hueca, Cumbres del Hielo Quieto, Santuario del Origen y Raíces Hondas (poscampaña) | Otros nombres o lugares |
 | **P-12** | Hilos de vecinos | Irene viva en el hielo; Doña Musgo, antigua novicia; Lino, correo secreto; Tobías, engañado; Tito guarda el colgante | Cualquiera de ellos por separado |
 | **P-13** | Decisiones en grupo | Votación; cada perfil guarda su voto; desempate a favor del juramento | Decide el líder del grupo |
+| **P-14** | Nara Vey | Guardabosques de Brumaverde, aliada del capítulo 1, con campamento en el camino del oeste. Da las secundarias de combate | Que su papel lo cumpla un vecino existente (Centinela Roco) |
+| **P-15** | Gil, el leñador | Vecino que desaparece en el Linde; su refugio escondido en el Bosque abre la secundaria de Bartolo | Sin leñador: la secundaria de Bartolo busca otra pista |
 
 ## 5. Lo que ya está en el juego (0.44)
 
@@ -135,6 +137,14 @@ En la 0.44 entró en el juego una parte de las propuestas. Se tomó la biblia co
 | Tercera vía | Se marca como descubierta con lo que existe hoy. Da el título «Lector del diario de Irene» | Jugar el final necesita los capítulos 6 a 8 |
 | Raíces Hondas y el Eco de Robletón | Mazmorra opcional tras el Cráter, con la Cámara del latido y la reliquia «Corazón de raíz» | Se abre tras el Cráter mientras no exista el capítulo 8 |
 
+### Capítulo 1 jugable (0.45)
+
+«Las raíces enfermas» ya se juega entero. Detalle en [docs/CAPITULO_1.md](CAPITULO_1.md).
+
+- **Nombre del bosque:** «Bosque de Brumaverde» sustituye a «Bosque Brumoso». Lo cambió el autor, así que es canon.
+- **Piezas nuevas (propuestas, no canon):** el Linde de Brumaverde (zona de exploración), Nara Vey (P-14) y Gil (P-15).
+- **Textos canon:** no se ha cambiado ninguno.
+
 ## Nombres oficiales
 
 | Tipo | Nombres |
@@ -142,11 +152,11 @@ En la 0.44 entró en el juego una parte de las propuestas. Se tomó la biblia co
 | Mundo y pueblos | Eldoria **[CANON]** · Vélida, velidios, letras velidias · la Madre Honda · el Origen |
 | Acontecimientos | la Fractura · el sellado · el derrumbe de la Mina (681 d. F.) · la traición (702 d. F.) · la emboscada |
 | Organizaciones | Gremio de exploradores **[CANON]** · Orden del Sol de Siete Rayos («la Orden», **[CANON]** la Orden) · los Fieles · Hermandad del Rayo Tachado |
-| Lugares | Aldea Raíz, Bosque Brumoso, Gruta de Cuarzo, Ciénaga Sombría, Mina Olvidada, Cráter Ceniciento **[CANON]** · Abadía de los Siete / Abadía Hueca · Cumbres del Hielo Quieto · Santuario del Origen · Raíces Hondas · Forja de los Siete · Archivo de los Fieles · Camino del Sur |
+| Lugares | Aldea Raíz, Bosque de Brumaverde, Gruta de Cuarzo, Ciénaga Sombría, Mina Olvidada, Cráter Ceniciento **[CANON]** · Abadía de los Siete / Abadía Hueca · Cumbres del Hielo Quieto · Santuario del Origen · Linde de Brumaverde · Raíces Hondas · Forja de los Siete · Archivo de los Fieles · Camino del Sur |
 | Sellos | Raíz, Luz, Memoria, Peso, Fuego, Palabra, Quietud |
 | Fundadores | Mirla Robleda, Teodric el Tallador, Hesse del Estanque, Brann Picoferro, Ondra Brasa, Anselmo, Ilse de las Cumbres, Aurel |
 | Vecinos **[CANON]** | Alcalde Bartolo, Maestra Ulula, Mercader Tobías, Cartero Lino, Doña Musgo, Centinela Roco, Tito Brote, Herrera Brasa |
-| Personajes nuevos | Irene (**[CANON]** el nombre), Bernardo, Hermana Odila, Fausto, Mara, Ilario, Prior Casiano |
+| Personajes nuevos | Irene (**[CANON]** el nombre), Nara Vey (P-14), Gil el leñador (P-15), Bernardo, Hermana Odila, Fausto, Mara, Ilario, Prior Casiano |
 | Guardianes | Robletón el Guardián de Espinas, Reina Geoda, Ciénago, Gromgar el Quebrantamontañas, Magmatrón **[CANON]** · Prior Hueco, Reina del Hielo Quieto, Custodio Sin Rostro, Heraldo del Origen **[CANON]** (previstos) · Viuda del Estanque, Coloso Forjado (previstos, P-05) |
 | Objetos de historia | Hebilla de Irene · Diario de Irene (7 páginas) · Colgante de portador · Casco de Bernardo · Ofrendas: Bellota de Mirla, Prisma de Teodric, Perla de Hesse, Clavija de Brann, Ascua de Ondra, Hebilla de Anselmo, Copo quieto de Ilse |
 
@@ -157,3 +167,4 @@ En la 0.44 entró en el juego una parte de las propuestas. Se tomó la biblia co
 | 2026-11-09 | Todos | Primer borrador completo, reconstruido a partir del juego 0.43, `docs/` y el proyecto. Canon separado de las propuestas | Pendiente de aprobación |
 | 2026-11-09 | E | El Custodio pasa a antagonista con motivos comprensibles (en el borrador del documento compartido era un guardián neutral) | Pendiente (P-01) |
 | 2026-11-10 | 5 (nuevo), C, H, I, J | La cadena de Irene en los capítulos 1 a 5, las ruedas, los recuerdos 1 y 2, Bernardo, las ofrendas 1 a 3, Raíces Hondas y el Eco de Robletón entran en el juego (0.44). Textos nuevos: páginas 1 a 5, lemas, recuerdos, conversaciones y textos de Raíces Hondas. Las páginas 2 a 5 son anteriores a la emboscada | Implementado; pendiente de aprobación como canon |
+| 2026-11-10 | 4, 5, Nombres | Capítulo 1 «Las raíces enfermas» jugable (0.45). El Bosque Brumoso pasa a llamarse Bosque de Brumaverde, por decisión del autor. Nuevos: Linde de Brumaverde, Nara Vey (P-14), Gil el leñador (P-15) | Implementado. El cambio de nombre es canon; P-14 y P-15 están pendientes de aprobación |

@@ -77,6 +77,7 @@ function describe(op, info = {}) {
     case 'sell': return `Has vendido ${I(info.id)} por ${info.price} monedas`;
     case 'craft': return `Has fabricado: ${I(info.out)}`;
     case 'appraise': return `El cofre contenía ${info.gems} monedas${info.items && info.items.length ? ' y ' + info.items.map(I).join(', ') : ''}`;
+    case 'questTurnIn': return info.levels && info.levels.length ? `¡Nivel ${info.levels.at(-1)}!` : '';
     case 'setTitle': return `Título: ${info.title}`;
     case 'deliverJob': return `¡Misión entregada! +${info.reward.gems} monedas, +${info.reward.exp} EXP${info.levels && info.levels.length ? ` · ¡Nivel ${info.levels.at(-1)}!` : ''}`;
     case 'rest': return info.revived ? `Habéis descansado. ${info.revived} compañero(s) recuperado(s).` : 'Habéis descansado.';

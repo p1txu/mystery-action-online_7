@@ -9,7 +9,7 @@
 ## Mazmorras (curva de dificultad)
 | Mazmorra | Pisos | Nivel enemigos | Guardián (nivel) | Se abre al completar |
 |---|---|---|---|---|
-| Bosque Brumoso | 5 | 3–5 | Robletón (7) | — |
+| Bosque de Brumaverde | 5 | 3–5 | Robletón (7) | — |
 | Gruta de Cuarzo | 6 | 5–7 | Reina Geoda (9) | Bosque |
 | Ciénaga Sombría (nueva) | 7 | 8–11 | Ciénago (13) | Gruta |
 | Mina Olvidada (nueva) | 8 | 11–14 | Gromgar, el Quebrantamontañas (16) | Ciénaga |

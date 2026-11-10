@@ -54,7 +54,7 @@ export class Expedition {
     this.seed = seed >>> 0; this.random = random; this.id = expeditionId;
     this.seq = [];
     for (let f = 1; f <= this.dng.floors; f++) { this.seq.push({ kind: 'normal', floorNo: f }); if (f === this.dng.waypoint) this.seq.push({ kind: 'waypoint', floorNo: f }); }
-    this.seq.push({ kind: 'boss', floorNo: this.dng.floors + 1 });
+    if (!this.dng.zone) this.seq.push({ kind: 'boss', floorNo: this.dng.floors + 1 });   // las zonas de exploración no tienen guarida
     this.members = new Map();
     for (const m of members) this.addMember(m);
     this.events = []; this.ended = null; this.time = 0; this.nextId = 1; this.floorCount = 0; this.atkN = 0;
@@ -333,7 +333,7 @@ export class Expedition {
 
   nextStep() {
     for (const m of this.members.values()) if (!m.left) m.rewards.floors++;
-    if (this.stepIdx + 1 >= this.seq.length) return this.finish('clear');
+    if (this.stepIdx + 1 >= this.seq.length) return this.finish(this.dng.zone ? 'return' : 'clear');   // zona: el sendero vuelve a la aldea
     this.loadStep(this.stepIdx + 1);
   }
 

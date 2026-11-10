@@ -48,7 +48,7 @@ idle ──(elige ataque)──▶ aviso (windup) ──▶ acción ──▶ re
 
 Sustituye a Picoferro como guardián de la Mina Olvidada.
 
-## Robletón, el Guardián de Espinas (Bosque Brumoso)
+## Robletón, el Guardián de Espinas (Bosque de Brumaverde)
 
 Es el mismo BossKit con otro escenario. El nombre de la biblia se mantiene y «Guardián de Espinas» pasa a ser su título.
 

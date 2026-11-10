@@ -12,8 +12,8 @@ test('comprar y vender: precio, existencias de la tienda, monedas e inventario l
   assert.equal(r.save.bank, s.bank - E.ITEMS.pocion.price); assert.equal(new E.Inventory(r.save.inv, () => 99).count('pocion'), new E.Inventory(s.inv, () => 99).count('pocion') + 1);
   assert.throws(() => op(s, 'buy', { id: 'bayaAurea' }), RuleError, 'no está en la tienda de este rango');
   assert.throws(() => op(freshSave('guerrero', { bank: 0, cleared: ['bosque'] }), 'buy', { id: 'pocion' }), /monedas/);
-  assert.throws(() => op(freshSave('guerrero', { bank: 5000 }), 'buy', { id: 'pocion' }), /Bosque Brumoso/, 'sin el mercader Tobías no hay tienda');
-  assert.throws(() => op(freshSave('guerrero', { bank: 5000 }), 'craft', { i: 0 }), /Bosque Brumoso/);
+  assert.throws(() => op(freshSave('guerrero', { bank: 5000 }), 'buy', { id: 'pocion' }), /Bosque de Brumaverde/, 'sin el mercader Tobías no hay tienda');
+  assert.throws(() => op(freshSave('guerrero', { bank: 5000 }), 'craft', { i: 0 }), /Bosque de Brumaverde/);
   const uid = s.inv.find(x => x.id === 'manzana').uid;
   const v = op(s, 'sell', { uid });
   assert.equal(v.save.bank, s.bank + E.sellPrice('manzana')); assert.equal(v.info.price, E.sellPrice('manzana'));

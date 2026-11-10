@@ -9,8 +9,8 @@
  */
 export class RuleError extends Error { constructor(message) { super(message); this.name = 'RuleError'; } }
 const need = (cond, msg) => { if (!cond) throw new RuleError(msg); };
-/** La tienda y el taller del mercader Tobías llegan a la aldea al completar el Bosque Brumoso. */
-const shopOpen = s => need(Array.isArray(s.cleared) && s.cleared.includes('bosque'), 'El puesto del mercader Tobías aún está vacío: completa el Bosque Brumoso');
+/** La tienda y el taller del mercader Tobías llegan a la aldea al completar el Bosque de Brumaverde. */
+const shopOpen = s => need(Array.isArray(s.cleared) && s.cleared.includes('bosque'), 'El puesto del mercader Tobías aún está vacío: completa el Bosque de Brumaverde');
 const str = (v, max = 64) => typeof v === 'string' && v.length > 0 && v.length <= max;
 
 /** Experiencia con subidas de nivel y movimientos nuevos (como Game.gainExp + levelUp). */
@@ -135,6 +135,22 @@ export const OPS = {
   talk(E, s, { id }) {
     need(str(id, 40) && Object.prototype.hasOwnProperty.call(E.STORY_TALKS, id), 'Conversación no válida');
     const r = E.StoryChain.talk(s, id); need(r, 'Ahora no tiene nada que contarte');
+    return r;
+  },
+  /** Misión de la campaña: aceptarla (mismas reglas que Game.questAccept: Campaign.accept). */
+  questAccept(E, s, { id }) {
+    need(str(id, 40) && Object.prototype.hasOwnProperty.call(E.CQUESTS, id), 'Misión no válida');
+    const r = E.Campaign.accept(s, id); need(r, 'Esa misión no se puede aceptar ahora');
+    return r;
+  },
+  /** Entregar una misión de la campaña: EXP, monedas, objetos (si no caben, su valor) y reputación, una vez. */
+  questTurnIn(E, s, { id }) {
+    need(str(id, 40) && Object.prototype.hasOwnProperty.call(E.CQUESTS, id), 'Misión no válida');
+    const r = E.Campaign.turnIn(s, id); need(r, 'Esa misión aún no está lista para entregar');
+    const inv = bagOf(E, s); r.got = [];
+    for (const it of r.items) { if (inv.add(it) > 0) r.got.push(E.ITEMS[it].name); else { s.bank += E.sellPrice(it); r.got.push(`${E.ITEMS[it].name} (vendido: inventario lleno)`); } }
+    E.Codex.relicsIn(s, r.items);
+    const xp = gainExp(E, s, r.exp); r.levels = xp.levels;
     return r;
   },
   /** Título del gremio o de la historia (cosmético). '' = el del rango actual. */

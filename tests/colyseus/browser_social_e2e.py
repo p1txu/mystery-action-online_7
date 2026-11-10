@@ -65,6 +65,19 @@ async def main():
                 await pg.wait_for_function("MysteryAction.state === 'play' && MysteryAction.mode === 'village' && !MysteryAction.cine && !!MysteryAction.account", timeout=8000)
                 await pg.wait_for_function("MysteryAction.save.arrived === true", timeout=5000)
                 await pg.wait_for_selector('#social-btn:not([hidden])', timeout=6000)
+            # Capítulo 1: la introducción de Bartolo sale una vez por cuenta nueva; se lee entera (tres diálogos)
+            intro = {}
+            for name, pg in pages.items():
+                await pg.wait_for_function("MysteryAction.save.codex.talks.includes('c1_intro') || (!document.getElementById('dialog').hidden && document.getElementById('dialog-text').textContent.includes('Alcalde Bartolo'))", timeout=15000)
+                seen = []
+                for k in range(8):
+                    if await pg.evaluate("MysteryAction.save.codex.talks.includes('c1_intro')"): break
+                    if await pg.evaluate("!document.getElementById('dialog').hidden"):
+                        seen.append(await pg.inner_text('#dialog-text')); await pg.click('#dialog-btn-0')
+                    await pg.wait_for_timeout(400)
+                await pg.wait_for_function("MysteryAction.save.codex.talks.includes('c1_intro')", timeout=6000)
+                intro[name] = seen
+            check('capítulo 1: la introducción de Bartolo sale a cada cuenta nueva y queda vista en su perfil', any(intro.values()), intro)
             # La llegada queda guardada en el SERVIDOR: al volver a entrar no se repite
             await B.evaluate("MysteryAction.goBase()"); await B.wait_for_timeout(500)
             check('la escena de llegada no se repite (guardado en el perfil del servidor)', not await B.evaluate("!!MysteryAction.cine") and await B.evaluate("MysteryLobby.profile && MysteryAction.save.arrived"))

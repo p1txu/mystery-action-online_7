@@ -26,7 +26,7 @@ const byAcc = (x, a) => [...x.members.values()].find(m => m.accountId === a);
 test('perfil v7+: partida nueva con registro, códice e historia vacíos', () => {
   const s = freshSave('arquero');
   assert.equal(s.v, E.SAVE_VERSION); assert.ok(E.SAVE_VERSION >= 7);
-  assert.deepEqual(s.codex, { lore: [], secrets: [], relics: [], pages: [], lemas: [], memories: [], talks: [], offerings: [] }); assert.deepEqual(s.log, { jobs: [] }); assert.deepEqual(s.story, { flags: [], endings: [], choices: {} });
+  assert.deepEqual(s.codex, { lore: [], secrets: [], relics: [], pages: [], lemas: [], memories: [], talks: [], offerings: [] }); assert.deepEqual(s.log, { jobs: [] }); assert.deepEqual(s.story, { flags: [], endings: [], choices: {}, quests: {}, counters: {} });
 });
 
 test('migración 6 → 7 (y siguientes): no se pierde nada; reliquias que ya tenía e historia vivida se apuntan; repetirla no cambia nada', () => {

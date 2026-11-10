@@ -64,9 +64,9 @@ test('el cliente no puede escribir su perfil: solo pedir operaciones que valida 
   const hacked = freshSave('guerrero', { bank: 99999 }); hacked.prog.level = 50;
   const up = await call('PUT', '/api/profile', { text: E.Save.exportText(hacked) }, tok);
   assert.equal(up.status, 400); assert.match(up.body.error, /no acepta partidas locales/);
-  // Progresión validada en el servidor: la tienda no existe hasta completar el Bosque Brumoso
+  // Progresión validada en el servidor: la tienda no existe hasta completar el Bosque de Brumaverde
   const early = await call('POST', '/api/profile/op', { op: 'buy', args: { id: 'pocion', price: 0 }, version: v0 }, tok);
-  assert.equal(early.status, 400); assert.match(early.body.error, /Bosque Brumoso/); assert.equal(early.body.profile.bank, bank0);
+  assert.equal(early.status, 400); assert.match(early.body.error, /Bosque de Brumaverde/); assert.equal(early.body.profile.bank, bank0);
   // Operación válida (los argumentos extra se ignoran): equipar movimientos
   const mv = created.body.profile.prog.known.slice(0, 1);
   const ok = await call('POST', '/api/profile/op', { op: 'setMoves', args: { equipped: mv, level: 50 }, version: v0 }, tok);
