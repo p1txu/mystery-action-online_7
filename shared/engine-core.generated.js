@@ -1,4 +1,4 @@
-// GENERADO por tools/split-prototype.mjs a partir de prototype/mystery-action.html (sha256 d97d8d8367b3183f).
+// GENERADO por tools/split-prototype.mjs a partir de prototype/mystery-action.html (sha256 490557fd33e98b07).
 // No lo edites a mano: cambia el prototipo y vuelve a ejecutar «npm run split».
 /* eslint-disable */
 /**
@@ -5131,12 +5131,12 @@ const Save = {
 
 /* --- Opciones del juego (independientes de la partida) --- */
 const Options = {
-  defaults: { mute: false, volume: .6, shake: true, damageNumbers: true, help: true, lowGfx: false },
+  defaults: { mute: false, volume: .6, shake: true, damageNumbers: true, help: true, lowGfx: false, aimAssist: true },
   data: null,
   load() {
     let o = {}; try { o = JSON.parse(Store.get(OPTIONS_KEY)) || {}; } catch (e) { o = {}; }
     const d = this.defaults;
-    this.data = { mute: typeof o.mute === 'boolean' ? o.mute : d.mute, volume: Number.isFinite(o.volume) ? U.clamp(o.volume, 0, 1) : d.volume, shake: typeof o.shake === 'boolean' ? o.shake : d.shake, damageNumbers: typeof o.damageNumbers === 'boolean' ? o.damageNumbers : d.damageNumbers, help: typeof o.help === 'boolean' ? o.help : d.help, lowGfx: typeof o.lowGfx === 'boolean' ? o.lowGfx : d.lowGfx };
+    this.data = { mute: typeof o.mute === 'boolean' ? o.mute : d.mute, volume: Number.isFinite(o.volume) ? U.clamp(o.volume, 0, 1) : d.volume, shake: typeof o.shake === 'boolean' ? o.shake : d.shake, damageNumbers: typeof o.damageNumbers === 'boolean' ? o.damageNumbers : d.damageNumbers, help: typeof o.help === 'boolean' ? o.help : d.help, lowGfx: typeof o.lowGfx === 'boolean' ? o.lowGfx : d.lowGfx, aimAssist: typeof o.aimAssist === 'boolean' ? o.aimAssist : d.aimAssist };
     return this.data;
   },
   save() { Store.set(OPTIONS_KEY, JSON.stringify(this.data)); },
@@ -6370,4 +6370,4 @@ const Quests = {
 
   return { CONFIG, U, T, SOLID, TILE_NAMES, World, Particles, CLASSES, CLASS_STATS, ELITE, eliteChance, floorEnemies, FAMILIES, Deco, Terrain, ALLY_ABILITY, canEquip, OLD_EQUIP_SLOTS, FRACTION_STATS, fmtStat, DMG, classMoves, groundTarget, SPECIES, EVOLVED, FORMS, Progress, EVOLUTIONS, EVO_ITEM_MIN_LEVEL, Combat, Effects, Projectile, Zone, BLOCKS_SHOT, TYPES, TYPE_CHART, typeEff, calcStats, MAX_LEVEL, expNeed, expYield, MOVES, BossKit, BossArena, GROMGAR, BOSS_MIN_TELE, DungeonPlan, Prefabs, MechSolver, Mechs, LORE, SOLVER_TILES_PER_S, BOONS, Boons, BOSS_RAGE, GEODA, Geoda, Boulder, Actor, Player, Enemy, STOP, ENEMIES, ENEMY_VARIANTS, makeKind, BOSSES, makeBossKind, BIOMES, RARITIES, CATEGORIES, EQUIP_SLOTS, ITEMS, QUICK, RARITY_ORDER, STAT_NAMES, BASE_SHOP, SHOP_TIERS, shopStock, sellPrice, RECIPES, newUid, LOOT, Loot, Inventory, finalStats, freshEquip, equipRegen, TRAPS, DUNGEONS, dungeonById, dungeonOpen, COURIER_INTRO, enemyLevel, RANKS, rankOf, weighted, Jobs, ECONOMY, SAVE_VERSION, SAVE_MIGRATIONS, checksum, Save, FloorGen, hashStr, Codex, Story, STORY, logJob, isRelic, LOG_MAX, Guild, Town, TOWN_UPGRADES, FORGE_STOCK, forgeStock, RegionEvents, REGION_EVENTS, RANK_STARS, RANK_TITLES, GUILD_REP, SEAL_LEMAS, SEAL_OF, STORY_PAGES, STORY_MEMORIES, OFFERINGS, STORY_CHOICES, STORY_TALKS, STORY_TITLES, STORY_SITES, STORY_RELIC, StoryChain, CHAPTERS, CQUESTS, STORY_COUNTERS, Campaign, RECRUIT, ORDERS, gridPath, Companion, LEGACY_JOBS, isLegacyJob, Quests };
 }
-export const SOURCE_HASH = 'd97d8d8367b3183f';
+export const SOURCE_HASH = '490557fd33e98b07';

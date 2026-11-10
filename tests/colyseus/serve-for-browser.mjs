@@ -103,6 +103,12 @@ const control = {
   place({ name, x, y }) { const X = playing().exp, m = [...X.members.values()].find(o => o.name === name); m.player.placeAt(x, y); return { x: m.player.x, y: m.player.y }; },
   /** Objetos del suelo según el servidor. */
   floorItems() { const X = playing().exp; return [...X.items.values()].map(it => ({ key: it.key, id: it.id, amount: it.amount, x: it.x, y: it.y, dropBy: it.dropBy || '' })); },
+  /** Muñecos quietos (muchos PS) junto a un jugador: { kind, dx, dy } relativos a él. Devuelve sus ids de red. */
+  dummies({ name, list }) { const r = playing(), X = r.exp, m = [...X.members.values()].find(x => x.name === name), p = m.player; const ids = []; p.stats.crit = 0;   // sin críticos: cada flecha hace el mismo daño (para contar impactos)
+    list.forEach((d, i) => { const e = new X.E.Enemy(d.boss ? X.E.makeBossKind(d.boss) : X.E.makeKind(d.kind), p.x + d.dx, p.y + d.dy, { level: 3 }); e.kind = Object.assign({}, e.kind, { brain: () => X.E.STOP, bk: null }); e.maxHp = e.hp = 1e6; X.addEnemy(e, d.boss ? 'b:' + d.boss : 'v:' + d.kind); ids.push(e.netId); });
+    r.sync(); return { ids, p: { x: p.x, y: p.y } }; },
+  /** PS de cada enemigo vivo del servidor (por id de red). */
+  enemyHp() { const X = playing().exp; return Object.fromEntries(X.g.actors.filter(a => a instanceof X.E.Enemy && a.alive).map(e => [e.netId, Math.round(e.hp)])); },
   member({ name }) { const X = playing().exp, m = [...X.members.values()].find(x => x.name === name); return { downed: m.downed, hp: m.player.hp, x: m.player.x, y: m.player.y }; },
   /** Derriba a un jugador con un golpe enemigo de verdad (Combat.hit), como en una pelea. */
   down({ name }) { const X = playing().exp, m = [...X.members.values()].find(x => x.name === name), p = m.player;

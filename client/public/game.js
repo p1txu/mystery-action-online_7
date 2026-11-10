@@ -1,4 +1,4 @@
-// GENERADO por tools/split-prototype.mjs a partir de prototype/mystery-action.html (sha256 d97d8d8367b3183f).
+// GENERADO por tools/split-prototype.mjs a partir de prototype/mystery-action.html (sha256 490557fd33e98b07).
 // No lo edites a mano: cambia el prototipo y vuelve a ejecutar «npm run split».
 
 'use strict';
@@ -5153,12 +5153,12 @@ const Save = {
 
 /* --- Opciones del juego (independientes de la partida) --- */
 const Options = {
-  defaults: { mute: false, volume: .6, shake: true, damageNumbers: true, help: true, lowGfx: false },
+  defaults: { mute: false, volume: .6, shake: true, damageNumbers: true, help: true, lowGfx: false, aimAssist: true },
   data: null,
   load() {
     let o = {}; try { o = JSON.parse(Store.get(OPTIONS_KEY)) || {}; } catch (e) { o = {}; }
     const d = this.defaults;
-    this.data = { mute: typeof o.mute === 'boolean' ? o.mute : d.mute, volume: Number.isFinite(o.volume) ? U.clamp(o.volume, 0, 1) : d.volume, shake: typeof o.shake === 'boolean' ? o.shake : d.shake, damageNumbers: typeof o.damageNumbers === 'boolean' ? o.damageNumbers : d.damageNumbers, help: typeof o.help === 'boolean' ? o.help : d.help, lowGfx: typeof o.lowGfx === 'boolean' ? o.lowGfx : d.lowGfx };
+    this.data = { mute: typeof o.mute === 'boolean' ? o.mute : d.mute, volume: Number.isFinite(o.volume) ? U.clamp(o.volume, 0, 1) : d.volume, shake: typeof o.shake === 'boolean' ? o.shake : d.shake, damageNumbers: typeof o.damageNumbers === 'boolean' ? o.damageNumbers : d.damageNumbers, help: typeof o.help === 'boolean' ? o.help : d.help, lowGfx: typeof o.lowGfx === 'boolean' ? o.lowGfx : d.lowGfx, aimAssist: typeof o.aimAssist === 'boolean' ? o.aimAssist : d.aimAssist };
     return this.data;
   },
   save() { Store.set(OPTIONS_KEY, JSON.stringify(this.data)); },
@@ -9378,6 +9378,7 @@ class Renderer {
       if (g.floorRT) g.floorRT.drawObjects(c, g);
       else if (g.village && g.mode === 'village') g.village.drawObjects(c, g);
       for (const a of g.actors) if (a instanceof Enemy && a.alive) a.drawTelegraph(c, g, alpha);
+      if (g.aimHint && g.aimHint.alive) { const e = g.aimHint, r = e.radius + 5; c.save(); c.globalAlpha = .55; c.strokeStyle = '#f2d38b'; c.lineWidth = 1.25; for (let i = 0; i < 4; i++) { const a0 = i * Math.PI / 2 + Math.PI / 4 - .42; c.beginPath(); c.ellipse(e.x, e.y, r, r * .55, 0, a0, a0 + .84); c.stroke(); } c.restore(); }   // asistencia del Arquero
       for (const e of g.effects) if (e.layer === 'mid') e.draw(c, e.t / e.life);
       const list = g.actors.filter(a => a.alive || a === g.player).concat(g.boulders && g.boulders.length ? g.boulders : [], g.village && g.mode === 'village' ? g.village.sprites(view) : [], g.floorRT && typeof DungeonScenery !== 'undefined' ? DungeonScenery.sprites(g, view) : [], g.floorRT ? MechArt.sprites(g, view) : []).sort((a, b) => a.y - b.y);
       for (const a of list) a.draw(c, g, alpha);
@@ -9939,7 +9940,7 @@ const UI = {
   openOptions(g) {
     this.optReturn = this.current === 'pause' ? 'pause' : 'title';
     const o = Options.data;
-    this.el('opt-sound').checked = !o.mute; this.el('opt-volume').value = o.volume; this.el('opt-shake').checked = o.shake; this.el('opt-dmg').checked = o.damageNumbers; this.el('opt-help').checked = o.help; this.el('opt-lowgfx').checked = !!o.lowGfx;
+    this.el('opt-sound').checked = !o.mute; this.el('opt-volume').value = o.volume; this.el('opt-shake').checked = o.shake; this.el('opt-dmg').checked = o.damageNumbers; this.el('opt-help').checked = o.help; this.el('opt-aim').checked = o.aimAssist !== false; this.el('opt-lowgfx').checked = !!o.lowGfx;
     this.el('opt-text').hidden = true; this.el('opt-text-row').hidden = true; this.el('opt-msg').textContent = '';
     const b = Save.read(BACKUP_KEY);
     this.el('opt-save-info').textContent = (Store.ok ? 'Se guarda automáticamente en este navegador.' : 'Este navegador no permite guardar: la partida se perderá al cerrar la página. Usa «Exportar partida».')
@@ -9956,6 +9957,7 @@ const UI = {
     on('opt-shake', 'change', e => Options.set('shake', e.target.checked));
     on('opt-dmg', 'change', e => Options.set('damageNumbers', e.target.checked));
     on('opt-lowgfx', 'change', e => Options.set('lowGfx', e.target.checked));
+    on('opt-aim', 'change', e => Options.set('aimAssist', e.target.checked));
     on('opt-help', 'change', e => { Options.set('help', e.target.checked); g.helpVisible = e.target.checked; this.el('controls').style.opacity = e.target.checked ? 1 : 0; });
     on('btn-options', 'click', () => this.openOptions(g));
     on('btn-options2', 'click', () => this.openOptions(g));
@@ -10810,7 +10812,7 @@ const Game = {
   },
   getAim(range = 200, targeted = false) {
     const p = this.player, m = this.input.mouse, cam = this.camera;
-    let dx = p.facing.x, dy = p.facing.y;
+    let dx = p.facing.x, dy = p.facing.y, assist = null;
     const useMouse = m.inside && (performance.now() - m.lastMove < 2500 || m.down);
     let mx = 0, my = 0, dist = range;
     if (useMouse) {
@@ -10818,6 +10820,10 @@ const Game = {
       const vx = mx - p.x, vy = my - (p.y - (targeted ? 0 : 8)), l = Math.hypot(vx, vy);   // habilidades sobre el suelo: punto exacto del cursor
       if (l > 4) { dx = vx / l; dy = vy / l; }
       dist = Math.min(Math.hypot(mx - p.x, my - p.y), range);
+      if (!targeted && p.sp && p.sp.id === 'arquero') {   // Arquero: el disparo va a los pies del enemigo señalado; con la asistencia, hasta 12° hacia la línea de tiro
+        const a = this.archerAim(p, mx, my, dx, dy, range);
+        if (a) { dx = a.dx; dy = a.dy; dist = Math.min(a.d, range); assist = a; }
+      }
     } else {
       let best = null, bs = Infinity;
       for (const e of this.actors) {
@@ -10826,13 +10832,68 @@ const Game = {
         if (d > Math.max(range, 260) || d < 1) continue;
         const off = Math.abs(Combat.angDiff(Math.atan2(ey, ex), Math.atan2(dy, dx)));
         if (off > (targeted ? deg(70) : deg(35))) continue;
+        if (!this.clearShot(p.x, p.y, e.x, e.y)) continue;   // nunca un enemigo detrás de un muro
         const score = d * (1 + off);
         if (score < bs) { bs = score; best = e; }
       }
       if (best) { const ex = best.x - p.x, ey = best.y - p.y, d = Math.hypot(ex, ey); dx = ex / d; dy = ey / d; dist = Math.min(d, range); }
       else dist = range * .6;
     }
-    return { dx, dy, tx: p.x + dx * dist, ty: p.y + dy * dist, mouse: useMouse, mx, my };
+    return { dx, dy, tx: p.x + dx * dist, ty: p.y + dy * dist, mouse: useMouse, mx, my, assist };
+  },
+  /** ¿Pasaría una flecha de (x0,y0) a (x1,y1) por el suelo? La misma prueba de muros que Projectile (BLOCKS_SHOT y bloques). */
+  clearShot(x0, y0, x1, y1) {
+    const w = this.world; if (!w) return true;
+    const d = Math.hypot(x1 - x0, y1 - y0), n = Math.max(1, Math.ceil(d / 6));
+    for (let i = 1; i < n; i++) { const x = x0 + (x1 - x0) * i / n, y = y0 + (y1 - y0) * i / n; if (BLOCKS_SHOT[w.tileAt(x, y)] || w.blockedAt(x, y)) return false; }
+    return true;
+  },
+  /** Enemigo cuyo dibujo está bajo el cursor (el de delante si se solapan). */
+  enemyUnder(mx, my) {
+    let best = null;
+    for (const e of this.actors) {
+      if (e.team !== 'enemy' || !e.alive || !(e instanceof Enemy)) continue;
+      const hw = Math.max(e.radius + 4, (e.height || 20) * .38), top = e.y - (e.height || 20) - 4, bot = e.y + e.radius * .6;
+      if (mx >= e.x - hw && mx <= e.x + hw && my >= top && my <= bot && (!best || e.y > best.y)) best = e;
+    }
+    return best;
+  },
+  /**
+   * Apuntado del Arquero (cliente; el servidor recibe la dirección como siempre).
+   * 1. Cursor sobre el dibujo de un enemigo → a sus pies (lo que cuenta para el impacto es el círculo del suelo).
+   * 2. Asistencia (Opciones, activada por defecto): entre los enemigos a ≤ 12° de la línea del ratón, en alcance y sin
+   *    muro delante, el más cercano a la trayectoria. Corrección completa hasta 9° y decreciente hasta 0 a los 12°
+   *    (sin saltos). Un objetivo nuevo se mantiene al menos 0,25 s. No se adelanta a enemigos en movimiento.
+   */
+  archerAim(p, mx, my, dx, dy, range) {
+    const now = this.time || 0, lock = this.aimLock;
+    const to = e => { const vx = e.x - p.x, vy = e.y - p.y, d = Math.hypot(vx, vy) || 1; return { dx: vx / d, dy: vy / d, d }; };
+    const hov = this.enemyUnder(mx, my);
+    if (hov) { if (!lock || lock.e !== hov) this.aimLock = { e: hov, since: now }; return Object.assign(to(hov), { e: hov, kind: 'sprite', off: 0, blocked: !this.clearShot(p.x, p.y, hov.x, hov.y) }); }   // elegido a mano: la flecha va hacia él (si hay muro, choca)
+    if (Options.data && Options.data.aimAssist === false) { this.aimLock = null; return null; }
+    const base = Math.atan2(dy, dx), MAX = deg(12), FULL = deg(9);
+    const cand = [];
+    for (const e of this.actors) {
+      if (e.team !== 'enemy' || !e.alive || !(e instanceof Enemy)) continue;
+      const t = to(e); if (t.d < 4 || t.d > range + e.radius) continue;
+      const off = Combat.angDiff(Math.atan2(t.dy, t.dx), base); if (Math.abs(off) > MAX) continue;
+      if (!this.clearShot(p.x, p.y, e.x, e.y)) continue;
+      cand.push({ e, off, perp: t.d * Math.sin(Math.abs(off)), t });
+    }
+    if (!cand.length) { this.aimLock = null; return null; }
+    cand.sort((a, b) => a.perp - b.perp || a.t.d - b.t.d);
+    let pick = cand[0];
+    const held = lock && cand.find(c => c.e === lock.e);
+    if (held && held !== pick && (now - lock.since < .25 || pick.perp > held.perp * .7)) pick = held;   // sin saltos entre enemigos juntos
+    if (!lock || lock.e !== pick.e) this.aimLock = { e: pick.e, since: now };
+    const a = Math.abs(pick.off), k = a <= FULL ? 1 : Math.max(0, (MAX - a) / (MAX - FULL)), ang = base + pick.off * k;
+    return { dx: Math.cos(ang), dy: Math.sin(ang), d: pick.t.d, e: pick.e, kind: 'assist', off: pick.off * k };
+  },
+  /** Indicador de la asistencia (solo se dibuja): a qué enemigo iría ahora el básico del Arquero. */
+  archerHint() {
+    const p = this.player; if (!p || !p.alive || !p.sp || p.sp.id !== 'arquero' || this.mode === 'village' || this.paused || !this.input.mouse.inside) return null;
+    if (Options.data && Options.data.aimAssist === false) return null;   // sin asistencia no se marca nada
+    const a = this.getAim(MOVES[p.sp.basic].range); return a.mouse && a.assist && !a.assist.blocked ? a.assist.e : null;
   },
 
   handleKeys() {
@@ -11011,6 +11072,7 @@ const Game = {
     if (this.state === 'evo' && this.evo) { this.evo.t += dt; UI.drawEvo(this.evo, this.time); if (!this.evo.done && this.evo.t >= 3.6) this.finishEvolution(); }
     if (this.state === 'play' && this.player) {
       UI.drawPortrait(this.player.sp, this.time);
+      this.aimHint = this.archerHint();
       UI.updateHud(this);
       if (this.floorRT) this.floorRT.drawMinimap(UI.el('minimap'), this);
       else if (this.village && this.mode === 'village') this.village.drawMinimap(UI.el('minimap'), this);
@@ -12813,6 +12875,7 @@ class NetPlay {
   /** Acción local que ha salido bien: el servidor la repite con sus propias reglas. */
   action(k, i, aim) {
     if (!this.active) return;
+    if (k !== 'd') this.lastShotAt = netNow();   // para atribuir el destello de un impacto confirmado a un ataque propio reciente
     const p = this.g.player, d = aim ? Math.hypot(aim.tx - p.x, aim.ty - p.y) : 0;
     this.acts.push({ n: ++this.actN, at: this.seq, k, i: i || 0, dx: aim ? aim.dx : p.facing.x, dy: aim ? aim.dy : p.facing.y, d: Math.round(d) });
   }
@@ -12839,7 +12902,7 @@ class NetPlay {
   /** En línea ningún golpe local hace daño: el daño lo calcula el servidor. Solo efectos. */
   localHit(t, o) {
     if (!t.alive || t.team === o.team) return false;
-    if (t instanceof NetEnemy || t.netRemote) { if (!o.dot) { Effects.impact(this.g, t.x, t.y - t.height * .45, o.color || '#ffffff'); t.showBar = 3; } return true; }
+    if (t instanceof NetEnemy || t.netRemote) { if (!o.dot) { t.pendingHit = { at: netNow(), color: o.color || '#ffffff' }; t.showBar = 3; } return true; }   // el destello, cuando el servidor lo confirme
     return false;
   }
   /** Sustituye a FloorRT.update: solo exploración (el resto lo decide el servidor). */
@@ -12964,7 +13027,9 @@ class NetPlay {
       eSeen.add(id);
       let e = this.enemies.get(id);
       if (!e) { e = new NetEnemy(id, s); this.enemies.set(id, e); g.actors.push(e); if (e.kind.isBoss) f.boss = e; }
-      if (s.hp < e.hp) { const dmg = e.hp - s.hp; Effects.damage(g, e, dmg, '#ffffff', Math.min(19, 11 + dmg / e.maxHp * 22)); e.flash = .12; e.showBar = 3; }
+      if (s.hp < e.hp) { const dmg = e.hp - s.hp; Effects.damage(g, e, dmg, '#ffffff', Math.min(19, 11 + dmg / e.maxHp * 22)); e.flash = .12; e.showBar = 3;
+        const mine = e.pendingHit && netNow() - e.pendingHit.at < .6, recent = this.lastShotAt && netNow() - this.lastShotAt < .9;
+        if (mine || recent) { Effects.impact(g, e.x, e.y - e.height * .45, mine ? e.pendingHit.color : '#ffffff'); e.pendingHit = null; e.confirmedHits = (e.confirmedHits || 0) + 1; } }   // destello solo con daño confirmado por el servidor (tras un contacto o un ataque propio reciente)
       e.push(s); e.hp = s.hp; e.maxHp = s.maxHp; e.level = s.level; e.aggro = s.aggro;
       if (e.state !== s.state) { if (s.state === 'leap') e.leapFrom = { x: e.x, y: e.y }; e.state = s.state; e.timer = s.timer; e.windupTime = s.wind || 1; }
       e.pattern = s.pattern || e.pattern; if (s.ax || s.ay) e.atk = { x: s.ax, y: s.ay }; if (s.gx || s.gy) { e.target = { x: s.gx, y: s.gy }; e.aimPt = e.target; }   // aviso del ataque: dirección, punto y patrón del servidor
