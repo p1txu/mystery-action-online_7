@@ -131,6 +131,19 @@ export const OPS = {
     s.jobs = s.jobs.filter(x => x !== j); j.state = 'board'; s.board.push(j);
     return {};
   },
+  /** Conversación opcional con un vecino (historia): mismas reglas que Game.talk (StoryChain.talk). */
+  talk(E, s, { id }) {
+    need(str(id, 40) && Object.prototype.hasOwnProperty.call(E.STORY_TALKS, id), 'Conversación no válida');
+    const r = E.StoryChain.talk(s, id); need(r, 'Ahora no tiene nada que contarte');
+    return r;
+  },
+  /** Título del gremio o de la historia (cosmético). '' = el del rango actual. */
+  setTitle(E, s, { title }) {
+    need(title === '' || (str(title, 60) && E.Guild.titles(s).includes(title)), 'Ese título aún no lo tienes');
+    if (!s.guild) s.guild = E.Guild.fresh();
+    s.guild.title = title;
+    return { title: E.Guild.title(s) };
+  },
   deliverJob(E, s, { id }) {
     const j = s.jobs.find(x => x.id === id);
     need(j && !E.isLegacyJob(j) && j.state === 'done', 'Esa misión no está lista para entregar');

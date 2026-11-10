@@ -113,6 +113,28 @@ También son canon y se conservan todos los textos, diálogos, vecinos, mazmorra
 | **P-12** | Hilos de vecinos | Irene viva en el hielo; Doña Musgo, antigua novicia; Lino, correo secreto; Tobías, engañado; Tito guarda el colgante | Cualquiera de ellos por separado |
 | **P-13** | Decisiones en grupo | Votación; cada perfil guarda su voto; desempate a favor del juramento | Decide el líder del grupo |
 
+## 5. Lo que ya está en el juego (0.44)
+
+En la 0.44 entró en el juego una parte de las propuestas. Se tomó la biblia como base de trabajo; la aprobación de las decisiones P-xx sigue pendiente.
+
+- **No se ha cambiado ningún texto canon:** solo se han añadido piezas nuevas.
+- **Si una decisión P-xx se rechaza:** los textos afectados se cambian en la versión siguiente. El guardado no depende de ellos, salvo los identificadores.
+- **Detalle técnico:** [docs/SECRETOS.md](SECRETOS.md).
+
+| Pieza de la biblia | En el juego | Diferencia con la biblia |
+|---|---|---|
+| SQ-01 «La marca de Irene» y MQ-S.1 (página 1) | Marca fija en el Bosque, piso 3. Ulula da la clave del código de tiza. Pared hueca en el piso 4 | Ninguna |
+| SQ-02 y la hebilla de Irene | Nido fijo en el Bosque, piso 2. La hebilla queda como llave (`hebilla`) | Sin la pelea con el Cuervo tuerto |
+| MQ-S.2 (Archivo de los Fieles) | Gruta, piso 4, tras una pared hueca | Ninguna |
+| Ruedas de los sellos 1 a 5 y sus lemas | Aparecen al caer cada guardián | Las cámaras de los sellos son la propia guarida, junto a la salida |
+| Recuerdos 1 («Ocho sombras») y 2 («El rayo tachado») | Ruedas de la Ciénaga y del Cráter | Ninguna. El recuerdo 2 no revela quién tacha el rayo (se resuelve en el capítulo 7) |
+| MQ-S.3 a MQ-S.5 (páginas 3 a 5) | Ruedas de la Ciénaga, de la Mina (las da Bernardo) y del Cráter | **Precisión:** las páginas 2 a 5 son del diario que Irene escondió **antes** de la emboscada. La página 1 es la nota que dejó después. Así encaja con que el Custodio la atrapara en el Bosque |
+| MQ-4.3 Bernardo y su decisión | Rueda de la Mina, con decisión «Liberarle» o «Dejarle». Bartolo lo comenta | **P-13:** en grupo, cada jugador decide para su perfil (sin votación) |
+| Ofrendas | Bellota de Mirla, Prisma de Teodric y Clavija de Brann | Las de Ciénago y Magmatrón esperan a sus versiones con BossKit |
+| Conversaciones | Ulula (marca y tercera vía), Doña Musgo (la hoja del archivo), Bartolo (Bernardo) | Ninguna |
+| Tercera vía | Se marca como descubierta con lo que existe hoy. Da el título «Lector del diario de Irene» | Jugar el final necesita los capítulos 6 a 8 |
+| Raíces Hondas y el Eco de Robletón | Mazmorra opcional tras el Cráter, con la Cámara del latido y la reliquia «Corazón de raíz» | Se abre tras el Cráter mientras no exista el capítulo 8 |
+
 ## Nombres oficiales
 
 | Tipo | Nombres |
@@ -134,3 +156,4 @@ También son canon y se conservan todos los textos, diálogos, vecinos, mazmorra
 |---|---|---|---|
 | 2026-11-09 | Todos | Primer borrador completo, reconstruido a partir del juego 0.43, `docs/` y el proyecto. Canon separado de las propuestas | Pendiente de aprobación |
 | 2026-11-09 | E | El Custodio pasa a antagonista con motivos comprensibles (en el borrador del documento compartido era un guardián neutral) | Pendiente (P-01) |
+| 2026-11-10 | 5 (nuevo), C, H, I, J | La cadena de Irene en los capítulos 1 a 5, las ruedas, los recuerdos 1 y 2, Bernardo, las ofrendas 1 a 3, Raíces Hondas y el Eco de Robletón entran en el juego (0.44). Textos nuevos: páginas 1 a 5, lemas, recuerdos, conversaciones y textos de Raíces Hondas. Las páginas 2 a 5 son anteriores a la emboscada | Implementado; pendiente de aprobación como canon |

@@ -58,9 +58,11 @@ test('variedad: todas las plantillas y papeles aparecen; minijefe solo en el pen
 });
 
 test('etapa 1: los demás biomas siguen con el generador de siempre (sin mecanismos) y válidos', () => {
-  for (const d of E.DUNGEONS) if (d.id !== 'bosque') for (let seed = 1; seed <= 8; seed++) {
-    const g = gen(seed, 1 + (seed % 3), 1, d);
-    assert.ok(g.validation.ok); assert.equal(g.layout.mechs.length, 0, d.id); assert.equal(g.layout.lore.length, 0, d.id);
+  // (0.44) Solo los sitios fijos de la historia (StoryChain) añaden su pared falsa; Raíces Hondas usa la tabla del bosque
+  for (const d of E.DUNGEONS) if (!E.DungeonPlan.table(d.biome)) for (let seed = 1; seed <= 8; seed++) for (const floor of [1 + (seed % 3), 4]) {
+    const g = gen(seed, floor, 1, d), story = g.layout.story.filter(st => st.hidden).length;
+    assert.ok(g.validation.ok); assert.equal(g.layout.lore.length, 0, d.id);
+    assert.equal(g.layout.mechs.length, story, d.id + ': solo las paredes falsas de la historia'); assert.ok(g.layout.mechs.every(m => m.type === 'falsewall'));
   }
 });
 

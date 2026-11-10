@@ -26,7 +26,7 @@ const byAcc = (x, a) => [...x.members.values()].find(m => m.accountId === a);
 test('perfil v7+: partida nueva con registro, códice e historia vacíos', () => {
   const s = freshSave('arquero');
   assert.equal(s.v, E.SAVE_VERSION); assert.ok(E.SAVE_VERSION >= 7);
-  assert.deepEqual(s.codex, { lore: [], secrets: [], relics: [] }); assert.deepEqual(s.log, { jobs: [] }); assert.deepEqual(s.story, { flags: [], endings: [] });
+  assert.deepEqual(s.codex, { lore: [], secrets: [], relics: [], pages: [], lemas: [], memories: [], talks: [], offerings: [] }); assert.deepEqual(s.log, { jobs: [] }); assert.deepEqual(s.story, { flags: [], endings: [], choices: {} });
 });
 
 test('migración 6 → 7 (y siguientes): no se pierde nada; reliquias que ya tenía e historia vivida se apuntan; repetirla no cambia nada', () => {
@@ -52,7 +52,7 @@ test('migración 6 → 7 (y siguientes): no se pierde nada; reliquias que ya ten
 test('registro validado: ids desconocidos fuera, sin duplicados y con tope', () => {
   const s = E.Save.sanitize(freshSave('mago', { codex: { lore: ['f_carro', 'f_carro', 'nada'], secrets: ['bosque:muro_agrietado', 'bosque:inventada', 'nada:muro_agrietado'], relics: ['pocion', 'lagrimaEstelar'] },
     story: { flags: ['llegada', 'trampa'], endings: ['final_falso'] }, log: { jobs: [{ id: 3, type: 'hunt', dungeon: 'bosque', stars: 'C', at: 5 }, { id: 4, type: 'nada', dungeon: 'bosque' }] } })).data;
-  assert.deepEqual(s.codex, { lore: ['f_carro'], secrets: ['bosque:muro_agrietado'], relics: ['lagrimaEstelar'] });
+  assert.deepEqual(s.codex, { lore: ['f_carro'], secrets: ['bosque:muro_agrietado'], relics: ['lagrimaEstelar'], pages: [], lemas: [], memories: [], talks: [], offerings: [] });
   assert.deepEqual(s.story.flags, ['llegada']); assert.deepEqual(s.story.endings, []);
   assert.equal(s.log.jobs.length, 1);
   const many = freshSave('mago'); for (let i = 0; i < E.LOG_MAX + 30; i++) E.logJob(many, { id: i, type: 'hunt', dungeon: 'bosque', stars: 'E' });

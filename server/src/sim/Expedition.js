@@ -166,7 +166,7 @@ export class Expedition {
       const inv = !m.left && E.RegionEvents.spawnFor(m.save, this.dng, st.floorNo, this.L, this.world);
       if (inv && !this.L.enemies.some(q => q.invader === inv.invader)) this.L.enemies.push(inv);
     }
-    for (const m of this.members.values()) m.read = new Set();       // textos leídos en este piso (contrato de investigación)
+    for (const m of this.members.values()) { m.read = new Set(); m.storyRead = new Set(); m.pendingChoice = null; }   // textos y sitios de la historia leídos en este piso
     for (const [spawnIdx, s] of this.L.enemies.entries()) {
       if (s.outlaw || this.floor.killed.has(spawnIdx) || (s.boss && this.floor.bossDown)) continue;   // al reanudar, los ya vencidos no vuelven
       const kindObj = s.boss ? E.makeBossKind(s.boss) : E.makeKind(s.variant);
@@ -195,11 +195,14 @@ export class Expedition {
     this.doors = this.L.doors.map((d, i) => { const cx = d.tiles.reduce((t, k) => t + k % W, 0) / d.tiles.length, cy = d.tiles.reduce((t, k) => t + ((k / W) | 0), 0) / d.tiles.length; return { key: 'door' + i, tiles: d.tiles.slice(), x: (cx + .5) * TS, y: (cy + .5) * TS, open: false }; });
     this.objects = this.L.objects.map((o, idx) => Object.assign({ key: 'o' + idx, opened: false }, o, { x: (o.tx + .5) * TS, y: (o.ty + .5) * TS }));
     if (restore) {
-      for (const o of restore.extra || []) this.objects.push(Object.assign({}, o, { x: (o.tx + .5) * TS, y: (o.ty + .5) * TS }));   // portal y cofre del jefe
+      for (const o of restore.extra || []) this.objects.push(Object.assign({}, o, { x: (o.tx + .5) * TS, y: (o.ty + .5) * TS }));   // portal, cofre del jefe y rueda del sello
       const opened = new Set(restore.opened || []), revealed = new Set(restore.revealed || []);
       for (const o of this.objects) { if (opened.has(o.key)) o.opened = true; if (revealed.has(o.key)) o.revealed = true; }
       for (const dr of this.doors) if ((restore.doors || []).includes(dr.key)) { dr.open = true; for (const t of dr.tiles) this.world.tiles[t] = this.corrTile; }
     }
+    // Historia (StoryChain): sitios fijos del piso y, si el guardián ya cayó, la rueda de su sello. Cada uno lo lee con SU perfil.
+    this.story = (this.L.story || []).map(st => ({ id: st.id, x: (st.tx + .5) * TS, y: (st.ty + .5) * TS }));
+    for (const o of this.objects) if (o.type === 'seal' && E.SEAL_OF[this.dng.id]) this.story.push({ id: 'sello_' + E.SEAL_OF[this.dng.id], x: o.x, y: o.y });
     // Mecanismos del piso (sección 18b): el servidor es el único que los mueve; los clientes aplican `mech`
     this.mechs = this.L.mechs && this.L.mechs.length ? new E.Mechs(this.world, this.L, this.mechHost(gen)) : null;
     this.g.onCombatArea = (team, x, y, r, by) => { if (this.mechs) this.mechs.hit(team, x, y, r, by || null); };
@@ -273,6 +276,28 @@ export class Expedition {
     }
   }
   /** El jugador elige un don de SU oferta pendiente; cualquier otro id se rechaza. */
+  /** Sitio fijo o rueda de un sello: lo lee cada jugador con SU perfil (requisitos y recompensas), sin enemigos cerca. */
+  readStory(m, st) {
+    const p = m.player;
+    if (this.g.actors.some(a => a.team === 'enemy' && a.alive && a.aggro && Math.hypot(a.x - p.x, a.y - p.y) < 320)) return;   // como sin red: cuando no haya peligro
+    m.storyRead.add(st.id);
+    const res = this.E.StoryChain.visit(m.save, st.id); if (!res) return;
+    if (res.relic) { if (p.bag.add(res.relic) < 1) { m.save.bank += this.E.ITEMS[res.relic].price; res.gains.push(`(inventario lleno: te pagan ${this.E.ITEMS[res.relic].price} monedas)`); } this.E.Codex.relicsIn(m.save, [res.relic]); }
+    m.pendingChoice = res.choice || null;
+    this.emit('story', { to: m.id, res });
+    if (res.gains.length) this.safepoint('objective');
+  }
+  /** Decisión de la historia (Bernardo…): solo la que se le ofreció a ESE jugador, una vez, para su perfil. */
+  choose(id, topic, option) {
+    const m = this.members.get(id); if (!m || m.left || this.ended) return false;
+    if (!m.pendingChoice || m.pendingChoice !== topic) { this.emit('reject', { to: id, what: 'choose', why: 'no ofrecida' }); return false; }
+    const r = this.E.StoryChain.choose(m.save, topic, option);
+    if (!r) { this.emit('reject', { to: id, what: 'choose', why: 'no válida' }); return false; }
+    m.pendingChoice = null;
+    this.emit('story', { to: id, res: { id: 'choice:' + topic, state: 'ok', title: r.title, text: r.text, gains: r.gains } });
+    this.safepoint('objective');
+    return true;
+  }
   pickBoon(id, boonId) {
     const m = this.members.get(id); if (!m || m.left || this.ended) return 0;
     const cur = m.boonOffers[0];
@@ -424,6 +449,7 @@ export class Expedition {
         m.read.add(l.id); this.quest(m, 'lore', {});                      // contrato de investigación: cada texto leído en este piso, una vez
         if (this.E.Codex.add(m.save, 'lore', l.id)) this.emit('codex', { to: m.id, kind: 'lore', id: l.id });
       }
+      for (const st of this.story) if (!m.storyRead.has(st.id) && Math.hypot(st.x - p.x, st.y - p.y) <= LORE_R) this.readStory(m, st);
       if (!f.mh && this.L.mhRoom >= 0 && room && room.id === this.L.mhRoom) this.triggerMonsterHouse(room, p);
     }
     // Reanimar: un compañero junto al caído (REVIVE_RULES). Si nadie llega a tiempo, fuera de combate hasta el piso siguiente.
@@ -607,6 +633,17 @@ export class Expedition {
       const tx = Math.floor(e.x / TS), ty = Math.floor(e.y / TS), cx = (r.cx === tx && r.cy === ty) ? tx + 2 : tx, free = !E.SOLID[this.world.tiles[ty * this.L.w + cx]];
       const ch = { key: 'bossChest', type: 'chest', tier: 'cofreJefe', tx: free ? cx : r.cx + 2, ty: free ? ty : r.cy, opened: false };
       ch.x = (ch.tx + .5) * TS; ch.y = (ch.ty + .5) * TS; this.objects.push(ch);
+      // Historia: la rueda del sello junto a la salida y las ofrendas según cómo fue el combate (para todos los presentes)
+      const sealId = E.SEAL_OF[this.dng.id];
+      if (sealId) {
+        const sp = E.StoryChain.sealSpot(this.world, this.L, r, this.objects), so = { key: 'seal', type: 'seal', tx: sp.tx, ty: sp.ty, x: (sp.tx + .5) * TS, y: (sp.ty + .5) * TS, opened: false };
+        this.objects.push(so); this.story.push({ id: 'sello_' + sealId, x: so.x, y: so.y });
+      }
+      for (const m of this.members.values()) {
+        if (m.left) continue;
+        const lines = E.StoryChain.offering(m.save, e.kindId, e.feats);
+        if (lines.length) this.emit('storyNote', { to: m.id, lines });
+      }
       this.floor.bossDown = true; this.safepoint('boss');
     } else if (!e.summoner) {
       for (const q of this.looters) {                    // botín individual: cada uno tira por su cuenta

@@ -101,3 +101,17 @@ Es el mismo BossKit con otro escenario. El nombre de la biblia se mantiene y «G
 | Viuda del Estanque | Ciénaga (hoy, Ciénago) | Ilusiones (copias sin daño), zonas de veneno, niebla; piedras rúnicas (`Mechs`) que quitan su defensa |
 | Coloso Forjado | Cráter (hoy, Magmatrón) | Componentes con vida propia, válvulas (`Mechs`) que enfrían, núcleo vulnerable |
 | Prior Hueco, Reina del Hielo Quieto, Custodio Sin Rostro, Heraldo del Origen | Mazmorras que aún no existen | Necesitan antes su mazmorra |
+
+## Eco de Robletón (Raíces Hondas, poscampaña, 0.44)
+
+Es el mismo combate de Robletón (`BossKit.DEFS.ecoEspinas` copia a `espinas`) con un ataque nuevo.
+
+- **Raíces que persiguen** (`persecucion`):
+  - aviso de 0,8 s en carril;
+  - después, 6 raíces seguidas, cada una avisada 0,5 s en el suelo y nacida 40 px más cerca de donde está **ahora** su objetivo (unos 80 px/s, más lento que cualquier clase);
+  - en la furia sale más a menudo.
+- **Igual que el original:** se le enreda contra un tocón y se le debilita rompiendo los brotes.
+- **Trofeo:** Corteza del Eco (único).
+- **Nivel:** 17, como la mazmorra.
+
+**Corrección:** `BossKit.grant` y `BossKit.sanitize` buscan la definición con `BossKit.defOf(id)` (`robleton` → `espinas`). Antes, la Corona de Espinas no se entregaba nunca.

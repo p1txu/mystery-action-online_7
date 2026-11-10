@@ -78,6 +78,7 @@ export const C = {
   USE: 'use',           // { id }            (objeto del inventario)
   DROP: 'drop',         // { id }            (dejar 1 unidad en el suelo para que la coja cualquiera)
   BOON: 'boon',         // { id }            (don elegido de la oferta que el servidor le hizo a ESE jugador)
+  CHOOSE: 'choose',     // { topic, option } (decisión de la historia que el servidor le ofreció a ESE jugador; ver StoryChain)
   LEAVE: 'leave',       // {}                (retirarse: cuenta como caer, se guarda y se recibe el resultado)
   PING: 'ping',         // { t }
 };

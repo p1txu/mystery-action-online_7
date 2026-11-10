@@ -43,6 +43,7 @@ const EXPORTS = [
   'TRAPS', 'DUNGEONS', 'dungeonById', 'dungeonOpen', 'COURIER_INTRO', 'enemyLevel', 'RANKS', 'rankOf', 'weighted', 'Jobs', 'ECONOMY',
   'SAVE_VERSION', 'SAVE_MIGRATIONS', 'checksum', 'Save', 'FloorGen', 'hashStr', 'Codex', 'Story', 'STORY', 'logJob', 'isRelic', 'LOG_MAX',
   'Guild', 'Town', 'TOWN_UPGRADES', 'FORGE_STOCK', 'forgeStock', 'RegionEvents', 'REGION_EVENTS', 'RANK_STARS', 'RANK_TITLES', 'GUILD_REP',
+  'SEAL_LEMAS', 'SEAL_OF', 'STORY_PAGES', 'STORY_MEMORIES', 'OFFERINGS', 'STORY_CHOICES', 'STORY_TALKS', 'STORY_TITLES', 'STORY_SITES', 'STORY_RELIC', 'StoryChain',
   'RECRUIT', 'ORDERS', 'gridPath', 'Companion', 'LEGACY_JOBS', 'isLegacyJob', 'Quests',
 ];
 

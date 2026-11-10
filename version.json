@@ -1,13 +1,16 @@
 {
-  "build": 43,
-  "version": "0.43",
-  "date": "2026-11-09",
+  "build": 44,
+  "version": "0.44",
+  "date": "2026-11-10",
   "notes": [
-    "La Aldea Raíz cambia con lo que haces. Con rango Bronce y la Gruta superada, la herrera Brasa ofrece un contrato para reparar la casa en ruinas del sur. Al entregarlo, la casa se convierte en su forja, con fragua, humo y yunque, y Brasa vende equipo especial según tu rango.",
-    "Reputación del gremio: subes de rango con contratos, expediciones y la primera victoria contra cada guardián (+40). Tu título (de Explorador novato a Explorador de Diamante) aparece en el gremio, junto a lo que desbloquea el siguiente rango.",
-    "Contratos nuevos: caza de élites, investigación (leer textos antiguos) y cámaras secretas. Solo salen donde se pueden cumplir y con tu rango, y el tablón no repite los recientes.",
-    "Eventos regionales: a veces un élite con nombre invade un piso de una región que ya has liberado. Tienes 3 expediciones para echarlo y cobras una sola vez; si se escapa, pierdes algo de reputación, pero nunca de rango.",
-    "En grupo, quien tiene el evento lo resuelve y quien ayuda gana reputación. Reconectarse o cambiar de líder no lo repite.",
-    "El alcalde Bartolo comenta lo que ha pasado: la forja, los guardianes vencidos y los invasores echados."
+    "Secretos de la historia: la marca de Irene, un nido de cuervo y una pared hueca en el Bosque, y el Archivo de los Fieles en la Gruta. Siempre están en el mismo piso, en cualquier partida; lo que cambia es si ya sabes leerlos.",
+    "Cadena oculta «El diario de Irene»: pregunta a Ulula por la marca, encuentra las cinco páginas del diario y descubre la tercera vía. Da un título nuevo, «Lector del diario de Irene», que se elige en el gremio.",
+    "Al vencer a cada guardián aparece la rueda de su sello junto a la salida, con su lema. Algunas guardan un recuerdo del pasado y una página.",
+    "En la Mina conocerás a Bernardo, el hermano del alcalde, y tendrás que decidir qué hacer con él. Bartolo lo recordará.",
+    "Ofrendas de los guardianes: vence a Robletón enredado, a la Reina Geoda aturdida o a Gromgar derribado para conseguirlas.",
+    "Registro de descubrimientos en el gremio: diario, sellos, recuerdos, ofrendas, decisiones y lo que falta para la tercera vía.",
+    "Nueva mazmorra opcional tras el Cráter: Raíces Hondas, con más élites, pisos oscuros, la Cámara del latido (reliquia «Corazón de raíz») y el Eco de Robletón, cuyas raíces te persiguen.",
+    "Corregido: la Corona de Espinas, el trofeo de Robletón, ahora se entrega al vencerle por primera vez.",
+    "En grupo, cada jugador lee los secretos y decide con su propia partida. Todo se puede hacer en solitario."
   ]
 }

@@ -1,4 +1,4 @@
-// GENERADO por tools/split-prototype.mjs a partir de prototype/mystery-action.html (sha256 2c755fc9de874289).
+// GENERADO por tools/split-prototype.mjs a partir de prototype/mystery-action.html (sha256 6b35b39eb0b0cfd6).
 // No lo edites a mano: cambia el prototipo y vuelve a ejecutar «npm run split».
 /* eslint-disable */
 /**
@@ -756,6 +756,7 @@ const Deco = {
     for (const t of L.traps) mark(t.tx, t.ty, 0);
     for (const m of L.mechs || []) { if (m.tx != null) mark(m.tx, m.ty, 1); for (const i of m.tiles || []) mark(i % W, (i / W) | 0, 1); }   // mecanismos: siempre a la vista
     for (const l of L.lore || []) mark(l.tx, l.ty, 1);
+    for (const st of L.story || []) mark(st.tx, st.ty, 1);
     for (const a of L.alcoves || []) for (let y = a.y; y < a.y + a.h; y++) for (let x = a.x; x < a.x + a.w; x++) mark(x, y, 0);
     for (const n of L.npcs) mark(n.tx, n.ty, 1);
     for (const e of L.enemies) mark(e.tx, e.ty, e.boss ? 3 : 1);
@@ -2604,6 +2605,8 @@ function drawSmallEnemy(c, st, e) {
 const BOSSES = {
   robleton: { name: 'Robletón', title: 'el Guardián de Espinas', base: 'pedrolon', type: 'planta', exp: 120, stats: { hp: 230, atk: 70, def: 62, spa: 60, spd: 58, spe: 40 }, speed: 46, bk: 'espinas', resist: { fis: .9, mag: 1.2 },
     brain: (e, dt, g, d) => BossKit.brain(e, dt, g, d), telegraph: (c, e, x, y, g) => BossKit.telegraph(c, e, x, y, g), patterns: ['slam', 'radial', 'summon'], proj: { kind: 'spore', color: '#b46cf0' }, minion: 'rataRaiz', pal: { dark: '#25281a', body: '#5f6a45', light: '#7d8a5c', moss: '#3f9a3a', arm: '#4a5236', eye: '#ffe14d', crack: '#3a4128' } },
+  ecoRobleton: { name: 'Eco de Robletón', title: 'jefe opcional de Raíces Hondas', base: 'pedrolon', type: 'planta', exp: 160, stats: { hp: 250, atk: 76, def: 66, spa: 64, spd: 62, spe: 44 }, speed: 50, bk: 'ecoEspinas', resist: { fis: .9, mag: 1.15 },
+    brain: (e, dt, g, d) => BossKit.brain(e, dt, g, d), telegraph: (c, e, x, y, g) => BossKit.telegraph(c, e, x, y, g), patterns: ['slam', 'radial', 'summon'], proj: { kind: 'spore', color: '#7fd0c0' }, minion: 'rataRaiz', pal: { dark: '#14201e', body: '#3e5650', light: '#5a7a72', moss: '#7fd0c0', arm: '#2e403c', eye: '#bff4ff', crack: '#9fd8ff' } },
   reinageoda: { name: 'Reina Geoda', base: 'pufon', type: 'cristal', exp: 120, stats: { hp: 200, atk: 52, def: 50, spa: 74, spd: 66, spe: 60 }, speed: 64, patterns: ['rain', 'radial'], script: 'geoda', proj: { kind: 'shard', color: '#8ff0ff' }, minion: 'rataCristal', pal: { stemDark: '#6f7f9a', stem: '#d8e6f5', capDark: '#3a1d5c', cap: '#9a5fe0', spot: '#8ff0ff', glow: '143,240,255', eye: '#1a1030' } },
   cienagon: { name: 'Ciénago', base: 'pedrolon', type: 'planta', exp: 120, stats: { hp: 240, atk: 72, def: 64, spa: 66, spd: 60, spe: 40 }, speed: 48, patterns: ['slam', 'rain', 'summon', 'radial'], proj: { kind: 'spore', color: '#a6e06a' }, minion: 'lagartoCieno', pal: { dark: '#16201a', body: '#3a4a3a', light: '#526652', moss: '#7ac45a', arm: '#2a362a', eye: '#e8f070', crack: '#1e2a1e' } },
   picoferro: { name: 'Picoferro', base: 'pedrolon', type: 'roca', exp: 120, stats: { hp: 250, atk: 80, def: 74, spa: 70, spd: 62, spe: 44 }, speed: 50, patterns: ['slam', 'charge', 'radial', 'summon'], proj: { kind: 'shard', color: '#ffe066' }, minion: 'rataMinera', pal: { dark: '#1a1714', body: '#4a423a', light: '#665c50', moss: '#e0a040', arm: '#36302a', eye: '#ffe066', crack: '#c87a3a' } },
@@ -2752,7 +2755,7 @@ const Geoda = {
     if (g.onBossEvent) g.onBossEvent(e, 'bounce', { hits: e.rockHits });
   },
   daze(e, g) {
-    e.state = 'dazed'; e.timer = e.windupTime = GEODA.daze; e.dazed = true;
+    e.state = 'dazed'; e.timer = e.windupTime = GEODA.daze; e.dazed = true; (e.feats || (e.feats = {})).daze = true;   // ofrenda: aturdida con tres choques
     this.calm(e); e.vuln = 1 / (1 - GEODA.defCut);
     Effects.floater(g, e.x, e.y - e.height - 30, '¡Aturdida! Defensa −30 %', '#ffe14d', 13);
     if (g.onBossEvent) g.onBossEvent(e, 'daze', {});
@@ -3058,6 +3061,7 @@ const BossKit = {
   /** Ventana de vulnerabilidad: derribado `t` s y recibe más daño (defCut = −% de defensa). Siempre con su motivo. */
   vulnerable(e, g, t, why, defCut) {
     const S = this.st(e); S.stage = 'vuln'; S.t = S.vulnT = e.timer = e.windupTime = t; S.why = why; S.defCut = defCut; S.mv = null;
+    (e.feats || (e.feats = {})).down = true;   // derribado (ofrendas: StoryChain.offering)
     e.state = 'dazed'; e.vuln = 1 / (1 - defCut);
     Effects.floater(g, e.x, e.y - e.height - 34, `¡DERRIBADO! Defensa −${Math.round(defCut * 100)} %`, '#ffe14d', 14);
     if (g.onBossEvent) g.onBossEvent(e, 'vuln', { hits: S.hits, why, t });
@@ -3114,8 +3118,10 @@ const BossKit = {
     return (ph.label ? ' · ' + ph.label : '') + (need ? ` · choques ${S.hits || 0}/${need}` : '') + extra;
   },
   /** Recompensa persistente: la primera victoria da el trofeo único; las siguientes, solo cuentan. */
+  /** Definición de un jefe por su id (robleton → espinas, gromgar → gromgar). */
+  defOf(bossId) { return this.DEFS[bossId] || (BOSSES[bossId] && BOSSES[bossId].bk && this.DEFS[BOSSES[bossId].bk]) || null; },
   grant(save, bossId, bag) {
-    const D = this.DEFS[bossId], lines = []; if (!D) return lines;
+    const D = this.defOf(bossId), lines = []; if (!D) return lines;
     save.bosses = save.bosses && typeof save.bosses === 'object' ? save.bosses : {};
     const rec = save.bosses[bossId] || (save.bosses[bossId] = { kills: 0 });
     rec.kills = (rec.kills || 0) + 1;
@@ -3129,7 +3135,7 @@ const BossKit = {
   },
   sanitize(raw) {
     const out = {}; if (!raw || typeof raw !== 'object') return out;
-    for (const [id, r] of Object.entries(raw)) if (this.DEFS[id] && r && typeof r === 'object') out[id] = { kills: Math.max(0, Math.min(1e6, Math.floor(+r.kills || 0))), trophy: !!r.trophy };
+    for (const [id, r] of Object.entries(raw)) if (this.defOf(id) && r && typeof r === 'object') out[id] = { kills: Math.max(0, Math.min(1e6, Math.floor(+r.kills || 0))), trophy: !!r.trophy };
     return out;
   },
   /** Telegráfico común: cada ataque dibuja el suyo; fase y estados especiales tienen el mismo lenguaje. */
@@ -3418,11 +3424,33 @@ BossKit.DEFS.espinas = {
       stump.hp--; if (stump.hp <= 0) BossArena.shatter(g, stump); else stump.crack = 1;
       Effects.burst(g, stump.cx, stump.cy - 10, '#8a6234', 26, 220, .6);
       if (g.onBossEvent) g.onBossEvent(e, 'tangle', {});
+      (e.feats || (e.feats = {})).tangle = true;   // ofrenda: enredado en un tocón
       BossKit.vulnerable(e, g, ESPINAS.tangle, 'se ha enredado en un tocón', ESPINAS.defCut);
     }
   },
   reward: { item: 'coronaEspinas' },
 };
+/* --- Eco de Robletón (Raíces Hondas, poscampaña): el mismo combate de tocones y brotes, más raíces que persiguen --- */
+const ECO = { chase: { n: 6, gap: 40, r: 26, step: .5, dmg: 18 } };
+BossKit.DEFS.ecoEspinas = Object.assign({}, BossKit.DEFS.espinas, {
+  name: 'Eco de Robletón',
+  phases: BossKit.DEFS.espinas.phases.map((ph, i) => Object.assign({}, ph, { moves: ph.moves.concat('persecucion'),
+    card: ph.card && (i === 1 ? ['¡El Eco despierta los brotes!', 'Igual que el guardián del Bosque: rompe los brotes y hazle saltar contra un tocón.\nCuidado: sus raíces te siguen.'] : ['¡El Eco enloquece!', 'Las raíces que persiguen salen más a menudo. Los tocones siguen siendo su debilidad.']) })),
+  moves: Object.assign({}, BossKit.DEFS.espinas.moves, {
+    persecucion: { id: 'persecucion', tele: .8, cd: 2.2, rec: .4, lock: .3, when: (e, g, S, P, d) => d >= 80, weight: (e, g, S) => S.phase >= 2 ? 3 : 2,
+      start(e, g) { const T = e.target && e.target.alive ? e.target : BossKit.heroes(g)[0]; if (T) BossKit.DEFS.ecoEspinas.chaseStep(e, g, T, e.x + e.atk.x * 50, e.y + e.atk.y * 50, 0); },
+      draw(c, e, x, y, g, k, locked) { BossArt.lane(c, x, y, e.atk.x, e.atk.y, 120, 16, k, locked, g.time); } },
+  }),
+  /** Raíz que persigue: cada brote nace un paso más cerca de donde está AHORA su objetivo (avisada en el suelo). */
+  chaseStep(e, g, T, x, y, i) {
+    const o = ECO.chase; if (!e.alive || i >= o.n || g.world.isSolid(Math.floor(x / 32), Math.floor(y / 32))) return;
+    g.zones.push(new Zone({ x, y, r: o.r, delay: o.step, life: 0, owner: e, src: e, team: 'enemy', color: '#7fd0c0',
+      onStart: (g2, z) => { if (!e.alive) return; Combat.circle(g2, 'enemy', z.x, z.y, z.r, { dmg: o.dmg, kb: 140, src: e, color: '#7fd0c0', slow: .5 }); Effects.burst(g2, z.x, z.y - 10, '#5f8f3a', 10, 150, .4);
+        const l = Math.hypot(T.x - z.x, T.y - z.y) || 1; BossKit.DEFS.ecoEspinas.chaseStep(e, g2, T, z.x + (T.x - z.x) / l * o.gap, z.y + (T.y - z.y) / l * o.gap, i + 1); },
+      render(c, z) { if (z.started) return; BossArt.circle(c, z.x, z.y, z.r, z.t / z.delay, '#7fd0c0'); } }));
+  },
+  reward: { item: 'cortezaEco' },
+});
 function drawCrown(c, x, y, color = '#f2b84b') {
   c.fillStyle = color; c.beginPath();
   c.moveTo(x - 7, y); c.lineTo(x - 7, y - 6); c.lineTo(x - 3.5, y - 2.5); c.lineTo(x, y - 8); c.lineTo(x + 3.5, y - 2.5); c.lineTo(x + 7, y - 6); c.lineTo(x + 7, y); c.closePath(); c.fill();
@@ -3433,7 +3461,7 @@ function drawCrown(c, x, y, color = '#f2b84b') {
 const ELITE = {
   chance: .05,          // probabilidad base de que un enemigo elegible sea élite
   perLevel: .0015,      // + por nivel de la mazmorra (más profundas ⇒ algo más frecuentes)
-  biome: { forest: 1, cave: 1.1, marsh: 1.2, mine: 1.3, volcano: 1.4 },
+  biome: { forest: 1, cave: 1.1, marsh: 1.2, mine: 1.3, volcano: 1.4, roots: 1.7 },
   maxPerRoom: 1,        // como mucho uno por sala al generar el piso
   minFloor: 2,          // en el primer piso del Bosque no aparecen
   hp: 2.5, dmg: 1.5, exp: 2,
@@ -3677,6 +3705,22 @@ BIOMES.marsh = biomeVariant('forest', {
     flowers: ['#6a7a3a', '#9ab07a', '#3a5a48', '#b46cf0'], tall: '#21362a', tallLight: '#3a5a44',
   },
 });
+BIOMES.roots = biomeVariant('forest', {
+  id: 'roots', name: 'Raíces del Corazón', obstacles: ['trees', 'rocks', 'pillar', 'trees', 'pond'],
+  enemies: { chaser: 'mordisquin', ranged: 'pufon', tank: 'pedrolon' }, boss: 'ecoRobleton',
+  loot: { berry: 30, crystal: 30, gems: 32, relic: 22 }, dropBerry: .16,
+  mm: { floor: '#2e4a4a', corr: '#3a4a3e' },
+  pal: {
+    bg: '#020506', vignette: 'rgba(0,4,8,.55)', ambient: [3, 8, 12, .34], rays: .02, atmo: 'dust', dustColor: '#9fd8ff', glowDecal: '#4fb8d0',
+    foliageDeep: ['#0a1414', '#0e1a1a'], grass: ['#1a2a28', '#1d2e2b', '#172624', '#203330'], blade: '#2a4440', bladeDark: '#122020',
+    litter: ['#2e3a30', '#263228', '#36443a'], roots: '#3a5a52', moss: '#2f5a50', vines: '#24443e', mushroom: '#3a6a8a', fern: '#2a4a44',
+    path: '#262c26', pathEdge: '#141814', pebble: '#3e4a44',
+    wallTop: '#101c1c', wallTopLine: '#1a2a2a', wallFace: '#2e3c3a', wallFaceLine: '#1a2422', wallBase: '#0a1010', wallDeep: '#060c0c',
+    water: '#12262c', waterDeep: '#0c1a20', foam: '#4f8aa0', ripple: '#6fb0c8',
+    trunk: '#26302a', trunkDark: '#161c18', canopy: ['#122220', '#152624', '#101e1c'], canopyMid: '#1c3430', canopyLight: '#2f5650',
+    flowers: ['#6fd6e8', '#9fd8ff', '#3a5a52', '#d8fbff'], tall: '#1c3230', tallLight: '#36564f',
+  },
+});
 BIOMES.mine = biomeVariant('cave', {
   id: 'mine', name: 'Mina', obstacles: ['crystals', 'rocks', 'rocks', 'pillar', 'pool'],
   enemies: { chaser: 'chispin', ranged: 'farolillo', tank: 'ferron' }, boss: 'gromgar',
@@ -3746,9 +3790,9 @@ const ITEMS = {
   orbePetrificador: { name: 'Orbe petrificador', cat: 'consumible', rarity: 'rara', icon: 'orb', color: '#9aa0a8', price: 70, desc: 'Petrifica a los enemigos cercanos hasta que reciben daño.', use: (g) => g.floorRT ? g.floorRT.petrifyNear() : false },
 
   /* --- Materiales (se venden o se usan en el taller de la base) --- */
-  hojaTenaz: { name: 'Hoja tenaz', cat: 'material', rarity: 'comun', icon: 'leaf', color: '#5fbf5a', price: 12, biomes: ['forest'], desc: 'Hoja flexible del bosque. Material del taller.' },
-  setaLuminosa: { name: 'Seta luminosa', cat: 'material', rarity: 'pococomun', icon: 'mushroom', color: '#7dffa0', price: 30, biomes: ['forest'], desc: 'Brilla en la oscuridad. Material del taller.' },
-  fragmentoCuarzo: { name: 'Fragmento de cuarzo', cat: 'material', rarity: 'comun', icon: 'shard', color: '#a6e3ff', price: 15, biomes: ['cave'], desc: 'Esquirla de cristal de la gruta. Material del taller.' },
+  hojaTenaz: { name: 'Hoja tenaz', cat: 'material', rarity: 'comun', icon: 'leaf', color: '#5fbf5a', price: 12, biomes: ['forest', 'roots'], desc: 'Hoja flexible del bosque. Material del taller.' },
+  setaLuminosa: { name: 'Seta luminosa', cat: 'material', rarity: 'pococomun', icon: 'mushroom', color: '#7dffa0', price: 30, biomes: ['forest', 'roots'], desc: 'Brilla en la oscuridad. Material del taller.' },
+  fragmentoCuarzo: { name: 'Fragmento de cuarzo', cat: 'material', rarity: 'comun', icon: 'shard', color: '#a6e3ff', price: 15, biomes: ['cave', 'roots'], desc: 'Esquirla de cristal de la gruta. Material del taller.' },
   geodaAzul: { name: 'Geoda azul', cat: 'material', rarity: 'rara', icon: 'gem', color: '#5c8cff', price: 70, biomes: ['cave'], desc: 'Piedra hueca llena de cristales. Material del taller.' },
   cenizaDensa: { name: 'Ceniza densa', cat: 'material', rarity: 'comun', icon: 'dust', color: '#8a7a70', price: 15, biomes: ['volcano'], desc: 'Ceniza volcánica compacta. Material del taller.' },
   juncoSeco: { name: 'Junco seco', cat: 'material', rarity: 'comun', icon: 'leaf', color: '#a8b46a', price: 14, biomes: ['marsh'], desc: 'Fibra resistente de la ciénaga. Material del taller.' },
@@ -3795,6 +3839,8 @@ const ITEMS = {
   escudoRoble: { name: 'Escudo de roble', cat: 'equipo', slot: 'accesorio', classes: ['guerrero'], rarity: 'pococomun', icon: 'shield', color: '#8e5c30', price: 150, mods: { flat: { def: 5 } }, desc: 'Un buen escudo de repuesto, reforzado con hierro.' },
   anilloMana: { name: 'Anillo de maná', cat: 'equipo', slot: 'accesorio', classes: ['mago'], rarity: 'rara', icon: 'ring', color: '#5aa8e8', price: 330, mods: { flat: { mp: 25 } }, desc: 'Guarda reservas de maná.', regenNote: true },
 
+  corazonRaiz: { name: 'Corazón de raíz', cat: 'equipo', slot: 'accesorio', rarity: 'legendaria', unique: true, icon: 'gem', color: '#9fd8ff', price: 900, mods: { flat: { hp: 14 }, pct: { def: .08, spd: .08 } }, desc: 'Reliquia de Raíces Hondas: una raíz cristalizada con forma de corazón. Late, despacio, al ritmo de algo mucho más grande.' },
+  cortezaEco: { name: 'Corteza del Eco', cat: 'equipo', slot: 'accesorio', rarity: 'epica', unique: true, icon: 'ring', color: '#7fd0c0', price: 700, mods: { flat: { atk: 5, def: 4 }, pct: { hp: .05 } }, desc: 'Trofeo único: un trozo de corteza del Eco de Robletón. Brilla como el cuarzo cuando se acerca un enemigo.' },
   coronaEspinas: { name: 'Corona de Espinas', cat: 'equipo', slot: 'accesorio', rarity: 'epica', unique: true, icon: 'ring', color: '#9be36b', price: 500, mods: { flat: { atk: 4 }, pct: { def: .06 } }, desc: 'Trofeo único: una corona de raíces vivas del Guardián de Espinas. Aún huele a savia.' },
   colmilloGromgar: { name: 'Colmillo de Gromgar', cat: 'equipo', slot: 'accesorio', rarity: 'epica', unique: true, icon: 'ring', color: '#e0a040', price: 600, mods: { flat: { def: 6, atk: 3 }, pct: { def: .05 } }, desc: 'Trofeo único: un trozo de la mandíbula de piedra del Quebrantamontañas. Aún vibra cuando algo choca.' },
   panueloRojo: { name: 'Pañuelo rojo', cat: 'equipo', slot: 'accesorio', rarity: 'comun', icon: 'scarf', color: '#e0473c', price: 60, mods: { flat: { atk: 4 } }, desc: 'Un pañuelo sencillo que anima a pelear.' },
@@ -4114,6 +4160,13 @@ const DUNGEONS = [
     traps: [3, 5], trapPool: { purificadora: 2, pinchos: 3, veneno: 2, somnifera: 2, teletransporte: 2, rafaga: 2, hambre: 2, explosiva: 3, invocacion: 2, agujero: 2 },
     monsterHouse: .14, shop: .10, hiddenStairs: .25, dark: .2, treasure: .18, wind: 330,
   },
+  {
+    id: 'raices', name: 'Raíces Hondas', biome: 'roots', floors: 6, waypoint: 3, boss: 'ecoRobleton', level: 17, unlock: 'crater', color: '#7fd0c0', optional: true,
+    desc: 'Opcional, tras el Cráter: bajo el roble más viejo, las raíces del Corazón al descubierto. Más élites, pisos oscuros y un eco del primer guardián.',
+    enemies: { rataRaiz: 26, limoMusgo: 22, setaBruma: 18, zarza: 18, cuervo: 16 }, enemyBase: 4, enemyStep: 2,
+    traps: [2, 4], trapPool: { purificadora: 2, pinchos: 3, veneno: 2, somnifera: 2, rafaga: 2, hambre: 1, invocacion: 2 },
+    monsterHouse: .1, shop: .08, hiddenStairs: .2, dark: .45, treasure: .2, wind: 330,
+  },
 ];
 const dungeonById = id => DUNGEONS.find(d => d.id === id);
 /** Presentación del vecino de las misiones (el cartero Lino): mazmorra, piso y pausa de la escena de los ruidos. */
@@ -4250,7 +4303,7 @@ const Guild = {
   claimed(s, id) { return !!(s.guild && s.guild.claims.includes(id)); },
   /** Suma o resta reputación. Una penalización nunca te baja de rango. */
   addRep(s, n) { const floor = n < 0 ? rankOf(s.points || 0).pts : 0; s.points = Math.max(floor, (s.points || 0) + n); },
-  titles(s) { return RANK_TITLES.slice(0, Guild.rankIndex(s) + 1); },
+  titles(s) { return RANK_TITLES.slice(0, Guild.rankIndex(s) + 1).concat(StoryChain.titles(s)); },
   title(s) { const t = s.guild && s.guild.title; return t && Guild.titles(s).includes(t) ? t : RANK_TITLES[Guild.rankIndex(s)]; },
   /** Primera victoria contra el guardián de una mazmorra: +40 de reputación, una vez. */
   bossDefeated(s, dng) { return Guild.claim(s, 'boss:' + dng.boss) ? (Guild.addRep(s, GUILD_REP.bossFirst), [`El gremio celebra tu primera victoria contra el guardián de ${dng.name}: +${GUILD_REP.bossFirst} de reputación.`]) : []; },
@@ -4262,7 +4315,7 @@ const Guild = {
     ['Contratos hasta ★A', 'Título: Explorador de Oro'],
     ['Contratos hasta ★S', 'Título: Explorador de Diamante'],
   ],
-  sanitize(g) { const out = Guild.fresh(); if (g && typeof g === 'object') { out.claims = [...new Set(Array.isArray(g.claims) ? g.claims : [])].filter(x => typeof x === 'string' && /^(boss|event|project):[\w:.-]{1,60}$/.test(x)).slice(-CLAIMS_MAX); out.title = RANK_TITLES.includes(g.title) ? g.title : ''; } return out; },
+  sanitize(g) { const out = Guild.fresh(); if (g && typeof g === 'object') { out.claims = [...new Set(Array.isArray(g.claims) ? g.claims : [])].filter(x => typeof x === 'string' && /^(boss|event|project|story|relic):[\w:.-]{1,60}$/.test(x)).slice(-CLAIMS_MAX); out.title = RANK_TITLES.includes(g.title) || Object.values(STORY_TITLES).includes(g.title) ? g.title : ''; } return out; },
 };
 
 /** Mejoras de la aldea: se construyen con un contrato especial y se guardan en town.upgrades. */
@@ -4379,24 +4432,28 @@ const RegionEvents = {
 const SAVE_KEY = 'mystery-action-save-v1';
 const BACKUP_KEY = 'mystery-action-save-backup';
 const OPTIONS_KEY = 'mystery-action-options';
-const SAVE_VERSION = 8;   // 6: clases (Guerrero, Arquero, Mago, Asesino) en lugar de especies; las partidas anteriores no son compatibles
+const SAVE_VERSION = 9;   // 6: clases (Guerrero, Arquero, Mago, Asesino) en lugar de especies; las partidas anteriores no son compatibles
                           // 7 (0.42): registro del perfil — códice (textos, secretos, reliquias), misiones cumplidas e historia
                           // 8 (0.43): gremio (recompensas únicas, título), mejoras de la aldea y eventos regionales
+                          // 9 (0.44): registro de descubrimientos (páginas, lemas, recuerdos, conversaciones, ofrendas) y decisiones
 /* --- Registro del perfil (v7) ---------------------------------------------------------------------
    codex.lore     textos del escenario leídos (ids de LORE)
    codex.secrets  salas secretas descubiertas («mazmorra:plantilla», p. ej. «bosque:muro_agrietado»)
    codex.relics   reliquias: objetos épicos, legendarios o únicos que ha tenido alguna vez
    log.jobs       misiones entregadas (las últimas LOG_MAX: id, tipo, mazmorra, estrellas y fecha)
    story.flags    desbloqueos narrativos (STORY.flags) · story.endings  finales vistos (STORY.endings)
+   (v9) codex.pages / lemas / memories / talks / offerings y story.choices: ver StoryChain y docs/SECRETOS.md
    Todo se valida contra las listas del juego: un id desconocido se descarta. */
 const LOG_MAX = 100, CODEX_MAX = 300;
 const STORY = {
-  flags: { llegada: 'Llegada a la Aldea Raíz', mercader: 'El mercader Tobías abre su puesto', tablon: 'El cartero Lino cuelga el tablón de misiones' },
-  endings: {},              // los finales aún no existen en el juego: el campo se guarda y valida desde ya
+  flags: { llegada: 'Llegada a la Aldea Raíz', mercader: 'El mercader Tobías abre su puesto', tablon: 'El cartero Lino cuelga el tablón de misiones',
+    hebilla: 'Hebilla de Irene (sol entero, con una «I»)', codigo_tiza: 'Clave del código de tiza de Irene (Ulula)', rueda_raiz: 'Rueda del Bosque (aún ilegible)',
+    juramento: '«Velar sin atar» (Doña Musgo)', bernardo_visto: 'Bernardo, el portador del Peso', tercera_via: 'Tercera vía descubierta: «no hay que romper ni encerrar, hay que abrir»' },
+  endings: { restaurar: 'Restaurar los sellos', destruir: 'Destruir los sellos', liberar: 'Liberar el Corazón Primordial' },   // finales (capítulo 8, aún no jugable): se guardan y validan desde ya
 };
 const isRelic = id => !!ITEMS[id] && (ITEMS[id].unique || ITEMS[id].rarity === 'epica' || ITEMS[id].rarity === 'legendaria');
 const Codex = {
-  fresh() { return { lore: [], secrets: [], relics: [] }; },
+  fresh() { return { lore: [], secrets: [], relics: [], pages: [], lemas: [], memories: [], talks: [], offerings: [] }; },
   /** Apunta un descubrimiento; devuelve true si es nuevo. */
   add(s, kind, id) {
     if (!s) return false;
@@ -4410,24 +4467,274 @@ const Codex = {
     if (kind === 'lore') return Object.values(LORE).some(l => l.some(q => q.id === id));
     if (kind === 'relics') return isRelic(id);
     if (kind === 'secrets') { const [d, t] = id.split(':'); return !!dungeonById(d) && Prefabs.list.some(p => p.id === t && p.role === 'secret'); }
-    return false;
+    const cat = { pages: STORY_PAGES, lemas: SEAL_LEMAS, memories: STORY_MEMORIES, talks: STORY_TALKS, offerings: OFFERINGS }[kind];
+    return !!cat && Object.prototype.hasOwnProperty.call(cat, id);
   },
   sanitize(c) { const out = Codex.fresh(); if (c && typeof c === 'object') for (const k of Object.keys(out)) out[k] = Array.isArray(c[k]) ? [...new Set(c[k])].filter(id => Codex.valid(k, id)).slice(0, CODEX_MAX) : []; return out; },
   /** Reliquias de una lista de objetos (inventario, equipo, botín). */
   relicsIn(s, ids) { let n = 0; for (const id of ids) if (isRelic(id) && Codex.add(s, 'relics', id)) n++; return n; },
 };
 const Story = {
-  flag(s, id) { if (!s || !STORY.flags[id]) return false; if (!s.story) s.story = { flags: [], endings: [] }; if (s.story.flags.includes(id)) return false; s.story.flags.push(id); return true; },
+  flag(s, id) { if (!s || !STORY.flags[id]) return false; if (!s.story) s.story = { flags: [], endings: [], choices: {} }; if (!Array.isArray(s.story.flags)) s.story.flags = []; if (s.story.flags.includes(id)) return false; s.story.flags.push(id); return true; },
   /** Banderas que se deducen de lo ya jugado (migración y comprobación al cargar). */
-  derived(s) { const f = []; if (s.arrived) f.push('llegada'); if ((s.cleared || []).includes('bosque')) f.push('mercader'); if ((s.cleared || []).includes(COURIER_INTRO.dungeon)) f.push('tablon'); return f; },
+  derived(s) { const f = []; if (s.arrived) f.push('llegada'); if ((s.cleared || []).includes('bosque')) f.push('mercader'); if ((s.cleared || []).includes(COURIER_INTRO.dungeon)) f.push('tablon'); if (s.codex && Array.isArray(s.codex.lore) && s.codex.lore.includes('f_nido')) f.push('hebilla'); return f; },
   sanitize(st, s) {
     const flags = new Set([...(st && Array.isArray(st.flags) ? st.flags : []), ...Story.derived(s)].filter(id => STORY.flags[id]));
     const endings = (st && Array.isArray(st.endings) ? [...new Set(st.endings)] : []).filter(id => STORY.endings[id]);
-    return { flags: [...flags], endings };
+    return { flags: [...flags], endings, choices: StoryChain.sanitizeChoices(st && st.choices) };
   },
 };
 /** Misión entregada al registro (la más reciente al final; como mucho LOG_MAX). */
 const logJob = (s, j) => { if (!s.log || !Array.isArray(s.log.jobs)) s.log = { jobs: [] }; s.log.jobs.push(Object.assign({ id: j.id, type: j.type, dungeon: j.dungeon, stars: j.stars, at: Date.now() }, j.target ? { target: String(j.target).slice(0, 40) } : {}, j.project ? { project: j.project } : {})); if (s.log.jobs.length > LOG_MAX) s.log.jobs.splice(0, s.log.jobs.length - LOG_MAX); };
+/* --- Historia: secretos, registro de descubrimientos y cadena oculta (0.44; diseño en docs/SECRETOS.md) ---
+   Las piezas tienen SITIO FIJO (mazmorra y piso): aparecen en todas las expediciones, sea cual sea la semilla.
+   Lo que depende del perfil es si se pueden leer. Todo se guarda en `codex` y `story` (formato 9) y se valida
+   contra estos catálogos. Las mismas funciones las usan el navegador sin red y el servidor. */
+const SEAL_LEMAS = {
+  raiz: { name: 'Sello de la Raíz', dungeon: 'bosque', text: 'Lo que crece, espera.' },
+  luz: { name: 'Sello de la Luz', dungeon: 'gruta', text: 'Lo que brilla, calla.' },
+  memoria: { name: 'Sello de la Memoria', dungeon: 'cienaga', text: 'Lo que recuerda, perdona.' },
+  peso: { name: 'Sello del Peso', dungeon: 'mina', text: 'Lo que pesa, sostiene.' },
+  fuego: { name: 'Sello del Fuego', dungeon: 'crater', text: 'Lo que arde, forja.' },
+};
+/** Rueda del sello de cada mazmorra (aparece junto a la salida al caer el guardián). */
+const SEAL_OF = { bosque: 'raiz', gruta: 'luz', cienaga: 'memoria', mina: 'peso', crater: 'fuego' };
+const STORY_PAGES = {
+  p1: { title: 'Diario de Irene · La marca verdadera', hint: 'Una marca de tiza en un código que solo entiende el gremio (Bosque).',
+    text: '«Si lees esto, Ulula te ha enseñado mis rayas. La marca del piso 3 es para los de gris: que crean que sigo arriba. Anoche quemé su carro y los cautivos corrieron hacia las luces de la aldea. Me siguen. Lo que sé lo he escondido por el camino, donde solo alguien de la Orden miraría: la primera hoja está en el archivo de la abuela, bajo la Gruta. Mi hebilla abre el atril. Si la he perdido, búscala: los cuervos se lo llevan todo. — I.»' },
+  p2: { title: 'Diario de Irene · El archivo', hint: 'Un atril con el hueco de una hebilla, bajo la Gruta.',
+    text: '«Hace un año. El archivo de la abuela sigue bajo la Gruta. Las crónicas hablan de siete fundadores, pero el mural tiene siete figuras y una octava, pequeña, en el centro. Nadie la nombra. La Orden juró velar sin atar; alguien ha olvidado la segunda mitad. Busca el estanque de la Ciénaga: el agua guarda lo que la Orden olvidó.»' },
+  p3: { title: 'Diario de Irene · El estanque', hint: 'El agua de un sello guarda algo más que recuerdos (Ciénaga).',
+    text: '«El agua me enseñó una noche antigua: ocho, no siete. El octavo se quedó en el centro. ¿Quién guarda al guardián? Los mineros de la aldea dicen que la noche del derrumbe vieron a un hombre sin cara. Voy a la Mina.»' },
+  p4: { title: 'Diario de Irene · Bernardo', hint: 'Alguien sigue vivo junto a la rueda de la Mina.',
+    text: '«Bernardo lleva veinte años aquí abajo y sigue haciendo chistes. El de la cara de cuarzo lo ató a la rueda para que la mina no se caiga. Los llama portadores: siete sellos, siete portadores. Los de gris le buscan los demás. Le he prometido a Bernardo que volveré. Al Cráter: allí se forjó todo.»' },
+  p5: { title: 'Diario de Irene · La rueda rota', hint: 'En la forja del Cráter, bajo un molde partido.',
+    text: '«El molde de la sexta rueda está partido: alguien rompió su sello por dentro. Los sellos se hicieron para siete siglos, y el plazo se acaba. La séptima rueda no se forjó aquí, sino en las Cumbres. Si no llego, que quien lea esto sepa que hay una tercera vía: no hay que romper ni encerrar. Hay que abrir.»' },
+};
+const STORY_MEMORIES = {
+  r1: { title: 'Recuerdo · Ocho sombras', hint: 'El agua del sello de la Ciénaga.',
+    text: 'El agua te enseña una noche antigua. Ocho figuras rodean un corazón de luz del tamaño de una casa. Siete tocan una rueda cada una. La octava se queda en el centro, con el rostro en sombra: «Lo dormiremos. Y yo me quedaré».' },
+  r2: { title: 'Recuerdo · El rayo tachado', hint: 'El calor de la forja del Cráter.',
+    text: 'El calor te devuelve otra noche: una forja enorme y siete ruedas enfriándose. Una mujer de pelo blanco discute con alguien a quien no ves la cara. Él coge un cuchillo y tacha uno de los rayos del estandarte. Ella no grita: graba algo en su rueda y se marcha hacia el norte.' },
+};
+/** Ofrendas: se consiguen venciendo al guardián «como lo habría querido su fundador» (condición del combate). */
+const OFFERINGS = {
+  bellotaMirla: { name: 'Bellota de Mirla', boss: 'robleton', feat: 'tangle', hint: 'Dicen que a Robletón le pierden los tocones.', how: 'Vencer a Robletón después de enredarlo en un tocón.', text: 'Una bellota de cuarzo, tibia. Mirla plantó el roble más viejo con una igual.' },
+  prismaTeodric: { name: 'Prisma de Teodric', boss: 'reinageoda', feat: 'daze', hint: 'Las rocas de su guarida son su debilidad.', how: 'Vencer a la Reina Geoda después de aturdirla con tres choques contra las rocas.', text: 'Un prisma tallado a mano. Separa la luz en siete colores, y uno sale apagado.' },
+  clavijaBrann: { name: 'Clavija de Brann', boss: 'gromgar', feat: 'down', hint: 'Hasta una montaña cae si choca bastantes veces.', how: 'Vencer a Gromgar después de derribarlo.', text: 'Una clavija de minero con la marca de Picoferro. Sostenía algo mucho más grande que una galería.' },
+};
+const OFFERINGS_FUTURE = [['Perla de Hesse', 'Ciénago'], ['Ascua de Ondra', 'Magmatrón'], ['Hebilla de Anselmo', 'el Prior Hueco (capítulo 6)'], ['Copo quieto de Ilse', 'la Reina del Hielo Quieto (capítulo 7)']];
+const STORY_CHOICES = {
+  bernardo: { title: 'Bernardo, el portador del Peso',
+    ask: 'Bernardo te mira, medio cubierto de roca y cuarzo. «Si me suelto, la rueda se queda sin nadie. Si no, aquí sigo. Decide tú; yo ya he decidido demasiadas veces que no.»',
+    options: {
+      liberar: { label: 'Liberarle (si él acepta)', text: 'Bernardo cierra los ojos. «Sí. Que se caiga si tiene que caerse: quiero ver a mi hermano.» La roca se deshace a su alrededor. La mina tiembla… y aguanta. Sube a la aldea por su cuenta.' },
+      dejar: { label: 'Dejarle sostener la mina', text: '«Lo entiendo», dice. «Dile a Bartolo que estoy bien. No es verdad, pero díselo.» La rueda vuelve a zumbar, tranquila.' },
+    } },
+};
+const STORY_TALKS = {
+  ulula_irene: { station: 'guild', npc: 'Maestra Ulula', label: 'Preguntar por la marca de Irene', when: s => s.codex.lore.includes('f_explorador'),
+    lines: ['¿«Todo bien»? Irene nunca escribía eso. Escribía la verdad en otro sitio, con rayas: una raya larga es un piso, una corta, un paso hacia la pared.', 'Si dice piso 3, busca en el 4: siempre iba un paso por delante. Toma, te dibujo la clave. Y si encuentras algo… me lo traes.'],
+    flags: ['codigo_tiza'] },
+  musgo_fieles: { station: 'rest', npc: 'Doña Musgo', label: 'Enseñarle la hoja del archivo', when: s => s.codex.pages.includes('p2'),
+    lines: ['Doña Musgo lee la hoja y se le escapa una lágrima. «Velar sin atar… Hacía años que no lo oía.»', '«No, criatura, yo no sé nada de ninguna Orden. Pero si encuentras más hojas, tráemelas. Y no se las enseñes a nadie que vista de gris.»'],
+    flags: ['juramento'] },
+  bartolo_bernardo: { station: 'mayor', npc: 'Alcalde Bartolo', label: 'Hablarle de Bernardo', when: s => !!(s.story.choices || {}).bernardo,
+    lines: s => s.story.choices.bernardo === 'liberar'
+      ? ['¡Mi hermano! Veinte años y sigue contando el chiste del pico. No sé cómo darte las gracias.', 'Esta noche no se cierra la taberna. Y mañana… mañana bajamos juntos a ver la mina. Sin cavar.']
+      : ['Dicen que lo has visto. Que está bien.', 'No me lo creo, pero gracias por decírmelo. Si un día se puede hacer algo por él, avísame.'] },
+  ulula_tercera: { station: 'guild', npc: 'Maestra Ulula', label: 'Hablar del diario completo', when: s => s.story.flags.includes('tercera_via'),
+    lines: ['Ulula cierra el libro de registro. «Irene escribió "abrir". No romper ni encerrar: abrir.»', '«Si alguien puede encontrar esa puerta, eres tú. Y cuando la encuentres, la quiero de vuelta. A ella, digo.»'] },
+};
+/** Títulos (cosméticos) que da la historia. Se eligen en el gremio junto a los de rango. */
+const STORY_TITLES = { tercera_via: 'Lector del diario de Irene' };
+const THIRD_WAY_REP = 30, LEMA_REP = 2;
+/** Sitios fijos: mazmorra, piso, oculto tras pared falsa o a la vista, y qué pasa al leerlos. */
+const STORY_SITES = {
+  nido_cuervo: { dungeon: 'bosque', floor: 2, hidden: false, title: 'Nido del cuervo tuerto', lore: 'f_nido' },
+  marca_irene: { dungeon: 'bosque', floor: 3, hidden: false, title: 'Marca del gremio', lore: 'f_explorador' },
+  irene_p1: { dungeon: 'bosque', floor: 4, hidden: true, title: 'Detrás de la pared hueca' },
+  archivo_fieles: { dungeon: 'gruta', floor: 4, hidden: true, title: 'Archivo de los Fieles' },
+  raiz_corazon: { dungeon: 'raices', floor: 5, hidden: true, title: 'Cámara del latido' },
+};
+/** Reliquia de la poscampaña (una vez por perfil: guild claim relic:<id>). */
+const STORY_RELIC = { site: 'raiz_corazon', item: 'corazonRaiz' };
+
+const StoryChain = {
+  /** Sitios fijos de un piso. */
+  sitesFor(dngId, floorNo) { return Object.keys(STORY_SITES).filter(id => STORY_SITES[id].dungeon === dngId && STORY_SITES[id].floor === floorNo); },
+  /**
+   * Coloca los sitios fijos del piso ANTES que las demás salas (DungeonPlan.apply), con su propio generador:
+   * en un nicho tras una pared falsa si se puede; si no, a la vista en una sala. Nunca falta.
+   */
+  place(ctx) {
+    const ids = this.sitesFor(ctx.dng.id, ctx.floorNo); ctx.L.story = ctx.L.story || [];
+    if (!ids.length) return;
+    const rnd = ctx.storyRnd || ctx.rnd, c2 = Object.assign({}, ctx, { rnd });
+    for (const id of ids) {
+      const S = STORY_SITES[id];
+      const rooms = ctx.rooms.filter(r => r.type === 'normal' && !r.role && r !== ctx.start && r !== ctx.stairsRoom);
+      for (let k = rooms.length - 1; k > 0; k--) { const j = Math.floor(rnd() * (k + 1)); [rooms[k], rooms[j]] = [rooms[j], rooms[k]]; }
+      let done = false;
+      if (S.hidden) for (const r of rooms) {
+        const snap = Prefabs.snapshot(c2), a = Prefabs.alcove(c2, r, 3, 3, 1); if (!a) { Prefabs.restore(c2, snap); continue; }
+        a.mouth.forEach(i => ctx.world.tiles[i] = T.SECRET);
+        Prefabs.addMech(c2, { id: Prefabs.uid(c2, 'fw'), type: 'falsewall', tiles: a.mouth.slice(), hp: 2, room: r.id, hint: 'Esa pared suena hueca' });
+        const [tx, ty] = a.inner; ctx.occupied.add(ty * ctx.world.w + tx);
+        ctx.L.story.push({ id, tx, ty, room: r.id, hidden: true }); r.role = 'secret'; r.prefab = 'sitio_historia'; done = true; break;
+      }
+      if (!done) for (const r of rooms.length ? rooms : ctx.rooms.filter(r => r !== ctx.start)) {
+        const s = Prefabs.spot(c2, r, 1); if (!s) continue;
+        ctx.L.story.push({ id, tx: s.tx, ty: s.ty, room: r.id, hidden: false }); if (!r.role) r.role = 'story'; done = true; break;
+      }
+    }
+  },
+  /** Textos del escenario que ya pone un sitio fijo del piso (no se repiten al azar). */
+  loreTaken(L) { return (L.story || []).map(st => STORY_SITES[st.id] && STORY_SITES[st.id].lore).filter(Boolean); },
+  /** Casilla libre para la rueda del sello en la guarida (junto a la salida). */
+  sealSpot(world, L, r, avoid = []) {
+    const cands = [[r.cx, r.cy - 3], [r.cx - 3, r.cy], [r.cx + 3, r.cy], [r.cx, r.cy + 3], [r.cx - 3, r.cy - 3], [r.cx + 3, r.cy + 3]];
+    for (const [tx, ty] of cands) if (!SOLID[world.tiles[ty * L.w + tx]] && !avoid.some(o => o.tx === tx && o.ty === ty)) return { tx, ty };
+    return { tx: r.cx, ty: r.cy - 1 };
+  },
+  ensure(s) {
+    if (!s.codex || typeof s.codex !== 'object') s.codex = Codex.fresh();
+    for (const k of Object.keys(Codex.fresh())) if (!Array.isArray(s.codex[k])) s.codex[k] = [];
+    if (!s.story || typeof s.story !== 'object') s.story = { flags: [], endings: [], choices: {} };
+    if (!Array.isArray(s.story.flags)) s.story.flags = [];
+    if (!s.story.choices || typeof s.story.choices !== 'object') s.story.choices = {};
+    return s;
+  },
+  has(s, kind, id) { return kind === 'flag' ? s.story.flags.includes(id) : s.codex[kind].includes(id); },
+  /** Apunta una pieza y añade la línea para el jugador (solo si es nueva). */
+  give(s, kind, id, out) {
+    const label = { pages: () => STORY_PAGES[id].title, lemas: () => `Lema del ${SEAL_LEMAS[id].name}: «${SEAL_LEMAS[id].text}»`, memories: () => STORY_MEMORIES[id].title, offerings: () => `Ofrenda: ${OFFERINGS[id].name}`, lore: () => { const l = Object.values(LORE).flat().find(q => q.id === id); return 'Texto: ' + (l ? l.title : id); }, talks: () => STORY_TALKS[id].label };
+    if (kind === 'flag') { const ok = Story.flag(s, id); if (ok && out && STORY.flags[id]) out.gains.push(STORY.flags[id]); return ok; }
+    const ok = Codex.add(s, kind, id);
+    if (ok && out) out.gains.push(label[kind] ? label[kind]() : id);
+    if (ok && kind === 'lemas') Guild.addRep(s, LEMA_REP);
+    return ok;
+  },
+  /**
+   * Leer un sitio fijo o la rueda de un sello. Devuelve { state: 'ok' | 'locked', title, text, gains, choice }.
+   * Idempotente: leerlo otra vez enseña el texto sin dar nada nuevo.
+   */
+  visit(s, id) {
+    this.ensure(s);
+    const out = { id, state: 'ok', title: '', text: '', gains: [], choice: null }, has = (k, i) => this.has(s, k, i), give = (k, i) => this.give(s, k, i, out);
+    const page = p => { give('pages', p); out.page = p; };
+    switch (id) {
+      case 'nido_cuervo':
+        out.title = STORY_SITES[id].title;
+        out.text = 'Un nido enorme en lo alto de un tocón, lleno de cosas brillantes: botones, monedas… y una hebilla de bronce con un sol de siete rayos. Ninguno está tachado. Por dentro lleva grabada una «I». La guardas.';
+        give('lore', 'f_nido'); give('flag', 'hebilla'); break;
+      case 'marca_irene': {
+        const l = LORE.forest.find(q => q.id === 'f_explorador'); out.title = l.title; out.text = l.text; give('lore', 'f_explorador'); break;
+      }
+      case 'irene_p1':
+        out.title = STORY_SITES[id].title;
+        if (!has('flag', 'codigo_tiza')) { out.state = 'locked'; out.text = 'Detrás de la pared hay una muesca de tiza con rayas largas y cortas. Es un código. Quizá alguien del gremio sepa leerlo.'; break; }
+        out.text = STORY_PAGES.p1.text; page('p1'); break;
+      case 'archivo_fieles':
+        out.title = STORY_SITES[id].title;
+        if (!has('flag', 'hebilla')) { out.state = 'locked'; out.text = 'Estanterías de piedra y un atril con un hueco con la forma de una hebilla. Sin ella no se abre. (Los cuervos del Bosque se lo llevan todo.)'; break; }
+        if (!has('pages', 'p1')) { out.state = 'locked'; out.text = 'Tu hebilla encaja en el atril, pero el cajón está sellado con rayas de tiza que no sabes leer. Alguien dejó una pista antes, en el Bosque.'; break; }
+        out.text = 'Tu hebilla encaja en el atril con un chasquido. Dentro, un fajo de hojas atadas con cordel. ' + STORY_PAGES.p2.text; page('p2'); break;
+      case 'raiz_corazon':
+        out.title = STORY_SITES[id].title;
+        out.text = 'Una cámara entre raíces que laten. En el centro, una raíz del grosor de un brazo se ha cristalizado con forma de corazón. Al tocarla oyes muchas voces a la vez, muy débiles: «nosotros vigilamos». Se suelta sola en tu mano.';
+        if (Guild.claim(s, 'relic:' + STORY_RELIC.item)) { out.relic = STORY_RELIC.item; out.gains.push(`Reliquia: ${ITEMS[STORY_RELIC.item].name}`); }
+        break;
+      case 'sello_raiz':
+        out.title = SEAL_LEMAS.raiz.name;
+        if (has('lemas', 'luz')) { out.text = `La rueda de piedra del Bosque. Ahora sabes leerla: «${SEAL_LEMAS.raiz.text}»`; give('lemas', 'raiz'); }
+        else { out.text = 'Tras la guarida, una rueda de piedra medio enterrada, con siete radios y letras que no sabes leer. Bajo tus pies, algo late.'; give('flag', 'rueda_raiz'); }
+        break;
+      case 'sello_luz':
+        out.title = SEAL_LEMAS.luz.name;
+        out.text = `Tras la guarida, una cámara con una rueda que brilla y un mural: siete figuras alrededor de una luz y una octava, pequeña y sin rostro, en el centro. En la rueda: «${SEAL_LEMAS.luz.text}»`;
+        give('lemas', 'luz');
+        if (has('flag', 'rueda_raiz') && give('lemas', 'raiz')) out.text += ` Ahora entiendes también la rueda del Bosque: «${SEAL_LEMAS.raiz.text}»`;
+        break;
+      case 'sello_memoria':
+        out.title = SEAL_LEMAS.memoria.name;
+        out.text = `Una rueda hundida en agua quieta. En la piedra: «${SEAL_LEMAS.memoria.text}» Al tocar el agua… ${STORY_MEMORIES.r1.text}`;
+        give('lemas', 'memoria'); give('memories', 'r1');
+        if (has('pages', 'p2') && !has('pages', 'p3')) { out.text += ' Bajo el agua, envuelta en tela encerada, hay otra hoja. ' + STORY_PAGES.p3.text; page('p3'); }
+        break;
+      case 'sello_peso': {
+        out.title = SEAL_LEMAS.peso.name;
+        out.text = `Junto a la rueda («${SEAL_LEMAS.peso.text}») hay un hombre de unos treinta años, medio cubierto de roca y cuarzo. «¿Bartolo sigue contando esos chistes malos? Me llamo Bernardo. El hombre sin cara me dejó aquí para que la mina no se caiga.»`;
+        give('lemas', 'peso'); give('flag', 'bernardo_visto');
+        if (has('pages', 'p3') && !has('pages', 'p4')) { out.text += ' «Una chica del gremio me visitó hace unos meses y me dejó esto para quien viniera detrás.» ' + STORY_PAGES.p4.text; page('p4'); }
+        if (!s.story.choices.bernardo) out.choice = 'bernardo';
+        else out.text += s.story.choices.bernardo === 'liberar' ? ' (La rueda está vacía: Bernardo ya no está aquí.)' : ' (Bernardo sigue sosteniendo la mina.)';
+        break;
+      }
+      case 'sello_fuego':
+        out.title = SEAL_LEMAS.fuego.name;
+        out.text = `Entre las ruinas, la forja de los siete y un molde partido. En la rueda: «${SEAL_LEMAS.fuego.text}» El calor te marea… ${STORY_MEMORIES.r2.text}`;
+        give('lemas', 'fuego'); give('memories', 'r2');
+        if (has('pages', 'p4') && !has('pages', 'p5')) { out.text += ' Bajo el molde partido, una hoja chamuscada. ' + STORY_PAGES.p5.text; page('p5'); }
+        break;
+      default: return null;
+    }
+    out.gains.push(...this.check(s));
+    return out;
+  },
+  /** Decisión (una vez por perfil). Devuelve { ok, text, gains } o null si no se puede. */
+  choose(s, topic, option) {
+    this.ensure(s);
+    const C = STORY_CHOICES[topic]; if (!C || !C.options[option] || s.story.choices[topic]) return null;
+    if (topic === 'bernardo' && !this.has(s, 'flag', 'bernardo_visto')) return null;
+    s.story.choices[topic] = option;
+    return { ok: true, topic, option, title: C.title, text: C.options[option].text, gains: [`Decisión: ${C.options[option].label}`, ...this.check(s)] };
+  },
+  /** Conversaciones opcionales disponibles en un puesto de la aldea. */
+  talks(s, station) { this.ensure(s); return Object.keys(STORY_TALKS).filter(id => STORY_TALKS[id].station === station && STORY_TALKS[id].when(s)); },
+  /** Mantener una conversación: la primera vez apunta lo que da. Devuelve { npc, lines, gains } o null. */
+  talk(s, id) {
+    this.ensure(s);
+    const T0 = STORY_TALKS[id]; if (!T0 || !T0.when(s)) return null;
+    const out = { id, npc: T0.npc, lines: typeof T0.lines === 'function' ? T0.lines(s) : T0.lines.slice(), gains: [] };
+    this.give(s, 'talks', id, null);
+    for (const f of T0.flags || []) this.give(s, 'flag', f, out);
+    out.gains.push(...this.check(s));
+    return out;
+  },
+  /** Ofrendas al caer un guardián, según lo que pasó en el combate (`feats`: { tangle, daze, down }). */
+  offering(s, bossId, feats) {
+    this.ensure(s); const out = { gains: [] };
+    for (const [id, o] of Object.entries(OFFERINGS)) if (o.boss === bossId && feats && feats[o.feat]) this.give(s, 'offerings', id, out);
+    if (out.gains.length) out.gains.push(...this.check(s));
+    return out.gains;
+  },
+  /** La tercera vía: lo que existe en esta versión y lo que llegará con los capítulos 6 a 8. */
+  thirdWay(s) {
+    this.ensure(s);
+    const c = s.codex, n = (list, ids) => ids.filter(i => list.includes(i)).length, ch = s.story.choices.bernardo;
+    const items = [
+      { label: 'Páginas del diario de Irene (1 a 5)', have: n(c.pages, ['p1', 'p2', 'p3', 'p4', 'p5']), need: 5 },
+      { label: 'Recuerdos del pacto (1 y 2)', have: n(c.memories, ['r1', 'r2']), need: 2 },
+      { label: 'Ofrendas de los guardianes', have: c.offerings.length, need: 3 },
+      { label: 'Liberar a Bernardo, con su consentimiento', have: ch === 'liberar' ? 1 : 0, need: 1, lost: ch === 'dejar' },
+    ];
+    const future = ['Páginas 6 y 7 y el recuerdo 3 (capítulos 6 y 7)', 'El nombre del Custodio (bajo el túmulo, tras el capítulo 7)', 'Perdonar al Prior (capítulo 6) y hablar con el Custodio (capítulo 8)', 'Dos ofrendas más (5 de 7)'];
+    const lost = items.some(i => i.lost), ready = !lost && items.every(i => i.have >= i.need);
+    return { items, future, lost, ready, unlocked: s.story.flags.includes('tercera_via') };
+  },
+  /** Si ya se cumple todo lo que existe, marca la tercera vía (una vez: +reputación y título). */
+  check(s) {
+    const t = this.thirdWay(s); if (!t.ready || t.unlocked) return [];
+    Story.flag(s, 'tercera_via');
+    const lines = [STORY.flags.tercera_via, `Título: «${STORY_TITLES.tercera_via}» (elígelo en el gremio)`];
+    if (Guild.claim(s, 'story:tercera_via')) { Guild.addRep(s, THIRD_WAY_REP); lines.push(`+${THIRD_WAY_REP} de reputación`); }
+    return lines;
+  },
+  /** Títulos de historia conseguidos. */
+  titles(s) { const f = (s.story && s.story.flags) || []; return Object.keys(STORY_TITLES).filter(k => f.includes(k)).map(k => STORY_TITLES[k]); },
+  sanitizeChoices(raw) { const out = {}; if (raw && typeof raw === 'object') for (const [k, v] of Object.entries(raw)) if (STORY_CHOICES[k] && typeof v === 'string' && STORY_CHOICES[k].options[v]) out[k] = v; return out; },
+};
 /**
  * Migraciones del formato del perfil: MIGRATIONS[n] convierte una partida de la versión n en la n+1.
  * Se aplican en orden al leer (en el navegador y en el servidor) y nunca borran datos conocidos.
@@ -4453,6 +4760,13 @@ const SAVE_MIGRATIONS = {
     out.guild.claims = [...new Set(out.guild.claims)];
     out.town = { upgrades: [] };
     out.events = { active: null, history: [], nextRun: 0 };
+    return out;
+  },
+  // 8 → 9 (0.44): registro de descubrimientos y decisiones. Lo que ya se puede deducir (la hebilla, si leyó el nido) lo apunta Story.derived.
+  8(s) {
+    const out = Object.assign({}, s, { v: 9 });
+    out.codex = Object.assign(Codex.fresh(), s.codex || {});
+    out.story = Object.assign({ flags: [], endings: [] }, s.story || {}, { choices: {} });
     return out;
   },
 };
@@ -4899,7 +5213,8 @@ const FloorGen = {
     // no cambia la secuencia del resto del piso.
     const occupied = new Set();
     L.mechs = []; L.lore = []; L.alcoves = []; L.events = [];
-    const plan = { world, rooms, start, stairsRoom, dng, floorNo, biome, rnd: this.rng(seed, dng, floorNo, attempt, 0xD1C3), L, occupied, mouthNear: corrNear };
+    L.story = []; L.dngId = dng.id; L.floorNo = floorNo;
+    const plan = { world, rooms, start, stairsRoom, dng, floorNo, biome, rnd: this.rng(seed, dng, floorNo, attempt, 0xD1C3), storyRnd: this.rng(seed, dng, floorNo, attempt, 0x5701), L, occupied, mouthNear: corrNear };
     if (!dng.noPlan) DungeonPlan.apply(plan);
     // 8. Contenido
     const R0 = reach(spawnIdx).seen, R1 = reach(spawnIdx, t => t === T.DOOR).seen;
@@ -5060,6 +5375,7 @@ const FloorGen = {
     { const ids = (L.mechs || []).map(m => m.id); c.mechIdsUnique = new Set(ids).size === ids.length; }
     c.mechsInside = (L.mechs || []).every(m => (m.tx == null || (!solid(m.tx, m.ty) && roomOf(m.tx, m.ty))) && (m.type === 'ambush' || m.type === 'spikes' || m.type === 'hazard' || (m.tiles || []).every(i => world.tiles[i] !== T.STAIRS)));
     c.loreReachable = (L.lore || []).every(l => !solid(l.tx, l.ty) && R0[idx(l.tx, l.ty)]);
+    c.storyPlaced = StoryChain.sitesFor(L.dngId || '', L.floorNo || 0).every(id => (L.story || []).some(st => st.id === id)) && (L.story || []).every(st => !solid(st.tx, st.ty) && (st.hidden || R0[idx(st.tx, st.ty)]));
     const okAll = Object.entries(c).every(([k, v]) => k === 'mechDetail' || Boolean(v));
     return { ok: okAll, checks: c };
   },
@@ -5086,13 +5402,21 @@ const LORE = {
   ],
 };
 
+LORE.roots = [
+  { id: 'r_latido', title: 'Raíz que late', text: 'Una raíz más gruesa que un tronco cruza la sala. Al apoyar la mano, late: despacio, muy despacio, como un corazón dormido del tamaño de una montaña.' },
+  { id: 'r_tiza', title: 'Rayas de tiza', text: 'Rayas largas y cortas, el código de Irene, casi borradas: «Bajé hasta aquí. Las raíces llevan al centro. No las cortes: duele».' },
+  { id: 'r_voces', title: 'Cuarzo que habla', text: 'Una veta de cuarzo vibra cuando pasas. Oyes muchas voces a la vez, muy débiles, que dicen lo mismo: «nosotros vigilamos».' },
+  { id: 'r_flores', title: 'Flores sin sol', text: 'Aquí abajo no llega la luz y, aun así, han crecido flores. Son las mismas que alguien deja en el túmulo del Bosque.' },
+];
+
 const DungeonPlan = {
   /** Papeles por bioma: [piso mínimo, probabilidad por piso, máximo por piso]. Los biomas sin tabla usan `forest` como base. */
   ROLES: {
     forest: { story: [1, .8, 1], puzzle: [1, .85, 1], secret: [1, .55, 1], trap: [2, .55, 1], ambush: [2, .45, 1], elite: [2, .5, 1], rest: [3, .5, 1], event: [1, .4, 1], breakable: [1, .5, 1], coop: [2, .45, 1] },
+    roots: { story: [1, .8, 1], puzzle: [1, .85, 1], secret: [1, .8, 1], trap: [2, .55, 1], ambush: [2, .45, 1], elite: [1, .7, 1], rest: [3, .5, 1], event: [1, .4, 1], breakable: [1, .5, 1], coop: [2, .45, 1] },
   },
   /** Minijefe del bioma: variante, nombre y multiplicador de PS (en el penúltimo piso). */
-  MINI: { forest: { variant: 'zarza', name: 'Zarzal Madre', hp: 3 }, marsh: { variant: 'musgon', name: 'Musgón Viejo', hp: 3 }, cave: { variant: 'geodon', name: 'Geodón Antiguo', hp: 3 }, mine: { variant: 'ferron', name: 'Ferrón Capataz', hp: 3 }, volcano: { variant: 'basalton', name: 'Basaltón Ígneo', hp: 3 } },
+  MINI: { roots: { variant: 'zarza', name: 'Zarza del Corazón', hp: 4 }, forest: { variant: 'zarza', name: 'Zarzal Madre', hp: 3 }, marsh: { variant: 'musgon', name: 'Musgón Viejo', hp: 3 }, cave: { variant: 'geodon', name: 'Geodón Antiguo', hp: 3 }, mine: { variant: 'ferron', name: 'Ferrón Capataz', hp: 3 }, volcano: { variant: 'basalton', name: 'Basaltón Ígneo', hp: 3 } },
   table(biome) { return this.ROLES[biome] || null; },   // etapa 1: solo Brumaverde; los demás biomas siguen con el generador de siempre hasta su etapa
 
   /** Da papeles y aplica plantillas. Se llama dentro de FloorGen.buildNormal con su propio generador aleatorio. */
@@ -5100,6 +5424,7 @@ const DungeonPlan = {
     const { rooms, start, stairsRoom, dng, floorNo, biome, rnd, L } = ctx;
     const T0 = this.table(biome.id), pick = a => a[Math.floor(rnd() * a.length)];
     L.mechs = L.mechs || []; L.lore = L.lore || []; L.alcoves = L.alcoves || []; L.events = L.events || [];
+    StoryChain.place(ctx);   // sitios fijos de la historia: antes que nada, en todos los biomas (docs/SECRETOS.md)
     if (!T0) { for (const r of rooms) r.role = r.type === 'start' ? 'start' : r.type === 'treasure' ? 'treasure' : r.type === 'shop' ? 'shop' : r.type === 'monsterhouse' ? 'ambush' : 'combat'; return; }
     const free = () => rooms.filter(r => r.type === 'normal' && !r.role && r !== start);
     const tryRole = (role, list) => {
@@ -5201,7 +5526,7 @@ const Prefabs = {
   chest(ctx, a, tier, extra = {}) { const [tx, ty] = a.inner; ctx.occupied.add(ty * ctx.world.w + tx); ctx.L.objects.push(Object.assign({ type: 'chest', tier, tx, ty, room: a.room, alcove: true, reward: true }, extra)); },   // reward: premio de una sala (aparte de los 1-3 cofres del piso)
   addMech(ctx, m) { ctx.L.mechs.push(m); if (m.tx != null) ctx.occupied.add(m.ty * ctx.world.w + m.tx); return m; },
   lore(ctx, r, pool) {
-    const used = new Set(ctx.L.lore.map(l => l.id)), list = (LORE[ctx.biome.id] || LORE.forest).filter(l => !pool || pool.includes(l.id)).filter(l => !used.has(l.id));
+    const used = new Set(ctx.L.lore.map(l => l.id).concat(StoryChain.loreTaken(ctx.L))), list = (LORE[ctx.biome.id] || LORE.forest).filter(l => !pool || pool.includes(l.id)).filter(l => !used.has(l.id));
     if (!list.length) return false;
     const s = this.spot(ctx, r, 1); if (!s) return false;
     const l = list[Math.floor(ctx.rnd() * list.length)];
@@ -5302,6 +5627,7 @@ const Prefabs = {
         const c = P.spot(ctx, { x: rect[0], y: rect[1], w: rect[2], h: rect[3] }, 1, [[src.tx, src.ty, 2]]); if (c) ctx.L.objects.push({ type: 'chest', tier: 'cofre', tx: c.tx, ty: c.ty, room: r.id, reward: true });
         return true;
       } },
+    { id: 'sitio_historia', role: 'secret', min: [999, 999], weight: 0, fixed: true, desc: 'Sitio fijo de la historia tras una pared falsa (StoryChain.place)', build() { return false; } },
     { id: 'estela', role: 'story', min: [5, 5], weight: 3, desc: 'Un texto en el escenario (estela, diario, restos)', build(ctx) { return Prefabs.lore(ctx, ctx.room); } },
     { id: 'altar_savia', role: 'event', min: [5, 5], weight: 2, desc: 'Altar de savia: golpéalo para cambiar un 20 % de tus PS por +20 % de daño en este piso',
       build(ctx) { const P = Prefabs, s = P.spot(ctx, ctx.room, 2); if (!s) return false; P.addMech(ctx, { id: P.uid(ctx, 'al'), type: 'altar', tx: s.tx, ty: s.ty, room: ctx.room.id, hint: 'Golpea el altar: −20 % de PS, +20 % de daño en este piso' }); return true; } },
@@ -5408,6 +5734,7 @@ const MechSolver = {
     for (const ob of L.objects || []) if (ob.type === 'chest' || ob.type === 'campfire') goals.push(['objeto ' + ob.type, ob.ty * W + ob.tx]);
     for (const it of L.items || []) goals.push(['objeto ' + it.id, it.ty * W + it.tx]);
     for (const l of L.lore || []) goals.push(['texto ' + l.id, l.ty * W + l.tx]);
+    for (const st of L.story || []) goals.push(['historia ' + st.id, st.ty * W + st.tx]);
     for (const m of mechs) if (m.tx != null) goals.push([m.type + ' ' + m.id, m.ty * W + m.tx, m.type === 'lever' || m.type === 'altar']);
     // Palancas y altares se golpean desde una casilla vecina: para ellos basta con alcanzar un vecino.
     // Todo lo demás (cofres, hogueras, objetos, textos) hay que pisarlo.
@@ -5810,6 +6137,6 @@ const Quests = {
 };
 
 
-  return { CONFIG, U, T, SOLID, TILE_NAMES, World, Particles, CLASSES, CLASS_STATS, ELITE, eliteChance, floorEnemies, FAMILIES, Deco, Terrain, ALLY_ABILITY, canEquip, OLD_EQUIP_SLOTS, FRACTION_STATS, fmtStat, DMG, classMoves, groundTarget, SPECIES, EVOLVED, FORMS, Progress, EVOLUTIONS, EVO_ITEM_MIN_LEVEL, Combat, Effects, Projectile, Zone, BLOCKS_SHOT, TYPES, TYPE_CHART, typeEff, calcStats, MAX_LEVEL, expNeed, expYield, MOVES, BossKit, BossArena, GROMGAR, BOSS_MIN_TELE, DungeonPlan, Prefabs, MechSolver, Mechs, LORE, SOLVER_TILES_PER_S, BOONS, Boons, BOSS_RAGE, GEODA, Geoda, Boulder, Actor, Player, Enemy, STOP, ENEMIES, ENEMY_VARIANTS, makeKind, BOSSES, makeBossKind, BIOMES, RARITIES, CATEGORIES, EQUIP_SLOTS, ITEMS, QUICK, RARITY_ORDER, STAT_NAMES, BASE_SHOP, SHOP_TIERS, shopStock, sellPrice, RECIPES, newUid, LOOT, Loot, Inventory, finalStats, freshEquip, equipRegen, TRAPS, DUNGEONS, dungeonById, dungeonOpen, COURIER_INTRO, enemyLevel, RANKS, rankOf, weighted, Jobs, ECONOMY, SAVE_VERSION, SAVE_MIGRATIONS, checksum, Save, FloorGen, hashStr, Codex, Story, STORY, logJob, isRelic, LOG_MAX, Guild, Town, TOWN_UPGRADES, FORGE_STOCK, forgeStock, RegionEvents, REGION_EVENTS, RANK_STARS, RANK_TITLES, GUILD_REP, RECRUIT, ORDERS, gridPath, Companion, LEGACY_JOBS, isLegacyJob, Quests };
+  return { CONFIG, U, T, SOLID, TILE_NAMES, World, Particles, CLASSES, CLASS_STATS, ELITE, eliteChance, floorEnemies, FAMILIES, Deco, Terrain, ALLY_ABILITY, canEquip, OLD_EQUIP_SLOTS, FRACTION_STATS, fmtStat, DMG, classMoves, groundTarget, SPECIES, EVOLVED, FORMS, Progress, EVOLUTIONS, EVO_ITEM_MIN_LEVEL, Combat, Effects, Projectile, Zone, BLOCKS_SHOT, TYPES, TYPE_CHART, typeEff, calcStats, MAX_LEVEL, expNeed, expYield, MOVES, BossKit, BossArena, GROMGAR, BOSS_MIN_TELE, DungeonPlan, Prefabs, MechSolver, Mechs, LORE, SOLVER_TILES_PER_S, BOONS, Boons, BOSS_RAGE, GEODA, Geoda, Boulder, Actor, Player, Enemy, STOP, ENEMIES, ENEMY_VARIANTS, makeKind, BOSSES, makeBossKind, BIOMES, RARITIES, CATEGORIES, EQUIP_SLOTS, ITEMS, QUICK, RARITY_ORDER, STAT_NAMES, BASE_SHOP, SHOP_TIERS, shopStock, sellPrice, RECIPES, newUid, LOOT, Loot, Inventory, finalStats, freshEquip, equipRegen, TRAPS, DUNGEONS, dungeonById, dungeonOpen, COURIER_INTRO, enemyLevel, RANKS, rankOf, weighted, Jobs, ECONOMY, SAVE_VERSION, SAVE_MIGRATIONS, checksum, Save, FloorGen, hashStr, Codex, Story, STORY, logJob, isRelic, LOG_MAX, Guild, Town, TOWN_UPGRADES, FORGE_STOCK, forgeStock, RegionEvents, REGION_EVENTS, RANK_STARS, RANK_TITLES, GUILD_REP, SEAL_LEMAS, SEAL_OF, STORY_PAGES, STORY_MEMORIES, OFFERINGS, STORY_CHOICES, STORY_TALKS, STORY_TITLES, STORY_SITES, STORY_RELIC, StoryChain, RECRUIT, ORDERS, gridPath, Companion, LEGACY_JOBS, isLegacyJob, Quests };
 }
-export const SOURCE_HASH = '2c755fc9de874289';
+export const SOURCE_HASH = '6b35b39eb0b0cfd6';

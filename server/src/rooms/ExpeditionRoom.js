@@ -78,6 +78,7 @@ export class ExpeditionRoom extends Room {
     this.onMessage(C.USE, (client, msg) => { if (this.exp && msg && typeof msg.id === 'string') this.exp.use(client.sessionId, msg.id); });
     this.onMessage(C.DROP, (client, msg) => { if (this.exp && msg && typeof msg.id === 'string') this.exp.drop(client.sessionId, msg.id); });
     this.onMessage(C.BOON, (client, msg) => { if (this.exp && msg && typeof msg.id === 'string') this.exp.pickBoon(client.sessionId, msg.id); });
+    this.onMessage(C.CHOOSE, (client, msg) => { if (this.exp && msg && typeof msg.topic === 'string' && typeof msg.option === 'string' && msg.topic.length < 40 && msg.option.length < 40) this.exp.choose(client.sessionId, msg.topic, msg.option); });
     this.onMessage(C.LEAVE, async client => { if (this.exp && this.state.phase === 'playing') { await this.commit(client.sessionId, this.exp.removeMember(client.sessionId, 'abandon')); } client.leave(CloseCode.CONSENTED); });   // salida voluntaria: no se guarda el sitio
     this.onMessage(C.PING, (client, msg) => client.send(S.PONG, { t: msg && msg.t, now: Date.now() }));
 

@@ -159,6 +159,9 @@ h1 span{display:block;color:var(--amber)}
 .summary span{font-size:.75rem;color:var(--muted)}
 #floor h2,#victory h2{color:var(--amber)}
 .relic-list{margin:0;padding-left:18px;color:var(--muted);font-size:.85rem;line-height:1.5}
+.codex details{margin:2px 0;font-size:.86rem}.codex summary{cursor:pointer;color:var(--ink,#eef3e6)}.codex details p{margin:4px 0 6px 14px;color:var(--muted);line-height:1.45}
+.codex .miss{color:var(--muted);opacity:.75;font-size:.84rem;margin:2px 0}.codex .got{color:#d8c79a}.talk-out{border-left:3px solid #d8c79a;padding:6px 10px;margin:6px 0;font-size:.88rem;line-height:1.45;background:rgba(216,199,154,.06)}
+.talk-row{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
 @media (max-width:900px){#bossbar{width:calc(100vw - 40px);top:auto;bottom:calc(84px + env(safe-area-inset-bottom,0px))}}
 @media (max-width:620px){#minimap{width:130px}}
 
@@ -463,11 +466,12 @@ h2{color:var(--gold)}
       </div>
       <div class="base-grid">
         <div class="box" data-in="guild" id="guild-box"><h3>Gremio de exploradores <small id="guild-rank"></small></h3><div id="guild-info"></div><h4>Misiones para entregar</h4><ul class="rowlist" id="guild-done"></ul><h4>Registro del equipo</h4><div class="statgrid" id="guild-log"></div></div>
+        <div class="box codex" data-in="guild" id="codex-box"><h3>Registro de descubrimientos <small id="codex-count"></small></h3><div id="codex-talks"></div><div id="codex-info"></div></div>
         <div class="box" data-in="board guild"><h3>Misiones aceptadas <small id="jobs-count"></small></h3><ul class="rowlist" id="jobs-accepted"></ul></div>
         <div class="box" data-in="board"><h3>Tablón de misiones <small>Se renueva tras cada expedición</small></h3><ul class="rowlist" id="jobs-board"></ul></div>
         <div class="box" data-in="gate"><h3>Mazmorras <small>Cada visita genera pisos nuevos</small></h3><div id="dng-list" style="display:grid;gap:8px"></div></div>
         <div class="box" data-in="camp gate" id="camp-box"><h3>Compañeros <small id="camp-count"></small></h3><p class="hint-line">En la mazmorra: <span class="kbd">1</span> seguir · <span class="kbd">2</span> atacar al enemigo apuntado · <span class="kbd">3</span> mantener posición.</p><ul class="rowlist" id="camp-list"></ul></div>
-        <div class="box" data-in="rest" id="rest-box"><h3>Zona de descanso <small>Gratis</small></h3><p class="hint-line">Descansar recupera los PS y la energía del líder y reanima a los compañeros debilitados. El progreso se guarda.</p><ul class="relic-list" id="rest-status"></ul><button id="btn-rest" class="btn-main" style="justify-self:start">Descansar junto al fuego</button></div>
+        <div class="box" data-in="rest" id="rest-box"><h3>Zona de descanso <small>Gratis</small></h3><p class="hint-line">Descansar recupera los PS y la energía del líder y reanima a los compañeros debilitados. El progreso se guarda.</p><ul class="relic-list" id="rest-status"></ul><div id="rest-talks"></div><button id="btn-rest" class="btn-main" style="justify-self:start">Descansar junto al fuego</button></div>
         <div class="box" data-in="rest" id="team-box">
           <h3><span id="team-name">Equipo</span> <small id="team-level"></small></h3>
           <div class="expbar"><div id="team-exp"></div></div>
