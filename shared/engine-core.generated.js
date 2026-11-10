@@ -1,4 +1,4 @@
-// GENERADO por tools/split-prototype.mjs a partir de prototype/mystery-action.html (sha256 d97d8d8367b3183f).
+// GENERADO por tools/split-prototype.mjs a partir de prototype/mystery-action.html (sha256 7d7ba186d0cb1d71).
 // No lo edites a mano: cambia el prototipo y vuelve a ejecutar «npm run split».
 /* eslint-disable */
 /**
@@ -3869,6 +3869,12 @@ const EVO_ITEM_MIN_LEVEL = 8;
 const RARITY_ORDER = ['legendaria', 'epica', 'rara', 'pococomun', 'comun'];
 /** Teclas de uso rápido: se usa el primero de la lista que se lleve y tenga efecto. */
 const QUICK = { heal: ['pocion', 'baya', 'superpocion', 'bayaAurea'], food: ['manzana', 'manzanaGrande', 'manzanaDorada'], energy: ['tonicoEnergia', 'elixir'] };
+/** Atajos de consumibles (X, Z, C): cada uno usa el primer objeto de su lista que lleves (el mismo orden de siempre). */
+const QUICK_META = {
+  heal: { key: 'X', code: 'KeyX', label: 'Curación', none: 'No llevas objetos de curación' },
+  food: { key: 'Z', code: 'KeyZ', label: 'Comida', none: 'No llevas comida' },
+  energy: { key: 'C', code: 'KeyC', label: 'Energía', none: 'No llevas objetos de energía' },
+};
 const SHOP_POOL = ['manzana', 'manzanaGrande', 'pocion', 'superpocion', 'baya', 'bayaAurea', 'tonicoEnergia', 'elixir', 'antidoto', 'hierbaLucida', 'tonicoFuerza', 'tonicoFerreo', 'semillaVital', 'semillaExplosiva', 'semillaSomnifera', 'orbeEscape', 'orbeLuminoso', 'panueloRojo', 'brazalPiedra', 'talismanVital'];
 /** Surtido de la tienda de la aldea: se amplía con el rango del gremio. */
 const SHOP_TIERS = [
@@ -6370,4 +6376,4 @@ const Quests = {
 
   return { CONFIG, U, T, SOLID, TILE_NAMES, World, Particles, CLASSES, CLASS_STATS, ELITE, eliteChance, floorEnemies, FAMILIES, Deco, Terrain, ALLY_ABILITY, canEquip, OLD_EQUIP_SLOTS, FRACTION_STATS, fmtStat, DMG, classMoves, groundTarget, SPECIES, EVOLVED, FORMS, Progress, EVOLUTIONS, EVO_ITEM_MIN_LEVEL, Combat, Effects, Projectile, Zone, BLOCKS_SHOT, TYPES, TYPE_CHART, typeEff, calcStats, MAX_LEVEL, expNeed, expYield, MOVES, BossKit, BossArena, GROMGAR, BOSS_MIN_TELE, DungeonPlan, Prefabs, MechSolver, Mechs, LORE, SOLVER_TILES_PER_S, BOONS, Boons, BOSS_RAGE, GEODA, Geoda, Boulder, Actor, Player, Enemy, STOP, ENEMIES, ENEMY_VARIANTS, makeKind, BOSSES, makeBossKind, BIOMES, RARITIES, CATEGORIES, EQUIP_SLOTS, ITEMS, QUICK, RARITY_ORDER, STAT_NAMES, BASE_SHOP, SHOP_TIERS, shopStock, sellPrice, RECIPES, newUid, LOOT, Loot, Inventory, finalStats, freshEquip, equipRegen, TRAPS, DUNGEONS, dungeonById, dungeonOpen, COURIER_INTRO, enemyLevel, RANKS, rankOf, weighted, Jobs, ECONOMY, SAVE_VERSION, SAVE_MIGRATIONS, checksum, Save, FloorGen, hashStr, Codex, Story, STORY, logJob, isRelic, LOG_MAX, Guild, Town, TOWN_UPGRADES, FORGE_STOCK, forgeStock, RegionEvents, REGION_EVENTS, RANK_STARS, RANK_TITLES, GUILD_REP, SEAL_LEMAS, SEAL_OF, STORY_PAGES, STORY_MEMORIES, OFFERINGS, STORY_CHOICES, STORY_TALKS, STORY_TITLES, STORY_SITES, STORY_RELIC, StoryChain, CHAPTERS, CQUESTS, STORY_COUNTERS, Campaign, RECRUIT, ORDERS, gridPath, Companion, LEGACY_JOBS, isLegacyJob, Quests };
 }
-export const SOURCE_HASH = 'd97d8d8367b3183f';
+export const SOURCE_HASH = '7d7ba186d0cb1d71';

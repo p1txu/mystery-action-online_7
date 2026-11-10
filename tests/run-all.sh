@@ -32,6 +32,7 @@ if command -v python3 >/dev/null && python3 -c "import playwright" 2>/dev/null; 
   python3 tests/e2e/save_offline.py tests/.tmp/prototype.html                          # guardado sin conexión: migración 6 → 7 con copia del original, copia de seguridad, registro
   SHOT_DIR=tests/.tmp python3 tests/e2e/story_e2e.py tests/.tmp/prototype.html            # secretos y cadena de Irene: marca, Ulula, página 1, registro, rueda y Bernardo, título, Raíces Hondas; cerrar y volver a cargar
   SHOT_DIR=tests/.tmp python3 tests/e2e/chapter1_e2e.py tests/.tmp/prototype.html          # capítulo 1 «Las raíces enfermas»: intro, Ulula/Bartolo/Nara, misiones, Linde, rastros, Robletón, cambio en la aldea; recargar
+  SHOT_DIR=tests/.tmp python3 tests/e2e/inventory_ui_e2e.py tests/.tmp/prototype.html     # barra de consumibles (X, Z, C) e inventario en dos paneles: atajos, vacío/lleno, arrastrar, doble clic, incompatibles, vista previa, guardado, móvil
   python3 tests/e2e/boss_gromgar.py tests/.tmp/prototype.html                          # Gromgar sin red: avisos, furia, aturdido, derribado, muerte limpia, trofeo una vez
   python3 tests/e2e/dungeon_ch1.py tests/.tmp/prototype.html                          # mazmorra del capítulo 1 jugada: palancas, puentes, placas de tiempo, paredes falsas, emboscada, minijefe, textos; mismo piso en navegador y Node
   python3 tests/e2e/hero_sprites.py tests/.tmp/prototype.html                          # héroes en pixel art: 920 fotogramas, sin cortes, pies anclados, 8 direcciones, paleta
@@ -39,6 +40,7 @@ if command -v python3 >/dev/null && python3 -c "import playwright" 2>/dev/null; 
   SHOT_DIR=tests/.tmp python3 tests/colyseus/browser_group_e2e.py
   SHOT_DIR=tests/.tmp python3 tests/colyseus/browser_account_e2e.py
   SHOT_DIR=tests/.tmp python3 tests/colyseus/browser_combat_e2e.py
+  SHOT_DIR=tests/.tmp python3 tests/colyseus/browser_inventory_e2e.py                # inventario en línea: equipo por el servidor en la aldea, solo lectura en la expedición, X gasta una unidad, el mundo sigue
   SHOT_DIR=tests/.tmp python3 tests/colyseus/browser_drop_e2e.py                     # dejar un objeto en el suelo para un compañero
   SHOT_DIR=tests/.tmp python3 tests/colyseus/browser_gromgar_e2e.py                  # Gromgar en cooperativo con 280 ms de latencia: furia, rocas iguales, choques, derribado, muerte en mitad de un ataque
   SHOT_DIR=tests/.tmp python3 tests/colyseus/browser_geoda_e2e.py                    # Gruta en cooperativo: Pico Cartero y Reina Geoda (rocas, aturdida, salto)

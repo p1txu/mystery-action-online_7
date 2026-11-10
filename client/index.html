@@ -193,6 +193,23 @@ h1 span{display:block;color:var(--amber)}
 .hud-quests span b{color:#7dffa0}
 #prompt{position:absolute;left:50%;bottom:calc(30px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--panel);border:1px solid var(--amber);border-radius:999px;padding:8px 16px;font-size:.92rem;pointer-events:none;white-space:nowrap;max-width:calc(100vw - 24px);overflow:hidden;text-overflow:ellipsis}
 #hud.village .actionbar{display:none}
+/* Barra de consumibles (X, Z, C): encima de la de habilidades; en la aldea, abajo */
+.quickbar{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));display:flex;gap:6px;pointer-events:auto}
+#hud.village .quickbar{bottom:calc(12px + env(safe-area-inset-bottom,0px))}
+#hud.village #prompt{bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+.qslot{position:relative;width:52px;height:52px;padding:0;display:grid;place-items:center;background:linear-gradient(#1d1711,#0f0c09);border:1px solid var(--line-2);border-radius:4px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.6),0 2px 0 rgba(0,0,0,.5);cursor:pointer;color:var(--ink)}
+.qslot img{width:38px;height:38px;filter:drop-shadow(0 1px 0 rgba(0,0,0,.7))}
+.qslot .qkey{position:absolute;left:2px;top:1px;min-width:14px;padding:0 3px;border:1px solid var(--line-2);border-radius:2px;background:#0b0907;font-family:var(--f-display);font-size:.62rem;line-height:1.25;color:var(--gold)}
+.qslot .qn{position:absolute;right:3px;bottom:1px;font-size:.78rem;font-weight:700;font-variant-numeric:tabular-nums;text-shadow:0 1px 0 #000,0 0 3px #000}
+.qslot .qtag{position:absolute;left:3px;bottom:2px;font-size:.5rem;letter-spacing:.03em;text-transform:uppercase;color:#d9cdb0;text-shadow:0 1px 0 #000,0 0 3px #000}
+.qslot:hover{border-color:var(--gold)}
+.qslot.q-ok{border-color:#8a7246}
+.qslot.q-empty img{filter:grayscale(1) brightness(.45);opacity:.6}
+.qslot.q-empty{border-color:#4a2a22}
+.qslot.q-empty .qn{color:#c8402a}
+.qslot.q-useless img,.qslot.q-blocked img{filter:grayscale(.6) brightness(.7)}
+.qslot.deny{animation:deny .25s;border-color:var(--danger)}
+@media (max-width:620px){.quickbar{bottom:calc(104px + env(safe-area-inset-bottom,0px))}.qslot{width:46px;height:46px}.qslot img{width:30px;height:30px}.qslot .qtag{font-size:.42rem}}
 .col{display:grid;gap:16px;min-width:0}
 .box{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:grid;gap:10px;min-width:0}
 .box h3{margin:0;font-family:var(--f-display);font-size:1.25rem;display:flex;justify-content:space-between;gap:8px;align-items:baseline}
@@ -418,6 +435,71 @@ h2{color:var(--gold)}
 .pill{border-color:#5e4a2e}
 #dialog .panel{border-color:#7a6440}
 #dialog .panel h2,#dialog .panel h3{color:var(--gold);text-shadow:0 1px 0 #000}
+
+/* ===== Inventario en dos paneles (aldea y expedición): mochila a la izquierda, personaje y equipo a la derecha ===== */
+#bagpanel .panel{width:min(1060px,100%);max-height:calc(100vh - 16px);overflow:auto;padding-top:14px}
+#bagpanel .bag-top{display:flex;align-items:center;gap:12px}
+#bagpanel .bag-top h2{margin:0;font-size:1.35rem}
+#bagpanel .bag-top .hint-line{flex:1}
+.xclose{margin-left:auto;width:30px;height:30px;padding:0;display:grid;place-items:center;background:#120e0a;border:1px solid var(--line-2);border-radius:3px;color:var(--gold);font-family:var(--f-display);font-size:1.1rem;line-height:1;cursor:pointer}
+.xclose:hover{border-color:var(--gold);color:#fff3d0}
+#bagpanel .bag-foot{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px}
+#base-inv,#bag-list{container-type:inline-size}
+.inv2{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:12px;align-items:start}
+@container (max-width:700px){.inv2{grid-template-columns:minmax(0,1fr)}}
+.inv-bag,.inv-char{background:linear-gradient(rgba(20,16,11,.92),rgba(12,10,7,.94));border:1px solid var(--line);box-shadow:inset 0 0 0 1px rgba(0,0,0,.55),inset 0 0 0 3px rgba(122,100,64,.12);border-radius:3px;padding:10px;display:grid;gap:8px;min-width:0}
+.inv-head{display:flex;align-items:baseline;gap:8px;border-bottom:1px solid rgba(122,100,64,.35);padding-bottom:6px}
+.inv-head h3{margin:0;font-family:var(--f-display);font-size:1.05rem;color:var(--gold);letter-spacing:.04em}
+.inv-head .cap{margin-left:auto;font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.inv-head .cap b{color:var(--ink)}
+.inv2 .inv-tabs{display:flex;gap:3px;flex-wrap:wrap}
+.itab{background:#120e0a;border:1px solid var(--line);border-bottom-color:transparent;border-radius:3px 3px 0 0;padding:4px 8px;font-size:.76rem;color:var(--muted);cursor:pointer}
+.itab small{color:#7d735f;font-variant-numeric:tabular-nums}
+.itab:hover{color:var(--ink)}
+.itab.on{background:#2a2015;color:var(--gold);border-color:var(--line-2)}
+.inv2 .inv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(50px,1fr));gap:5px;max-height:min(38vh,290px);overflow:auto;padding:6px;background:#0b0907;border:1px solid #2a2116;border-radius:2px;margin:0}
+.inv2 .islot{position:relative;aspect-ratio:1;border-radius:2px;background:radial-gradient(circle at 50% 45%,#1f1912,#100c08);border:1px solid color-mix(in srgb,var(--r,#4a3c28) 75%,#000);box-shadow:inset 0 0 0 1px rgba(0,0,0,.6);display:grid;place-items:center;padding:0;cursor:pointer}
+.inv2 .islot img{width:36px;height:36px}
+.inv2 .islot.empty{border:1px solid #1d1710;background:#0e0b08;box-shadow:none;cursor:default}
+.inv2 .islot.is-eq::before{content:"";position:absolute;left:3px;top:3px;width:5px;height:5px;transform:rotate(45deg);background:var(--r);box-shadow:0 0 0 1px #000}
+.inv2 .islot.cant img{filter:grayscale(.7) brightness(.75)}
+.inv2 .islot[aria-pressed="true"],.inv2 .eslot[aria-pressed="true"]{outline:2px solid var(--gold);outline-offset:-1px}
+.inv2 .islot:hover,.inv2 .eslot:hover{border-color:var(--gold)}
+.inv2 .islot .q{position:absolute;right:3px;bottom:1px;font-size:.72rem;font-weight:700;color:#fff3d0;text-shadow:0 1px 0 #000,0 0 3px #000}
+.inv2 .dragging{opacity:.45}
+.inv2 .inv-detail{min-height:132px;background:#0e0b08;border:1px solid #2a2116;border-radius:2px;padding:9px;font-size:.83rem}
+.inv2 .inv-detail .bad,.inv2 .ro-note{color:#e0885a}
+.inv2 .inv-detail .qty{color:var(--muted)}
+.btn-sm.warn{background:#5a2316;border-color:#c8402a;color:#ffe2d6}
+.doll{display:grid;grid-template-columns:auto minmax(120px,1fr) auto;gap:8px;align-items:center;justify-items:center;padding:6px 2px;background:radial-gradient(60% 70% at 50% 55%,rgba(122,100,64,.16),transparent 70%)}
+.dcol{display:grid;gap:8px}
+.dhero{display:grid;place-items:center;min-height:170px}
+.inv-hero{width:150px;height:180px;image-rendering:pixelated}
+.inv2 .eslot{display:grid;justify-items:center;gap:2px;padding:0;background:none;border:0;color:var(--muted);cursor:pointer;width:auto}
+.inv2 .eslot .ebox{width:52px;height:52px;display:grid;place-items:center;background:radial-gradient(circle at 50% 45%,#1f1912,#0e0b08);border:1px solid color-mix(in srgb,var(--r,#4a3c28) 80%,#000);box-shadow:inset 0 0 0 1px rgba(0,0,0,.6),inset 0 0 0 3px rgba(122,100,64,.1);border-radius:2px}
+.inv2 .eslot.full .ebox{border-width:2px}
+.inv2 .eslot img{width:38px;height:38px}
+.inv2 .eslot img.ghost{opacity:.16;filter:grayscale(1) brightness(1.6)}
+.inv2 .eslot small{font-size:.66rem;letter-spacing:.05em;text-transform:uppercase}
+.inv2 .eslot.full small{color:var(--ink)}
+.inv2 .eslot.target .ebox{border:2px dashed var(--gold);box-shadow:0 0 10px rgba(216,180,90,.35)}
+.inv2 .eslot.nope .ebox{border:2px dashed #c8402a}
+.inv2 .eslot.over .ebox,.inv2 .inv-grid.over{outline:2px solid var(--gold)}
+.inv2.ro .eslot{cursor:help}
+.inv2 .ro-note{margin:0;font-size:.78rem;line-height:1.35}
+.inv-stats{width:100%;border-collapse:collapse;font-size:.78rem;font-variant-numeric:tabular-nums}
+.inv-stats th,.inv-stats td{padding:2px 4px;text-align:right;white-space:nowrap}
+.inv-stats thead th{font-weight:600;color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid rgba(122,100,64,.3)}
+.inv-stats tbody th{text-align:left;font-weight:400;color:var(--muted)}
+.inv-stats tbody tr:nth-child(even){background:rgba(122,100,64,.06)}
+.inv-stats b{color:var(--ink)}
+.inv-stats .up{color:#7fd07a;font-style:normal}
+.inv-stats .down{color:#e0705a;font-style:normal}
+.inv-stats .zero{color:#5d5547;font-style:normal}
+.inv-stats em.fx{opacity:.8;text-decoration:underline dotted}
+.inv-stats .pv{background:rgba(216,180,90,.07)}
+@media (max-width:560px){.inv-hero{width:110px;height:132px}.dhero{min-height:130px}.inv2 .eslot .ebox{width:46px;height:46px}.inv2 .eslot img{width:32px;height:32px}.inv-stats{font-size:.72rem}}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 </style>
 
 <div id="app">
@@ -512,6 +594,7 @@ h2{color:var(--gold)}
     <div id="lowhp" aria-hidden="true"></div>
     <div id="toast" hidden></div>
     <div id="prompt" hidden></div>
+    <div class="quickbar" id="qbar" aria-label="Consumibles rápidos"></div>
     <div class="actionbar" id="actionbar"></div>
     <div class="controls" id="controls">
       <div><span class="kbd">WASD</span> o flechas · moverse</div>
@@ -549,10 +632,9 @@ h2{color:var(--gold)}
 
   <section id="bagpanel" class="screen veil-strong center" hidden aria-labelledby="bag-h">
     <div class="panel">
-      <h2 id="bag-h">Inventario</h2>
-      <div class="hint-line" id="bag-info"></div>
+      <div class="bag-top"><h2 id="bag-h" class="sr-only">Inventario</h2><div class="hint-line" id="bag-info"></div><button id="btn-bag-x" class="xclose" title="Cerrar (Esc)" aria-label="Cerrar el inventario">×</button></div>
       <div id="bag-list"></div>
-      <div class="row"><button id="btn-bag-close" class="btn-main">Volver al juego</button><span class="hint-line"><span class="kbd">Tab</span>, <span class="kbd">I</span> o <span class="kbd">Esc</span> para cerrar</span></div>
+      <div class="bag-foot"><button id="btn-bag-close" class="btn-sm main">Volver al juego</button><span class="hint-line"><span class="kbd">Tab</span>, <span class="kbd">I</span> o <span class="kbd">Esc</span> para cerrar</span></div>
     </div>
   </section>
 

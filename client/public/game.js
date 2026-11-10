@@ -1,4 +1,4 @@
-// GENERADO por tools/split-prototype.mjs a partir de prototype/mystery-action.html (sha256 d97d8d8367b3183f).
+// GENERADO por tools/split-prototype.mjs a partir de prototype/mystery-action.html (sha256 7d7ba186d0cb1d71).
 // No lo edites a mano: cambia el prototipo y vuelve a ejecutar «npm run split».
 
 'use strict';
@@ -3891,6 +3891,12 @@ const EVO_ITEM_MIN_LEVEL = 8;
 const RARITY_ORDER = ['legendaria', 'epica', 'rara', 'pococomun', 'comun'];
 /** Teclas de uso rápido: se usa el primero de la lista que se lleve y tenga efecto. */
 const QUICK = { heal: ['pocion', 'baya', 'superpocion', 'bayaAurea'], food: ['manzana', 'manzanaGrande', 'manzanaDorada'], energy: ['tonicoEnergia', 'elixir'] };
+/** Atajos de consumibles (X, Z, C): cada uno usa el primer objeto de su lista que lleves (el mismo orden de siempre). */
+const QUICK_META = {
+  heal: { key: 'X', code: 'KeyX', label: 'Curación', none: 'No llevas objetos de curación' },
+  food: { key: 'Z', code: 'KeyZ', label: 'Comida', none: 'No llevas comida' },
+  energy: { key: 'C', code: 'KeyC', label: 'Energía', none: 'No llevas objetos de energía' },
+};
 const SHOP_POOL = ['manzana', 'manzanaGrande', 'pocion', 'superpocion', 'baya', 'bayaAurea', 'tonicoEnergia', 'elixir', 'antidoto', 'hierbaLucida', 'tonicoFuerza', 'tonicoFerreo', 'semillaVital', 'semillaExplosiva', 'semillaSomnifera', 'orbeEscape', 'orbeLuminoso', 'panueloRojo', 'brazalPiedra', 'talismanVital'];
 /** Surtido de la tienda de la aldea: se amplía con el rango del gremio. */
 const SHOP_TIERS = [
@@ -9603,6 +9609,7 @@ const UI = {
     on('btn-retry', () => game.restart());
     on('btn-result', () => game.goBase());
     on('btn-bag-close', () => game.closeBag());
+    on('btn-bag-x', () => game.closeBag());
     on('btn-moves', () => game.openMoves());
     on('btn-moves-close', () => game.closeMoves());
     on('btn-evo-done', () => game.goBase());
@@ -9767,15 +9774,18 @@ const UI = {
       this.set('bt', this.el('belly-text'), 'text', `${Math.ceil(p.belly)}/${p.bellyMax}`);
       this.set('boonsl', this.el('hud-boons'), 'html', Object.entries(p.boons || {}).map(([id, lv]) => `<i style="--bc:${BOONS[id].color}">◆</i> ${esc(Boons.label(id, lv))}`).join(' · '));
       this.set('inv', this.el('hud-inv'), 'html', `<span>Monedas <b>${g.run.gems}</b></span>` + this.hudInv(p));
+      this.set('qbar', this.el('qbar'), 'html', this.quickBar(g));
       const jobs = g.save.jobs.filter(j => j.dungeon === g.run.dng.id && isLegacyJob(j));
       this.set('cnt', this.el('enemy-count'), 'text', jobs.length ? `Encargos ${g.run.jobsDone.length}/${jobs.length}` : `Nv. enemigos ${enemyLevel(g.run.dng, g.floorRT.floorNo)}`);
       this.set('floorl', this.el('floor-label'), 'text', g.floorRT.label);
     } else if (g.mode === 'village') {
       this.set('inv', this.el('hud-inv'), 'html', `<span>Monedas <b>${g.save.bank}</b></span>` + this.hudInv(p));
+      this.set('qbar', this.el('qbar'), 'html', this.quickBar(g));
       this.set('cnt', this.el('enemy-count'), 'text', `Rango ${rankOf(g.save.points).name}`);
       this.set('floorl', this.el('floor-label'), 'text', VILLAGE_NAME);
     } else {
       this.set('inv', this.el('hud-inv'), 'html', this.hudInv(p));
+      this.set('qbar', this.el('qbar'), 'html', this.quickBar(g));
       const alive = g.actors.filter(a => a.team === 'enemy' && a.alive).length;
       this.set('cnt', this.el('enemy-count'), 'text', `Enemigos ${alive}/${g.waveSize}`);
       this.set('floorl', this.el('floor-label'), 'text', 'Campo de pruebas');
@@ -9887,24 +9897,60 @@ const UI = {
     return this.icons[id];
   },
   rarityChip(r) { return `<span class="tchip" style="--c:${RARITIES[r].color}">${RARITIES[r].name}</span>`; },
-  /** Inventario completo: pestañas por categoría, casillas, equipo, ficha del objeto y estadísticas finales. */
+  /** Silueta de cada ranura de equipo vacía: el icono (apagado) de una pieza real de ese tipo. */
+  slotRef(slot) {
+    this.slotRefs = this.slotRefs || {};
+    if (!(slot in this.slotRefs)) this.slotRefs[slot] = Object.keys(ITEMS).find(id => ITEMS[id].cat === 'equipo' && ITEMS[id].slot === slot) || null;
+    return this.slotRefs[slot];
+  },
+  /** Equipo de la ficha: en una expedición en línea solo se puede mirar (el servidor no admite cambios a mitad de expedición). */
+  invReadOnly(g) { return !!(g.net && g.net.active); },
+  /** Muñeco de la ficha de equipo: el sprite real de la clase (sin capas de equipo: el juego aún no las tiene). */
+  drawInvHeroes(g) {
+    const list = document.querySelectorAll('canvas.inv-hero'); if (!list.length) return;
+    const sp = g.player ? g.player.sp : g.save && FORMS[g.save.species]; if (!sp) return;
+    for (const cv of list) {
+      if (!cv.offsetParent) continue;
+      const c = cv.getContext('2d'); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cv.width, cv.height); c.imageSmoothingEnabled = false;
+      const k = sp.pixel ? 2.2 : 2.6; c.setTransform(k, 0, 0, k, Math.round(cv.width / 2), Math.round(cv.height * (sp.pixel ? .98 : .8)));
+      drawCreature(c, sp, 0, 0, { t: g.time, moving: false, fx: 0, fy: 1, vx: 0, vy: 0, bob: Math.sin(g.time * 2.2) * .7 + .7 }, false);
+    }
+  },
+  /**
+   * Inventario (aldea, expedición y campo de pruebas, mismo diseño): a la izquierda la mochila (pestañas, casillas y ficha
+   * del objeto); a la derecha el personaje con sus seis ranuras reales y sus estadísticas (base, equipo, efectos y la vista
+   * previa del objeto seleccionado, calculada sin cambiar nada). Todas las acciones son las de siempre (g.invAction).
+   */
   renderInventory(el, g, mode) {
-    const ctx = g.invCtx(), inv = ctx.inv, tab = this.invTab || 'todo';
+    const ctx = g.invCtx(), inv = ctx.inv, tab = this.invTab || 'todo', ro = this.invReadOnly(g);
     let sel = this.invSel;
     if (sel && !sel.startsWith('eq:') && !inv.find(sel)) sel = this.invSel = null;
+    if (sel && sel.startsWith('eq:') && !ctx.equip[sel.slice(3)]) sel = this.invSel = null;
     const stacks = inv.stacks.filter(s => tab === 'todo' || ITEMS[s.id].cat === tab);
     const tabs = [['todo', 'Todo']].concat(Object.entries(CATEGORIES).map(([k, v]) => [k, v.name]));
-    const cur = finalStats(ctx.base, ctx.level, ctx.equip, ctx.buffs), plain = calcStats(ctx.base, ctx.level);
-    // ficha del objeto seleccionado
-    let detail = '<p class="empty">Selecciona un objeto para ver su descripción y lo que hace.</p>';
-    const selId = sel ? (sel.startsWith('eq:') ? (ctx.equip[sel.slice(3)] || {}).id : (inv.find(sel) || {}).id) : null;
-    if (selId) {
-      const it = ITEMS[selId], fromEq = sel.startsWith('eq:'), stack = fromEq ? null : inv.find(sel), btn = [];
+    const count = k => inv.stacks.filter(s => k === 'todo' || ITEMS[s.id].cat === k).length;
+    const cur = finalStats(ctx.base, ctx.level, ctx.equip, ctx.buffs), plain = calcStats(ctx.base, ctx.level), gear = finalStats(ctx.base, ctx.level, ctx.equip, {});
+    const sv = g.save, cls = sv ? sv.species : ctx.player && ctx.player.sp.id, lvl = sv ? sv.prog.level : ctx.level;
+    const selId = sel ? (sel.startsWith('eq:') ? (ctx.equip[sel.slice(3)] || {}).id : (inv.find(sel) || {}).id) : null, selIt = selId ? ITEMS[selId] : null;
+    const fromEq = !!(sel && sel.startsWith('eq:'));
+    // Vista previa (no cambia nada): cómo quedarían las estadísticas al equipar o quitar la pieza seleccionada
+    let after = null, fit = null;
+    if (selIt && selIt.cat === 'equipo') {
+      fit = fromEq ? { ok: true } : canEquip(cls, lvl, selIt);
+      after = finalStats(ctx.base, ctx.level, Object.assign({}, ctx.equip, { [selIt.slot]: fromEq ? null : { id: selIt.id } }), ctx.buffs);
+    }
+    const arm = this.invArm && this.invArm.k === sel ? this.invArm.act : null;   // acción que pide confirmación (tirar, vender)
+    // Ficha del objeto seleccionado
+    const howTo = ro ? 'Doble clic en un consumible: usarlo. El equipo solo se puede consultar.' : (g.account && g.mode !== 'dungeon') || mode === 'base' ? 'Doble clic: equipar o quitar. También puedes arrastrar el equipo a su ranura o devolverlo a la mochila.' : 'Doble clic: equipar, quitar o usar. También puedes arrastrar el equipo a su ranura o devolverlo a la mochila.';
+    let detail = `<p class="empty">Selecciona un objeto para ver qué es y qué hace. ${howTo}</p>`;
+    if (selIt) {
+      const it = selIt, stack = fromEq ? null : inv.find(sel), btn = [];
       let extra = '';
       if (it.cat === 'equipo') {
-        const next = Object.assign({}, ctx.equip, { [it.slot]: fromEq ? null : { id: it.id } }), after = finalStats(ctx.base, ctx.level, next, ctx.buffs);
-        extra = `<div class="fx">${modsText(it.mods).map(t => `<span>${t}</span>`).join('')}</div>${it.classes || it.req ? `<small class="req">${it.classes ? 'Clases: ' + it.classes.map(c => FORMS[c].name).join(', ') : 'Todas las clases'}${it.req ? ` · nivel ${it.req.level}` : ''}${(() => { const sv = g.save, ok = canEquip(sv ? sv.species : (g.player && g.player.sp.id), sv ? sv.prog.level : (g.player ? g.player.level : 1), it); return ok.ok ? '' : ` · <b style="color:#ff9a4a">${ok.reason}</b>`; })()}</small>` : ''}<small>${fromEq ? 'Al quitarlo:' : `Al equiparlo en «${EQUIP_SLOTS[it.slot]}»${ctx.equip[it.slot] ? ` (sustituye a ${ITEMS[ctx.equip[it.slot].id].name})` : ''}:`}</small><ul class="diff">${Object.keys(STAT_NAMES).filter(k => after[k] !== cur[k]).map(k => `<li>${STAT_NAMES[k]}: ${fmtStat(k, cur[k])} → <b class="${after[k] > cur[k] ? 'up' : 'down'}">${fmtStat(k, after[k])}</b></li>`).join('') || '<li>Sin cambios</li>'}</ul>`;
-        btn.push(fromEq ? `<button class="btn-sm main" data-act="unequip" data-k="${sel.slice(3)}">Quitar</button>` : `<button class="btn-sm main" data-act="equip" data-k="${sel}">Equipar</button>`);
+        extra = `<div class="fx">${modsText(it.mods).map(t => `<span>${t}</span>`).join('')}</div><small class="req">${it.classes ? 'Clases: ' + it.classes.map(c => FORMS[c].name).join(', ') : 'Todas las clases'}${it.req ? ` · nivel ${it.req.level}` : ''} · ranura: ${EQUIP_SLOTS[it.slot]}${fit && !fit.ok ? ` · <b class="bad">${fit.reason}</b>` : ''}</small>`;
+        if (!fromEq && ctx.equip[it.slot]) extra += `<small>Sustituye a ${ITEMS[ctx.equip[it.slot].id].name}: la verás en la columna «Vista previa».</small>`;
+        if (ro) extra += '<small class="bad">En una expedición en línea el equipo no se puede cambiar.</small>';
+        else btn.push(fromEq ? `<button class="btn-sm main" data-act="unequip" data-k="${sel.slice(3)}">Quitar</button>` : `<button class="btn-sm main" data-act="equip" data-k="${sel}"${fit && !fit.ok ? ' disabled' : ''}>Equipar</button>`);
       }
       if (!fromEq && mode === 'run') {
         if (it.use) btn.push(`<button class="btn-sm main" data-act="use" data-k="${sel}">Usar</button>`);
@@ -9913,28 +9959,112 @@ const UI = {
       }
       if (!fromEq && mode === 'base') {
         if (selId === 'cofre') btn.push(`<button class="btn-sm main" data-act="appraise" data-k="${sel}" ${g.save.bank < ECONOMY.appraise ? 'disabled' : ''}>Tasar (${ECONOMY.appraise} monedas)</button>`);
-        if (it.price) btn.push(`<button class="btn-sm" data-act="sell" data-k="${sel}">Vender (${sellPrice(selId)})</button>`);
-        btn.push(`<button class="btn-sm" data-act="discard" data-k="${sel}">Tirar</button>`);
+        const careful = it.cat === 'equipo' || !['comun', 'pococomun'].includes(it.rarity);   // vender algo valioso pide confirmación
+        if (it.price) btn.push(arm === 'sell' ? `<button class="btn-sm warn" data-act="sell" data-k="${sel}" data-sure="1">Confirmar: vender por ${sellPrice(selId)}</button>` : `<button class="btn-sm" data-act="sell" data-k="${sel}"${careful ? ' data-arm="1"' : ''}>Vender (${sellPrice(selId)})</button>`);
+        btn.push(arm === 'discard' ? `<button class="btn-sm warn" data-act="discard" data-k="${sel}" data-sure="1">Confirmar: tirar${stack && stack.qty > 1 ? ` las ${stack.qty}` : ''}</button>` : `<button class="btn-sm" data-act="discard" data-k="${sel}" data-arm="1">Tirar</button>`);
       }
-      detail = `<div class="dhead"><img src="${this.icon(selId)}" alt=""><div><b>${it.name}</b>${stack && stack.qty > 1 ? ` ×${stack.qty}` : ''}<div>${this.rarityChip(it.rarity)}<span class="tchip" style="--c:#9fb3a3">${CATEGORIES[it.cat].name}</span></div></div></div><p>${it.desc}</p>${extra}<div class="acts">${btn.join('')}</div>`;
+      detail = `<div class="dhead"><img src="${this.icon(selId)}" alt=""><div><b style="color:${RARITIES[it.rarity].color}">${it.name}</b>${stack && stack.qty > 1 ? ` <span class="qty">×${stack.qty}</span>` : ''}<div>${this.rarityChip(it.rarity)}<span class="tchip" style="--c:#9fb3a3">${CATEGORIES[it.cat].name}</span>${fromEq ? '<span class="tchip" style="--c:#d8b45a">Equipado</span>' : ''}</div></div></div><p>${it.desc}</p>${extra}${btn.length ? `<div class="acts">${btn.join('')}</div>` : ''}`;
     }
-    el.innerHTML = `<div class="inv">
-      <div class="inv-tabs" role="tablist">${tabs.map(([k, n]) => `<button class="btn-sm ${k === tab ? 'main' : ''}" data-tab="${k}" role="tab" aria-selected="${k === tab}">${n}</button>`).join('')}<span class="hint-line">${inv.used}/${inv.cap} casillas</span></div>
-      <div class="inv-main">
-        <div class="inv-grid">${stacks.map(s => `<button class="islot" data-sel="${s.uid}" style="--r:${RARITIES[ITEMS[s.id].rarity].color}" aria-pressed="${sel === s.uid}" title="${ITEMS[s.id].name}"><img src="${this.icon(s.id)}" alt="${ITEMS[s.id].name}"><span class="q">${s.qty > 1 ? s.qty : ''}</span></button>`).join('')}${tab === 'todo' ? Array.from({ length: Math.max(0, inv.cap - inv.used) }, () => '<span class="islot empty"></span>').join('') : ''}${!stacks.length && tab !== 'todo' ? '<p class="empty">No tienes objetos de esta categoría.</p>' : ''}</div>
+    // Ranuras alrededor del personaje (las seis reales)
+    const target = selIt && selIt.cat === 'equipo' && !fromEq ? selIt.slot : null;
+    const eslot = slot => {
+      const e = ctx.equip[slot], it = e && ITEMS[e.id], label = EQUIP_SLOTS[slot];
+      const cls2 = ['eslot', e ? 'full' : 'empty', target === slot ? (fit && fit.ok ? 'target' : 'nope') : ''].join(' ');
+      const tip = it ? `${label}: ${it.name} (${RARITIES[it.rarity].name})${ro ? '' : ' · doble clic o arrastrar a la mochila para quitarlo'}` : `${label}: vacío`;
+      return `<button class="${cls2}" data-sel="eq:${slot}" data-slot="${slot}" aria-pressed="${sel === 'eq:' + slot}" title="${esc(tip)}"${e && !ro ? ' draggable="true"' : ''} ${it ? `style="--r:${RARITIES[it.rarity].color}"` : ''}><span class="ebox">${it ? `<img src="${this.icon(e.id)}" alt="">` : (this.slotRef(slot) ? `<img class="ghost" src="${this.icon(this.slotRef(slot))}" alt="">` : '')}</span><small>${label}</small></button>`;
+    };
+    // Estadísticas: base (nivel), equipo, efectos activos y, si hay una pieza seleccionada, la vista previa
+    const fs = (k, v) => FRACTION_STATS.has(k) ? fmtStat(k, Math.abs(v)) : String(Math.round(Math.abs(v)));
+    const signed = (k, v, c) => Math.abs(v) > 1e-6 ? `<em class="${v > 0 ? 'up' : 'down'}${c ? ' ' + c : ''}">${v > 0 ? '+' : '−'}${fs(k, v)}</em>` : '<em class="zero">—</em>';
+    const rows = Object.keys(STAT_NAMES).map(k => {
+      const eq = gear[k] - plain[k], fx = cur[k] - gear[k], pv = after ? after[k] - cur[k] : 0;
+      return `<tr><th>${STAT_NAMES[k]}</th><td>${fmtStat(k, plain[k])}</td><td>${signed(k, eq)}${Math.abs(fx) > 1e-6 ? ` ${signed(k, fx, 'fx')}` : ''}</td><td><b>${fmtStat(k, cur[k])}</b></td>${after ? `<td class="pv">${Math.abs(pv) > 1e-6 ? `<b class="${pv > 0 ? 'up' : 'down'}">${pv > 0 ? '▲' : '▼'} ${fmtStat(k, after[k])}</b>` : '<span class="zero">=</span>'}</td>` : ''}</tr>`;
+    }).join('');
+    const anyFx = Object.keys(STAT_NAMES).some(k => Math.abs(cur[k] - gear[k]) > 1e-6);
+    const sp = ctx.player ? ctx.player.sp : FORMS[cls];
+    el.innerHTML = `<div class="inv2${ro ? ' ro' : ''}">
+      <section class="inv-bag" aria-label="Mochila">
+        <header class="inv-head"><h3>Inventario</h3><span class="cap"><b>${inv.used}</b>/${inv.cap} casillas</span></header>
+        <div class="inv-tabs" role="tablist">${tabs.map(([k, n]) => `<button class="itab${k === tab ? ' on' : ''}" data-tab="${k}" role="tab" aria-selected="${k === tab}">${n} <small>${count(k)}</small></button>`).join('')}</div>
+        <div class="inv-grid" data-drop="bag">${stacks.map(s => { const it = ITEMS[s.id], eq = it.cat === 'equipo', no = eq && !canEquip(cls, lvl, it).ok; return `<button class="islot${eq ? ' is-eq' : ''}${no ? ' cant' : ''}" data-sel="${s.uid}" style="--r:${RARITIES[it.rarity].color}" aria-pressed="${sel === s.uid}" title="${esc(it.name)} · ${RARITIES[it.rarity].name}${eq ? ' · ' + EQUIP_SLOTS[it.slot] : ''}"${eq && !ro ? ' draggable="true"' : ''}><img src="${this.icon(s.id)}" alt="${esc(it.name)}"><span class="q">${s.qty > 1 ? s.qty : ''}</span></button>`; }).join('')}${tab === 'todo' ? Array.from({ length: Math.max(0, inv.cap - inv.used) }, () => '<span class="islot empty"></span>').join('') : ''}${!stacks.length && tab !== 'todo' ? '<p class="empty">No tienes objetos de esta categoría.</p>' : ''}</div>
         <div class="inv-detail">${detail}</div>
-      </div>
-      <div class="eslots">${Object.entries(EQUIP_SLOTS).map(([slot, label]) => { const e = ctx.equip[slot]; return `<button class="eslot" data-sel="eq:${slot}" aria-pressed="${sel === 'eq:' + slot}" ${e ? `style="--r:${RARITIES[ITEMS[e.id].rarity].color}"` : ''}>${e ? `<img src="${this.icon(e.id)}" alt="">` : '<span class="ph"></span>'}<span><small>${label}</small>${e ? ITEMS[e.id].name : 'Vacío'}</span></button>`; }).join('')}</div>
-      <div class="statgrid inv-stats">${Object.keys(STAT_NAMES).map(k => { const b = cur[k] - plain[k], bs = FRACTION_STATS.has(k) ? fmtStat(k, Math.abs(b)) : String(Math.round(Math.abs(b))); return `<div><span>${STAT_NAMES[k]}</span><b>${fmtStat(k, cur[k])}${Math.abs(b) > 1e-6 ? ` <em class="${b > 0 ? 'up' : 'down'}">(${b > 0 ? '+' : '−'}${bs})</em>` : ''}</b></div>`; }).join('')}</div>
+      </section>
+      <section class="inv-char" aria-label="Personaje y equipo">
+        <header class="inv-head"><h3>Equipo</h3><span class="cap">${sp ? esc(sp.name) : ''} · Nv ${lvl}</span></header>
+        <div class="doll"><div class="dcol">${['casco', 'armadura', 'guantes'].map(eslot).join('')}</div><div class="dhero"><canvas class="inv-hero" width="150" height="180"></canvas></div><div class="dcol">${['arma', 'accesorio', 'botas'].map(eslot).join('')}</div></div>
+        ${ro ? '<p class="ro-note">En una expedición en línea el equipo no se puede cambiar: se cambia en la aldea, antes de salir. Aquí puedes consultarlo.</p>' : ''}
+        <table class="inv-stats"><thead><tr><th></th><th>Base</th><th>Equipo${anyFx ? ' <span class="fx">· efectos</span>' : ''}</th><th>Total</th>${after ? `<th class="pv">Vista previa</th>` : ''}</tr></thead><tbody>${rows}</tbody></table>
+      </section>
     </div>`;
-    el.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { this.invTab = b.dataset.tab; this.renderInventory(el, g, mode); }));
-    el.querySelectorAll('[data-sel]').forEach(b => b.addEventListener('click', () => { this.invSel = b.dataset.sel; this.renderInventory(el, g, mode); }));
-    el.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', () => g.invAction(b.dataset.act, b.dataset.k, mode)));
+    this.bindInventory(el, g, mode);
+  },
+  /** Clic, doble clic (o doble toque), arrastrar y soltar: siempre con las acciones reales (g.invAction). */
+  bindInventory(el, g, mode) {
+    const again = () => this.renderInventory(el, g, mode), ro = this.invReadOnly(g);
+    el.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { this.invTab = b.dataset.tab; again(); }));
+    el.querySelectorAll('[data-sel]').forEach(b => b.addEventListener('click', () => {
+      const k = b.dataset.sel, now = performance.now(), dbl = this.lastPick && this.lastPick.k === k && now - this.lastPick.t < 380;
+      this.lastPick = dbl ? null : { k, t: now };
+      this.invSel = k; this.invArm = null;
+      if (dbl) return this.invQuick(g, k, mode);
+      again();
+    }));
+    el.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', () => {
+      if (b.dataset.arm) { this.invArm = { k: b.dataset.k, act: b.dataset.act }; return again(); }   // primero pide confirmación
+      this.invArm = null; g.invAction(b.dataset.act, b.dataset.k, mode);
+    }));
+    // Arrastrar y soltar (ratón). En pantallas táctiles: tocar para seleccionar y doble toque para equipar o usar.
+    el.querySelectorAll('[draggable="true"]').forEach(b => b.addEventListener('dragstart', e => { this.drag = b.dataset.sel; e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', b.dataset.sel); } catch (_) {} b.classList.add('dragging'); }));
+    el.querySelectorAll('[draggable="true"]').forEach(b => b.addEventListener('dragend', () => { this.drag = null; b.classList.remove('dragging'); el.querySelectorAll('.over').forEach(x => x.classList.remove('over')); }));
+    const zones = [...el.querySelectorAll('.eslot'), el.querySelector('[data-drop="bag"]')].filter(Boolean);
+    for (const z of zones) {
+      z.addEventListener('dragover', e => { if (this.drag) { e.preventDefault(); z.classList.add('over'); } });
+      z.addEventListener('dragleave', () => z.classList.remove('over'));
+      z.addEventListener('drop', e => { e.preventDefault(); z.classList.remove('over'); const k = this.drag; this.drag = null; if (k) this.invDrop(g, k, z.dataset.slot || 'bag', mode); });
+    }
+  },
+  /** Doble clic: equipar o quitar una pieza; usar un consumible (durante la expedición). */
+  invQuick(g, k, mode) {
+    if (k.startsWith('eq:')) return this.invDrop(g, k, 'bag', mode);
+    const st = g.invCtx().inv.find(k); if (!st) return;
+    const it = ITEMS[st.id];
+    if (it.cat === 'equipo') return this.invDrop(g, k, it.slot, mode);
+    if (it.use && mode === 'run') return g.invAction('use', k, mode);
+    UI.toast(it.use ? 'Los consumibles se usan durante las expediciones' : `${it.name} no se usa directamente`, '#ff9a4a'); this.renderBag && mode === 'run' ? this.renderBag(g) : UI.renderBase(g);
+  },
+  /** Soltar `k` (casilla de la mochila o «eq:<ranura>») en una ranura o en la mochila. Si no vale, nada cambia y se explica. */
+  invDrop(g, k, to, mode) {
+    const ctx = g.invCtx(), refresh = () => (mode === 'run' ? this.renderBag(g) : this.renderBase(g));
+    const no = msg => { UI.toast(msg, '#ff9a4a'); refresh(); return false; };
+    if (this.invReadOnly(g)) return no('En una expedición en línea el equipo no se puede cambiar: se cambia en la aldea, antes de salir');
+    if (k.startsWith('eq:')) {
+      const slot = k.slice(3); if (!ctx.equip[slot]) return refresh();
+      if (to !== 'bag') return to === slot ? refresh() : no(`${ITEMS[ctx.equip[slot].id].name} va en la ranura «${EQUIP_SLOTS[slot]}»`);
+      return g.invAction('unequip', slot, mode);
+    }
+    const st = ctx.inv.find(k); if (!st) return refresh();
+    const it = ITEMS[st.id];
+    if (to === 'bag') return refresh();
+    if (it.cat !== 'equipo') return no(`${it.name} no es una pieza de equipo`);
+    if (it.slot !== to) return no(`${it.name} va en la ranura «${EQUIP_SLOTS[it.slot]}», no en «${EQUIP_SLOTS[to]}»`);
+    const sv = g.save, ok = canEquip(sv ? sv.species : ctx.player && ctx.player.sp.id, sv ? sv.prog.level : ctx.level, it);
+    if (!ok.ok) return no(ok.reason);
+    return g.invAction('equip', k, mode);
   },
   hudInv(p) {
-    const n = ids => ids.reduce((t, id) => t + p.bag.count(id), 0), b = Object.keys(p.buffs).map(k => `<span class="buff">${k === 'fuerza' ? 'Fuerza' : 'Férreo'} ${Math.ceil(p.buffs[k].t)} s</span>`).join('');
-    return `<span>Inventario <b>${p.bag.used}/${p.bag.cap}</b> <span class="kbd">Tab</span></span><span>Curación <b>${n(QUICK.heal)}</b> <span class="kbd">X</span></span><span>Comida <b>${n(QUICK.food)}</b> <span class="kbd">Z</span></span><span>Energía <b>${n(QUICK.energy)}</b> <span class="kbd">C</span></span>${p.immuneT > 0 ? `<span class="buff">Lúcido ${Math.ceil(p.immuneT)} s</span>` : ''}${b}`;
+    const b = Object.keys(p.buffs).map(k => `<span class="buff">${k === 'fuerza' ? 'Fuerza' : 'Férreo'} ${Math.ceil(p.buffs[k].t)} s</span>`).join('');
+    return `<span>Inventario <b>${p.bag.used}/${p.bag.cap}</b> <span class="kbd">Tab</span></span>${p.immuneT > 0 ? `<span class="buff">Lúcido ${Math.ceil(p.immuneT)} s</span>` : ''}${b}`;
   },
+  /** Barra de consumibles: icono del objeto que se usará, tecla, cantidad y por qué no se puede usar ahora. */
+  quickBar(g) {
+    return Object.keys(QUICK_META).map(kind => {
+      const M = QUICK_META[kind], q = g.quickStatus(kind), it = q.id ? ITEMS[q.id] : null;
+      const tip = it ? `${it.name} · ${it.desc} · ${q.count} ${q.count === 1 ? 'unidad' : 'unidades'} de ${M.label.toLowerCase()} · tecla ${M.key}${q.state !== 'ok' ? ' · ' + q.reason : ''}` : `${M.label} · tecla ${M.key} · ${q.reason}`;
+      const tag = q.state === 'empty' ? 'vacío' : q.state === 'useless' ? q.short : '';
+      return `<button type="button" class="qslot q-${q.state}" data-q="${kind}" title="${esc(tip)}" aria-label="${esc(tip)}"><img src="${this.icon(q.id || QUICK[kind][0])}" alt=""><span class="qkey">${M.key}</span><span class="qn">${q.count}</span>${tag ? `<span class="qtag">${tag}</span>` : ''}</button>`;
+    }).join('');
+  },
+  qdeny(kind) { const b = this.el('qbar') && this.el('qbar').querySelector(`[data-q="${kind}"]`); if (!b) return; b.classList.remove('deny'); void b.offsetWidth; b.classList.add('deny'); },
   /* --- Opciones --- */
   openOptions(g) {
     this.optReturn = this.current === 'pause' ? 'pause' : 'title';
@@ -9957,6 +10087,7 @@ const UI = {
     on('opt-dmg', 'change', e => Options.set('damageNumbers', e.target.checked));
     on('opt-lowgfx', 'change', e => Options.set('lowGfx', e.target.checked));
     on('opt-help', 'change', e => { Options.set('help', e.target.checked); g.helpVisible = e.target.checked; this.el('controls').style.opacity = e.target.checked ? 1 : 0; });
+    this.el('qbar').addEventListener('click', e => { const b = e.target.closest('[data-q]'); if (b && g.state === 'play' && !g.paused) g.quickUse(b.dataset.q); });
     on('btn-options', 'click', () => this.openOptions(g));
     on('btn-options2', 'click', () => this.openOptions(g));
     on('btn-options-close', 'click', () => this.optReturn === 'pause' && g.state === 'play' ? (UI.fillPause(g), this.show('pause')) : g.goTitle());
@@ -10092,7 +10223,7 @@ const UI = {
   },
   renderBag(g) {
     const f = g.floorRT;
-    this.el('bag-info').textContent = `${g.run ? g.run.gems + ' monedas encima' : 'Campo de pruebas'}` + (f && f.unpaid.length ? ` · debes ${f.unpaid.reduce((s, i) => s + i.price, 0)} monedas en la tienda` : '') + ' · el juego está en pausa';
+    this.el('bag-info').textContent = `${g.run ? g.run.gems + ' monedas encima' : 'Campo de pruebas'}` + (f && f.unpaid.length ? ` · debes ${f.unpaid.reduce((s, i) => s + i.price, 0)} monedas en la tienda` : '') + (g.net && g.net.active ? ' · el mundo sigue en marcha: tus compañeros siguen jugando y los enemigos también' : ' · el juego está en pausa');
     this.renderInventory(this.el('bag-list'), g, 'run');
   },
   renderWorkshop(g) {
@@ -10127,7 +10258,7 @@ const UI = {
     this.el('jobs-accepted').querySelectorAll('[data-cancel]').forEach(b => b.addEventListener('click', () => g.cancelJob(+b.dataset.cancel)));
     this.el('jobs-board').querySelectorAll('[data-accept]').forEach(b => b.addEventListener('click', () => g.acceptJob(+b.dataset.accept)));
     const inv = g.baseInv();
-    this.el('bag-count').textContent = `${Object.values(s.equip).filter(Boolean).length}/3 piezas equipadas`;
+    this.el('bag-count').textContent = `${Object.values(s.equip).filter(Boolean).length}/${Object.keys(EQUIP_SLOTS).length} piezas equipadas`;
     this.renderInventory(this.el('base-inv'), g, 'base');
     this.renderWorkshop(g);
     this.renderGuild(g); this.renderCamp(g); this.renderRest(g); this.renderCodex(g); this.renderChapter(g);
@@ -10489,7 +10620,31 @@ const Game = {
     else UI.toast(`Ahora no tiene efecto: ${it.name}`);
     return ok;
   },
-  quickUse(ids) { const p = this.player; for (const id of ids) { const st = p.bag.stacks.find(s => s.id === id); if (st && this.useStack(st.uid)) return true; } UI.toast('No llevas ningún objeto de ese tipo que sirva ahora'); return false; },
+  /**
+   * Estado de un atajo de consumibles (sin cambiar nada): qué objeto se usaría (el primero de su lista que lleves),
+   * cuántos de ese tipo llevas y, si no se puede usar ahora, por qué.
+   */
+  quickStatus(kind) {
+    const p = this.player, ids = QUICK[kind], out = { kind, id: null, count: 0, state: 'ok', reason: '', short: '' };
+    if (!p) return Object.assign(out, { state: 'blocked', reason: 'Ahora no' });
+    out.count = ids.reduce((t, id) => t + p.bag.count(id), 0);
+    out.id = ids.find(id => p.bag.count(id) > 0) || null;
+    if (!p.alive) return Object.assign(out, { state: 'blocked', reason: 'Estás fuera de combate' });
+    if (this.account && this.mode !== 'dungeon') return Object.assign(out, { state: 'blocked', reason: 'En línea, los consumibles se usan durante las expediciones' });
+    if (!out.id) return Object.assign(out, { state: 'empty', reason: QUICK_META[kind].none });
+    if (kind === 'heal' && p.hp >= p.maxHp) return Object.assign(out, { state: 'useless', reason: 'Tus PS están al máximo', short: 'lleno' });
+    if (kind === 'energy' && p.energy >= p.maxEnergy) return Object.assign(out, { state: 'useless', reason: `Tu ${p.sp.resource.toLowerCase()} está al máximo`, short: 'lleno' });
+    return out;
+  },
+  /** Atajo X/Z/C (o clic en su casilla): una pulsación = como mucho una unidad. Si no se puede, dice por qué. */
+  quickUse(kind) {
+    if (Array.isArray(kind)) kind = Object.keys(QUICK).find(k => QUICK[k] === kind);
+    const q = this.quickStatus(kind);
+    if (q.state !== 'ok') { UI.toast(q.reason, '#ff9a4a'); UI.qdeny(kind); return false; }
+    const p = this.player;
+    for (const id of QUICK[kind]) { const st = p.bag.stacks.find(s => s.id === id); if (st && this.useStack(st.uid)) return true; }
+    UI.toast(`Ahora no tiene efecto: ${QUICK_META[kind].label.toLowerCase()}`, '#ff9a4a'); UI.qdeny(kind); return false;
+  },
   buyItem(id) { if (this.account) return this.account.op('buy', { id }); const s = this.save, it = ITEMS[id], inv = this.baseInv(); if (!MerchantIntro.met(s) || !it || !(shopStock(s).includes(id) || forgeStock(s).includes(id)) || s.bank < it.price || inv.room(id) < 1) return false; s.bank -= it.price; inv.add(id); s.bought = (s.bought || 0) + 1; Save.write(s); UI.renderBase(this); return true; },
   craft(i) {
     if (this.account) return this.account.op('craft', { i });
@@ -10867,9 +11022,7 @@ const Game = {
       if (inp.consume('KeyN')) { Options.set('mute', !Options.data.mute); UI.toast(Options.data.mute ? 'Sonido desactivado (N)' : 'Sonido activado (N)'); }
       if (this.paused || !p || !p.alive) return;
       if (inp.consume('Tab') || inp.consume('KeyI')) { this.openBag(); return; }
-      if (inp.consume('KeyX')) this.quickUse(QUICK.heal);
-      if (inp.consume('KeyZ')) this.quickUse(QUICK.food);
-      if (inp.consume('KeyC')) this.quickUse(QUICK.energy);
+      for (const kind of Object.keys(QUICK_META)) if (inp.consume(QUICK_META[kind].code)) this.quickUse(kind);
       if (UI.boonOpts) for (let i = 0; i < 3; i++) if (inp.consume('Digit' + (i + 1)) || inp.consume('Numpad' + (i + 1))) UI.pickBoon(i);
       if (inp.consume('Digit1') || inp.consume('Numpad1')) this.giveOrder('follow');
       if (inp.consume('Digit2') || inp.consume('Numpad2')) this.giveOrder('attack');
@@ -11008,6 +11161,7 @@ const Game = {
     this.renderer.draw(this, alpha);
     if (this.state === 'select') UI.drawPreviews(this.time);
     if (this.save && !UI.screens.base.hidden) UI.drawPortrait(FORMS[this.save.species], this.time, 'base-portrait', 2.4);
+    if ((this.save || this.player) && (!UI.screens.base.hidden || !UI.screens.bagpanel.hidden)) UI.drawInvHeroes(this);   // muñeco de la ficha de equipo
     if (this.state === 'evo' && this.evo) { this.evo.t += dt; UI.drawEvo(this.evo, this.time); if (!this.evo.done && this.evo.t >= 3.6) this.finishEvolution(); }
     if (this.state === 'play' && this.player) {
       UI.drawPortrait(this.player.sp, this.time);

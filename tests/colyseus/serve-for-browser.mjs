@@ -103,6 +103,9 @@ const control = {
   place({ name, x, y }) { const X = playing().exp, m = [...X.members.values()].find(o => o.name === name); m.player.placeAt(x, y); return { x: m.player.x, y: m.player.y }; },
   /** Objetos del suelo según el servidor. */
   floorItems() { const X = playing().exp; return [...X.items.values()].map(it => ({ key: it.key, id: it.id, amount: it.amount, x: it.x, y: it.y, dropBy: it.dropBy || '' })); },
+  /** Mochila, equipo, PS y reloj del servidor de un jugador (y, si se pide, fija sus PS) — pruebas de la interfaz. */
+  bag({ name, hp }) { const X = playing().exp, m = [...X.members.values()].find(x => x.name === name), p = m.player; if (hp != null) p.hp = hp;
+    return { inv: Object.fromEntries(p.bag.stacks.map(s => [s.id, s.qty])), equip: Object.fromEntries(Object.entries(p.equip).map(([k, v]) => [k, v && v.id])), hp: p.hp, maxHp: p.maxHp, time: X.time, x: p.x, y: p.y }; },
   member({ name }) { const X = playing().exp, m = [...X.members.values()].find(x => x.name === name); return { downed: m.downed, hp: m.player.hp, x: m.player.x, y: m.player.y }; },
   /** Derriba a un jugador con un golpe enemigo de verdad (Combat.hit), como en una pelea. */
   down({ name }) { const X = playing().exp, m = [...X.members.values()].find(x => x.name === name), p = m.player;

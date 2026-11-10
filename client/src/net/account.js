@@ -36,7 +36,7 @@ export class OnlineAccount {
       p.sp = FORMS[s.species]; p.prog = s.prog; p.level = s.prog.level; p.equip = s.equip;
       p.bag = new Inventory(s.inv, () => g.bagCap()); p.moves = s.prog.equipped.slice(0, 4); p.recalc(false); p.hp = p.maxHp;
     }
-    try { if (!UI.screens.base.hidden) UI.renderBase(g); if (g.state === 'play') UI.updateHud(g); } catch { /* pantalla no disponible */ }
+    try { if (!UI.screens.base.hidden) UI.renderBase(g); if (!UI.screens.bagpanel.hidden) UI.renderBag(g); if (g.state === 'play') UI.updateHud(g); } catch { /* pantalla no disponible */ }   // la ventana de inventario abierta refleja el perfil del servidor al momento
   }
   /** Operación de la aldea validada por el servidor. */
   async op(op, args) {
