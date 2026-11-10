@@ -1,0 +1,88 @@
+# Estado del proyecto
+
+- **Actualizado:** 2026-11-10, por Claude.
+- **Cómo se mantiene:** este documento se reescribe en cada actualización; el historial está en Git y en [INFORMES_CLAUDE.md](INFORMES_CLAUDE.md).
+- **Estado anterior de referencia:** la sección 17 de `docs/PLAN.md` («Estado de cada parte») sigue en su sitio como histórico del plan del cooperativo. El estado vigente es este documento.
+
+## Versión publicada
+
+| | |
+|---|---|
+| `main` | **0.46** (build 46), commit `5d28bcf`, etiqueta `v0.46` |
+| Instalador de Windows | Compilado por GitHub Actions para 0.44, 0.45 y 0.46 (resultado «success» comprobado en la API de GitHub) |
+| Publicado en `main` el 2026-11-10 | 0.44 (secretos, cadena oculta de Irene, finales), 0.45 (capítulo 1 «Las raíces enfermas») y 0.46 (auditoría del capítulo 1 y correcciones) |
+
+Las versiones 0.45 y 0.46 se subieron directamente a `main`, **antes** de que existiera el protocolo actual (D-001).
+
+## 1. Implementado y probado (en `main`)
+
+Probado con la batería automatizada (`tests/run-all.sh`) en la 0.46: 215 pruebas unitarias, 29 multijugador con Colyseus real, 21 de despliegue y 25 recorridos de navegador. Todas correctas.
+
+- **Combate y clases:** cuatro clases (Guerrero, Arquero, Mago, Asesino), cada una con su ataque básico y **una** habilidad.
+- **Enemigos y jefes:** 47 variantes de enemigos y jefes con mecánicas propias (BossKit).
+- **Mazmorras:** generación procedural con validación de rutas.
+- **Aldea:** reputación, contratos, forja, eventos y tienda.
+- **Guardado:**
+  - sin conexión: versión 10 con migraciones y copia de seguridad;
+  - en línea: perfiles en el servidor.
+- **Cooperativo de hasta 4:** servidor con autoridad (Colyseus); reconexión, expediciones interrumpidas, cambio de anfitrión y recompensas sin duplicar.
+- **Campaña y capítulo 1:** cadenas secretas, finales, Raíces Hondas y el capítulo 1 completo (`docs/CAPITULO_1.md`).
+
+**Lo que no se ha probado:** partidas jugadas a mano por una persona, el servidor desplegado en Internet, PostgreSQL y dispositivos táctiles reales.
+
+## 2. Implementado pendiente de pruebas
+
+Nada. Lo implementado en `main` y en las ramas abiertas tiene sus pruebas automatizadas ejecutadas y correctas.
+
+Queda pendiente la **prueba manual por una persona** de:
+
+- el rediseño de la interfaz;
+- la asistencia del Arquero;
+- la dificultad de Robletón en solitario.
+
+## 3. En desarrollo
+
+Nada en curso.
+
+## 4. Pendiente de revisión o fusión
+
+| Rama | Commits sobre `main` | Contenido | Pruebas | Estado |
+|---|---|---|---|---|
+| `tarea/interfaz-mmo` | `a3972ab`, `00d6d8f` | Barra de consumibles (X, Z, C) e inventario en dos paneles, común a aldea y expedición (INF-004, `docs/INTERFAZ_INVENTARIO.md` en la rama) | Batería completa correcta. Nuevas: inventario sin conexión 18/18 y en línea 8/8 | **Pendiente de revisión y de autorización de fusión** |
+| `tarea/arquero-apuntado` | `94afb02` | Apuntado del Arquero: al sprite (pies), asistencia de 12° opcional, destellos confirmados por el servidor (INF-007, `docs/ARQUERO_APUNTADO.md` en la rama) | Batería completa correcta. Nuevas: 12/12 sin conexión y 5/5 en línea con 280 ms | **Pendiente de revisión y de autorización de fusión** |
+
+**Aviso de fusión:** las dos ramas parten de `0.46` y modifican `prototype/mystery-action.html` (en zonas distintas) y los archivos que se generan a partir de él:
+
+- `client/public/game.js`;
+- `client/index.html`;
+- `shared/engine-core.generated.js`.
+
+Al fusionar la segunda habrá conflictos en los generados. Se resuelven regenerándolos (`node tools/split-prototype.mjs`) y volviendo a ejecutar toda la batería. Ninguna de las dos ramas cambia `version.json`: la versión se decidirá al fusionar.
+
+## 5. Problemas abiertos
+
+Vienen de la auditoría integral (INF-005) y de la del capítulo 1 (INF-002). **Ninguno está corregido todavía** y el director no ha decidido aún el orden.
+
+| Id | Problema | Gravedad |
+|---|---|---|
+| E-1 | En línea, «Lanzar» semillas solo ocurre en el cliente: la mochila del cliente y la del servidor dejan de coincidir y el efecto no es real | ALTO |
+| E-2 | En expediciones en línea no funcionan 7 consumibles: Cristal de experiencia, Semilla ojo y 5 orbes. Se venden y salen en el botín | ALTO |
+| I-1 | Progresión de habilidades incompleta: una habilidad por clase; los huecos de los niveles 7, 10 y 14 se abren vacíos y no hay definitivo | ALTO |
+| I-2 | No hay controles táctiles para moverse ni combatir | ALTO si el móvil es objetivo |
+| — | Los contadores del capítulo no van por capítulo: hay que corregirlo antes del capítulo 2 | MEDIO |
+| — | El Linde se puede repetir sin coste (botín y tablón) | MEDIO |
+| — | `run-all.sh` se detiene en el primer fallo y oculta el resto | MEDIO |
+| — | SQLite de Node es experimental (almacén por defecto) y PostgreSQL no se ha probado en este entorno | MEDIO |
+| E-3 | Partidas antiguas dañadas pueden provocar una excepción en las migraciones | BAJO |
+| E-4 | Hay un `.pyc` de caché de Python en el repositorio | BAJO (borrarlo requiere autorización) |
+
+## 6. Prioridades vigentes
+
+**Sin decidir.** Pendiente de que el director elija el orden de corrección de los problemas abiertos y de la revisión de las dos ramas.
+
+Propuesta de Claude, no aprobada (D-008, INF-005):
+
+1. E-1;
+2. E-2;
+3. I-1;
+4. I-2.
