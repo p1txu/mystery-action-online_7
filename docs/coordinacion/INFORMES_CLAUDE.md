@@ -18,6 +18,50 @@ Los informes INF-001 a INF-007 se redactaron el 2026-11-10, al crear esta carpet
 
 ---
 
+## INF-009 · Dirección artística «Hybrid 2D Fantasy»: documentación y pruebas aisladas (sin cambios en el juego)
+
+- **Fecha:** 2026-11-11.
+- **Rama:** `tarea/direccion-artistica`, commit `05a1d8e` sobre `main` 0.46. Subida a GitHub y **sin fusionar**. Solo los ocho documentos de `docs/arte/`.
+- **Decisiones:** D-015 a D-019 (aprobadas por el director el 2026-11-11, con su alcance exacto) y D-020 a D-028 (propuestas).
+- **Etiqueta local de referencia:** `referencia/antes-direccion-artistica` (= `main`).
+
+**Objetivo.** Aplicar las decisiones AD-1 a AD-11 del director: dirección, documentación aprobada y análisis, sin modificar el juego.
+
+**Documentos** (`docs/arte/`)
+
+| Documento | Contenido |
+|---|---|
+| `BIBLIA_ARTISTICA.md` | Estilo, contorno, materiales, paletas, luz, proporciones, escenarios, animación, coherencia, interfaz, lista de aceptación y referencias |
+| `MUNDO_Y_PERSONAJES.md` | Fichas de zonas, clases, vecinos, familias de enemigos y jefes; bosque abierto: A, B1 y B2 |
+| `PIPELINE_ASSETS.md` | Niveles, vistas, comparativa de animación, formatos, atlas, memoria, organización y diseño de distribución |
+| `ARQUITECTURA_ARTE.md` | Separación entre reglas y presentación, transición temporal, pruebas de resolución y comparación Canvas 2D/PixiJS |
+| `PROTOTIPO_GUERRERO.md` y `PROTOTIPO_BRUMAVERDE.md` | Especificación de los pilotos |
+| `PLAN_PRODUCCION_ARTE.md` | Etapas según AD-11, modelo de producción y derechos, rendimiento, herramientas, esfuerzo, riesgos y decisiones pendientes |
+| `INVENTARIO_ASSETS.md` | Lo que hay que producir, contado en el código |
+
+**Pruebas aisladas**
+
+- Hechas fuera del repositorio, sobre una copia del prototipo y una página aparte, en Chromium sin GPU. **Los tiempos son pesimistas; vale la proporción.**
+- **Juego real, piso del Bosque con 4 héroes, 16 enemigos y combate:**
+  - con el arte actual, pasar a resolución real multiplica el dibujo por **3,7 en 1080p** (de 10 a 37 ms) y por **10 a dpr 2**;
+  - el arte actual sigue viéndose pixelado.
+- **Escena sintética con figuras de alta resolución:**
+  - con el búfer actual, la ilustración queda pixelada (SSIM 0,76) o borrosa con suavizado (0,78);
+  - a resolución real se conserva (0,95–0,99).
+- **Niveles:** un recurso demasiado grande para la pantalla también empeora en Canvas 2D. De ahí la propuesta Ligero 2, Estándar 3 y Alto 4–5 px/u.
+- **Conclusión:** pintar a resolución real es necesario, pero no suficiente por sí solo. No hace falta reescribir el renderizador: `k = 1` ya funciona con el juego actual. Los 60 fps solo se pueden validar en equipos reales.
+
+**Pruebas del repositorio:** `node tools/split-prototype.mjs --check` correcto. No hay cambios de código, así que la batería no aplica.
+
+**Pendiente**
+
+- Revisión del director y de ChatGPT.
+- Decisiones D-020 a D-028.
+- Medición en los equipos del director con la página de prueba (entregada fuera del repositorio).
+- Autorización para descargar PixiJS solo en pruebas (D-025).
+
+---
+
 ## INF-008 · Auditoría visual: capturas reales del juego (sin cambios en el juego)
 
 - **Fecha:** 2026-11-10.

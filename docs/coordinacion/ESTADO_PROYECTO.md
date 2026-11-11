@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-- **Actualizado:** 2026-11-10, por Claude.
+- **Actualizado:** 2026-11-11, por Claude.
 - **Cómo se mantiene:** este documento se reescribe en cada actualización; el historial está en Git y en [INFORMES_CLAUDE.md](INFORMES_CLAUDE.md).
 - **Estado anterior de referencia:** la sección 17 de `docs/PLAN.md` («Estado de cada parte») sigue en su sitio como histórico del plan del cooperativo. El estado vigente es este documento.
 
@@ -42,7 +42,13 @@ Queda pendiente la **prueba manual por una persona** de:
 
 ## 3. En desarrollo
 
-Nada en curso. Esperando la evaluación visual de ChatGPT (INF-008).
+**Dirección artística «Hybrid 2D Fantasy»** (D-015, aprobada el 2026-11-11):
+
+- **Etapa 1 hecha:** documentación y pruebas aisladas, a falta de revisión (INF-009).
+- **Ningún cambio en el juego:** el arte, el renderizador, los mapas y la interfaz siguen como en `main` 0.46.
+- **Siguiente, la etapa 2 (arquitectura gráfica)**, que espera:
+  - la medición en los equipos del director;
+  - la autorización para comparar con PixiJS en pruebas (D-025).
 
 ## 4. Pendiente de revisión o fusión
 
@@ -51,6 +57,7 @@ Nada en curso. Esperando la evaluación visual de ChatGPT (INF-008).
 | `tarea/interfaz-mmo` | `a3972ab`, `00d6d8f` | Barra de consumibles (X, Z, C) e inventario en dos paneles, común a aldea y expedición (INF-004, `docs/INTERFAZ_INVENTARIO.md` en la rama) | Batería completa correcta. Nuevas: inventario sin conexión 18/18 y en línea 8/8 | **Pendiente de revisión y de autorización de fusión** |
 | `tarea/arquero-apuntado` | `94afb02` | Apuntado del Arquero: al sprite (pies), asistencia de 12° opcional, destellos confirmados por el servidor (INF-007, `docs/ARQUERO_APUNTADO.md` en la rama) | Batería completa correcta. Nuevas: 12/12 sin conexión y 5/5 en línea con 280 ms | **Pendiente de revisión y de autorización de fusión** |
 | `tarea/auditoria-visual` | `3b9885d` | Auditoría visual: 39 capturas reales e informe `docs/AUDITORIA_VISUAL_ELDORIA.md` (INF-008). Solo documentación | No aplica (sin cambios de código); `split-prototype --check` correcto | **Pendiente de la evaluación de ChatGPT**. Propuesta: no fusionar las imágenes en `main` (peso de las actualizaciones) |
+| `tarea/direccion-artistica` | `05a1d8e` | Dirección artística: ocho documentos en `docs/arte/` (INF-009). Solo documentación | No aplica (sin cambios de código); `split-prototype --check` correcto | **Pendiente de revisión.** No se fusiona sin autorización |
 
 **Aviso de fusión:** las dos ramas parten de `0.46` y modifican `prototype/mystery-action.html` (en zonas distintas) y los archivos que se generan a partir de él:
 
@@ -76,6 +83,20 @@ Vienen de la auditoría integral (INF-005) y de la del capítulo 1 (INF-002). **
 | — | SQLite de Node es experimental (almacén por defecto) y PostgreSQL no se ha probado en este entorno | MEDIO |
 | E-3 | Partidas antiguas dañadas pueden provocar una excepción en las migraciones | BAJO |
 | E-4 | Hay un `.pyc` de caché de Python en el repositorio | BAJO (borrarlo requiere autorización) |
+
+## 5 bis. Decisiones de dirección artística pendientes
+
+D-020 a D-028 en `DECISIONES_PROYECTO.md`:
+
+- D-020: orden de trabajo;
+- D-021: niveles y vistas;
+- D-022: producción del piloto;
+- D-023: animación;
+- D-024: bosque abierto;
+- D-025: prueba con PixiJS;
+- D-026: distribución;
+- D-027: equipos de referencia;
+- D-028: licencias.
 
 ## 6. Prioridades vigentes
 

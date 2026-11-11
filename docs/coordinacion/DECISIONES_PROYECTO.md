@@ -61,6 +61,7 @@
 - **Autor:** ChatGPT (propuesta de rediseño, entregada por el director), analizada y ajustada por Claude.
 - **Aprobación:** el director, 2026-11-10 («Te doy el visto bueno para comenzar con el rediseño, siguiendo estas decisiones…»).
 - **Implementación:** INF-004, rama `tarea/interfaz-mmo`, pendiente de fusión.
+- **Modificada en parte por D-015** (2026-11-11): el punto «Estilo» pasa a la dirección ilustrada «Hybrid 2D Fantasy». Lo demás de D-003 sigue vigente. El texto original se conserva abajo sin cambios.
 
 **Propuesta**
 
@@ -172,6 +173,70 @@
 - No copiar recursos protegidos de franquicias.
 - Mantener la coherencia del canon; si algo lo contradice, se señala antes de implementarlo.
 
+
+### D-015 · Dirección artística «Hybrid 2D Fantasy» (AD-1)
+
+- **Estado:** aprobada.
+- **Autor:** el director (encargo «ELDORIA — HYBRID 2D FANTASY ART»), con la propuesta de dirección de Claude (`claude/direccion-artistica-hibrida.md` en el proyecto).
+- **Aprobación:** el director, 2026-11-11 («Apruebo abandonar el pixel art como estilo principal y adoptar Hybrid 2D Fantasy»).
+- **Modifica a D-003** en su punto «Estilo»:
+  - el aprobado decía «el visual de Eldoria, sin emojis ni iconos genéricos»;
+  - el encargo que dio lugar a D-003 describía esa identidad con pixel art;
+  - desde D-015, la interfaz también es ilustrada.
+- **Documentación:** `docs/arte/BIBLIA_ARTISTICA.md` (rama `tarea/direccion-artistica`, INF-009).
+
+**Propuesta**
+
+- Abandonar el pixel art como estilo principal: ilustración digital detallada y pintura digital, con recursos propios de alta resolución.
+- **Alcance:** personajes, criaturas, jefes, escenarios, vegetación, objetos, iconos, **interfaz y menús**.
+- Se conservan la cámara cenital, las mecánicas, la arquitectura y las reglas.
+- La opción de mantener arte clásico durante la transición es **temporal** y no debe convertirse en solución permanente.
+
+**Alternativas**
+
+- Seguir con arte generado por código en pixel art.
+- Mejorar el pixel art actual.
+
+### D-016 · Dimensiones según la cámara y vistas justificadas: criterios (AD-2 y AD-3)
+
+- **Estado:** aprobada (criterios). **Los valores concretos están en D-021, en propuesta.**
+- **Autor:** Claude.
+- **Aprobación:** el director, 2026-11-11 («Acepto que las dimensiones dependan de la cámara y de la resolución de destino. Quiero tres niveles de calidad o resolución cuando estén técnicamente justificados»).
+
+**Propuesta**
+
+- El tamaño de cada recurso sale de su tamaño en el mundo y de la densidad de pantalla: zoom × dpr. No hay tamaños fijos arbitrarios.
+- Tres niveles de calidad cuando estén técnicamente justificados.
+- Las vistas de cada personaje se justifican con las animaciones y movimientos del juego; las 5 del Guerrero eran una propuesta inicial.
+- No se producen recursos definitivos todavía.
+
+### D-017 · Distribución del arte separada del repositorio: principio (AD-8)
+
+- **Estado:** aprobada (principio). **El diseño está en D-026, en propuesta.**
+- **Autor:** Claude.
+- **Aprobación:** el director, 2026-11-11 («Acepto estudiar la distribución de los assets en un paquete separado del repositorio principal»).
+- **Propuesta:** estudiar un paquete de arte separado del repositorio, con versión propia, sumas de comprobación, compatibilidad con la versión del juego, caché local, descarga reanudable, recuperación de errores y actualización segura.
+- **Alternativas:** arte dentro del repositorio; repositorio aparte solo de arte.
+
+### D-018 · Objetivo de rendimiento: 60 fps estables (AD-9)
+
+- **Estado:** aprobada (objetivo). **Los equipos de referencia y los criterios están en D-027, en propuesta.**
+- **Autor:** el director.
+- **Aprobación:** el director, 2026-11-11 («Objetivo de 60 FPS estables en condiciones reales»).
+- **Propuesta:**
+  - Las pruebas incluyen 4 jugadores, varios enemigos, combate y efectos, iluminación, escenarios completos y resoluciones habituales.
+  - **No basta con una escena vacía.**
+
+### D-019 · Documentación de la dirección artística (AD-10)
+
+- **Estado:** aprobada y hecha (INF-009).
+- **Autor:** Claude.
+- **Aprobación:** el director, 2026-11-11 («Autorizo crear los ocho documentos de `docs/arte/` que propusiste, en una rama exclusivamente documental»).
+- **Propuesta:**
+  - Ocho documentos en `docs/arte/`, en la rama `tarea/direccion-artistica`, sin fusionar con `main`.
+  - Se conservan los documentos existentes.
+  - Sin cambios de código ni de recursos.
+
 ---
 
 ## B. Propuestas pendientes (sin aprobar)
@@ -256,6 +321,112 @@
   - fusionarlo todo;
   - mover las imágenes a un almacenamiento aparte (por ejemplo, adjuntas a una Release de GitHub).
 
+
+### D-020 · Orden de trabajo de la dirección artística (AD-11)
+
+- **Estado:** propuesta **del director**. El plan revisado la sigue. Falta confirmar si se da por aprobada.
+- **Autor:** el director (2026-11-11, «Propongo este orden»).
+- **Propuesta:**
+  1. completar la dirección artística y la documentación;
+  2. resolver las decisiones de arquitectura gráfica;
+  3. validar el personaje piloto;
+  4. validar el escenario piloto;
+  5. integrar en la planificación el nuevo menú de inicio y la transición a juego 100 % online;
+  6. preparar el plan de producción completa.
+- **Nota de Claude:** el punto 5 choca, a futuro, con «no eliminar el modo offline», que es una restricción de esta fase. Hay que decidir qué pasa con el modo sin conexión antes de implementar (sección C).
+
+### D-021 · Niveles de calidad y vistas por tipo de actor
+
+- **Estado:** propuesta.
+- **Autor:** Claude (INF-009, `docs/arte/PIPELINE_ASSETS.md`).
+- **Propuesta:**
+  - **Niveles de ejecución:** Ligero (2 px/u), Estándar (3 px/u) y Alto (4–5 px/u; no 6, porque las pruebas dan la misma calidad con un 56 % menos de memoria), más el original del artista a 8 px/u o más.
+  - **Vistas:**
+    - héroes, 5 + reflejo;
+    - vecinos, 5 + reflejo para andar;
+    - enemigos con dirección, 3 + reflejo;
+    - enemigos simétricos, 1;
+    - jefes, 3 + reflejo o 1.
+- **Alternativas:**
+  - dos niveles (posibles con WebGL y mipmaps, D-025);
+  - Alto a 6 px/u;
+  - 3 vistas para los héroes;
+  - 8 vistas pintadas.
+
+### D-022 · Modelo de producción del piloto (AD-4)
+
+- **Estado:** propuesta. El director prefiere un proceso mixto; la decisión final está pendiente.
+- **Autor:** Claude, sobre la preferencia del director.
+- **Propuesta:**
+  - producción mixta solo para el piloto (prototipos A y B): IA para explorar y hacer variaciones, artista humano para el diseño final, las piezas y la animación, y revisión antes de integrar;
+  - contrato por hitos y ficha de origen por recurso;
+  - el modelo de la producción completa se decide con los datos del piloto.
+- **Alternativas:** producción humana completa; IA con poco retoque (desaconsejada: coherencia y derechos débiles).
+- **Detalle:** `docs/arte/PLAN_PRODUCCION_ARTE.md`, sección 2.
+
+### D-023 · Herramienta de animación (AD-5)
+
+- **Estado:** propuesta. **No se ha comprado nada.**
+- **Autor:** Claude.
+- **Propuesta:**
+  - evaluar primero con opciones gratuitas (Blender con recorte y horneado; Rive gratis solo para pruebas);
+  - en el Guerrero piloto, comparar esqueleto en vivo frente a horneado a fotogramas;
+  - Spine Essential o Professional solo si el piloto lo justifica.
+- **Alternativas:** Spine; Rive Cadet; DragonBones; esqueleto propio; fotogramas pintados.
+
+### D-024 · Bosque abierto (AD-6)
+
+- **Estado:** propuesta. **El generador no se ha tocado.**
+- **Autor:** Claude.
+- **Propuesta:**
+  - alternativa A (vestir el generador actual, solo dibujo) en el escenario piloto;
+  - si no basta, B1 (generador de claros y senderos con el mismo contrato de datos y versión de generador) como tarea de reglas aparte.
+- **Alternativas:** B2, exterior libre con búsqueda de caminos para la IA.
+- **Detalle:** `docs/arte/MUNDO_Y_PERSONAJES.md`, sección 7.
+
+### D-025 · Renderizador: prueba comparativa Canvas 2D frente a PixiJS (AD-7)
+
+- **Estado:** propuesta. **No se elige ni se migra.**
+- **Autor:** Claude.
+- **Propuesta:**
+  - autorizar la descarga de PixiJS v8 (MIT) **solo en la carpeta de pruebas**, fuera del juego, para medir los dos motores con la misma escena, los mismos recursos y las mismas métricas;
+  - la elección se hace después de revisar los números de los equipos de referencia.
+- **Detalle:** `docs/arte/ARQUITECTURA_ARTE.md`, sección 4.
+
+### D-026 · Diseño de la distribución del arte (AD-8)
+
+- **Estado:** propuesta.
+- **Autor:** Claude.
+- **Propuesta:**
+  - archivos con nombre de su huella sha256;
+  - manifiesto con versión, esquema y versión mínima del juego;
+  - caché local fuera de la copia de seguridad del actualizador;
+  - descarga reanudable por rangos;
+  - cambio atómico de versión;
+  - reparación;
+  - solo https;
+  - firma del manifiesto opcional.
+- **Detalle:** `docs/arte/PIPELINE_ASSETS.md`, sección 7.
+
+### D-027 · Equipos de referencia y criterios de rendimiento (AD-9)
+
+- **Estado:** propuesta.
+- **Autor:** Claude.
+- **Propuesta:**
+  - equipos R0 (los del director) y R1 a R3;
+  - escenas S1 a S6, incluida una en línea con 4 clientes;
+  - métricas de tiempo de fotograma, memoria, carga y estabilidad;
+  - criterios de aprobado de `docs/arte/PLAN_PRODUCCION_ARTE.md`, sección 4.
+- **Pendiente del director:** decir qué equipos tiene disponibles.
+
+### D-028 · Licencias del arte, del repositorio y de las fuentes
+
+- **Estado:** propuesta.
+- **Autor:** Claude.
+- **Propuesta:**
+  - decidir la licencia del paquete de arte y del repositorio (hoy no tiene archivo de licencia);
+  - empaquetar Cinzel y Alegreya Sans con el arte, tras revisar su licencia, para no depender de Google Fonts.
+
 ---
 
 ## C. Asuntos sin decidir (sin propuesta concreta todavía)
@@ -266,4 +437,5 @@
 - Qué hacen en grupo los orbes que hoy solo funcionan sin conexión (por ejemplo, si el Orbe de escape saca a todo el grupo).
 - Dificultad de Robletón en solitario: necesita pruebas con personas.
 - Versión con la que se publicarán los cambios pendientes de fusión.
-- Dirección artística: seguir con arte generado por código o pasar a arte dibujado (propio o con licencia compatible). Pendiente de la evaluación visual de ChatGPT (INF-008).
+- ~~Dirección artística: seguir con arte generado por código o pasar a arte dibujado (propio o con licencia compatible).~~ Resuelto por D-015 (2026-11-11).
+- Futuro del modo sin conexión en la transición a juego 100 % online (D-020, punto 5): eliminarlo, mantenerlo como partida en solitario o convertirlo en servidor local. Afecta a la distribución del arte (D-026).
