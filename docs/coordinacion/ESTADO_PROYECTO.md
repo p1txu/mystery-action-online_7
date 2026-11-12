@@ -1,6 +1,8 @@
 # Estado del proyecto
 
-- **Actualizado:** 2026-11-11, por Claude.
+- **Actualizado:** 2026-11-12, por Claude.
+- **Último informe:** [INF-010](INFORMES_CLAUDE.md) (GitHub como canal de coordinación y entorno local de IA, fase A).
+- **Canal:** este archivo se publica en la rama `coordinacion` de GitHub al terminar cada tarea (D-029). Por dónde empezar: [README.md](README.md), sección «Revisa Eldoria».
 - **Cómo se mantiene:** este documento se reescribe en cada actualización; el historial está en Git y en [INFORMES_CLAUDE.md](INFORMES_CLAUDE.md).
 - **Estado anterior de referencia:** la sección 17 de `docs/PLAN.md` («Estado de cada parte») sigue en su sitio como histórico del plan del cooperativo. El estado vigente es este documento.
 
@@ -50,6 +52,12 @@ Queda pendiente la **prueba manual por una persona** de:
   - la medición en los equipos del director;
   - la autorización para comparar con PixiJS en pruebas (D-025).
 
+**Entorno local de creación de arte con IA** (D-030, encargo del director del 2026-11-12):
+
+- **Fase A (auditoría) hecha** (INF-010): equipo con RX 7800 XT de 16 GB, compatible con ComfyUI y ROCm en Windows según la documentación de ComfyUI.
+- **Nada instalado todavía.**
+- **Fases B a E** (instalación, modelos, pruebas y manual): esperan el resto del encargo y el visto bueno del director a las descargas.
+
 ## 4. Pendiente de revisión o fusión
 
 | Rama | Commits sobre `main` | Contenido | Pruebas | Estado |
@@ -86,7 +94,7 @@ Vienen de la auditoría integral (INF-005) y de la del capítulo 1 (INF-002). **
 
 ## 5 bis. Decisiones de dirección artística pendientes
 
-D-020 a D-028 en `DECISIONES_PROYECTO.md`:
+D-020 a D-028 en `DECISIONES_PROYECTO.md`. D-022 debe rehacerse sin contratación de artistas (D-030):
 
 - D-020: orden de trabajo;
 - D-021: niveles y vistas;

@@ -237,6 +237,50 @@
   - Se conservan los documentos existentes.
   - Sin cambios de código ni de recursos.
 
+
+### D-029 · GitHub como canal compartido de coordinación
+
+- **Estado:** aprobada.
+- **Autor:** el director.
+- **Aprobación:** el director, 2026-11-12:
+  - «A partir de ahora, GitHub será el canal compartido de coordinación entre Claude y ChatGPT para Eldoria.»
+  - «El objetivo es que yo solo tenga que pedir a ChatGPT “Revisa Eldoria” para que pueda leer tu último informe y continuar desde ahí.»
+- **Complementa a D-005** (sistema de coordinación). D-005 sigue vigente; cambia cómo llegan los informes de Claude a ChatGPT: los lee directamente en GitHub en vez de recibirlos copiados por el director.
+
+**Propuesta**
+
+- Repositorio `p1txu/mystery-action-online_7`, rama `coordinacion`.
+- Al terminar cada tarea, Claude:
+  - actualiza `ESTADO_PROYECTO.md` e `INFORMES_CLAUDE.md` con resultados reales, pruebas, errores, archivos afectados y decisiones pendientes;
+  - y los publica en GitHub.
+- Los cambios de código van en una rama de tarea separada, con su nombre y commit en el informe.
+- No se modifica `main` ni se fusionan ramas sin autorización.
+- No se alteran `REVISIONES_CHATGPT.md` ni `DECISIONES_PROYECTO.md` para atribuir aprobaciones no dadas.
+- No se publican contraseñas, tokens, datos personales, rutas privadas sensibles ni información confidencial del ordenador.
+- Para la instalación de ComfyUI y Krita, solo un resumen técnico seguro, sin registros con información privada.
+- Procedimiento detallado: `README.md`, sección «Al terminar cada tarea».
+
+
+### D-030 · Entorno local y gratuito de creación de arte con IA
+
+- **Estado:** aprobada (encargo del director). **La instalación está en curso: fase A hecha; las fases B a E esperan su visto bueno** (INF-010).
+- **Autor:** el director.
+- **Aprobación:** el director, 2026-11-12:
+  - «Quiero que prepares en mi ordenador un entorno gratuito y local de creación de arte mediante IA para el desarrollo de Eldoria.»
+  - Y la lista de gastos que excluye: «No quiero gastar absolutamente nada en: Suscripciones. Créditos de generación. Licencias comerciales de software. Contratación de artistas. Servicios externos de generación de imágenes. Herramientas de animación de pago.»
+
+**Propuesta**
+
+- Herramientas: ComfyUI con soporte para AMD; Krita; Krita AI Diffusion conectado al ComfyUI local; modelos con licencia que permita uso comercial.
+- Todo en una carpeta independiente del juego y del repositorio.
+- Trabajo por fases (auditoría, instalación, modelos, pruebas, documentación), presentando los riesgos antes de instalar.
+
+**Efecto sobre otras decisiones**
+
+- **D-022 (modelo de producción del piloto)** sigue en propuesta, pero la parte de «artista humano contratado» queda fuera por esta indicación.
+- La nueva versión de D-022 (producción con IA local y retoque del director) la registrará Claude como propuesta cuando el director la confirme.
+- **D-023 (animación):** queda limitada a herramientas gratuitas (Blender y alternativas de código abierto).
+
 ---
 
 ## B. Propuestas pendientes (sin aprobar)
@@ -356,6 +400,7 @@
 ### D-022 · Modelo de producción del piloto (AD-4)
 
 - **Estado:** propuesta. El director prefiere un proceso mixto; la decisión final está pendiente.
+- **Nota (2026-11-12):** según D-030, el director no quiere gastar en contratar artistas. Esta propuesta debe rehacerse para una producción con IA local y retoque humano del director. Pendiente de su confirmación.
 - **Autor:** Claude, sobre la preferencia del director.
 - **Propuesta:**
   - producción mixta solo para el piloto (prototipos A y B): IA para explorar y hacer variaciones, artista humano para el diseño final, las piezas y la animación, y revisión antes de integrar;

@@ -18,6 +18,81 @@ Los informes INF-001 a INF-007 se redactaron el 2026-11-10, al crear esta carpet
 
 ---
 
+## INF-010 · GitHub como canal de coordinación y entorno local de IA, fase A (auditoría)
+
+- **Fecha:** 2026-11-12.
+- **Ramas:**
+  - `coordinacion`: este informe, el README (procedimiento y punto de entrada para ChatGPT), D-029 y D-030;
+  - **sin cambios de código** ni ramas de tarea nuevas;
+  - `main` sigue en 0.46 (`5d28bcf`).
+- **Decisiones:** D-029 y D-030 (aprobadas por el director el 2026-11-12, con cita). A D-022 se le añade una nota; sigue en propuesta.
+
+### 1. Coordinación por GitHub (D-029)
+
+- **Comprobación previa:** `origin` traído; `coordinacion` limpia y en `42dc185`, igual que `origin`. Las demás ramas también coinciden con `origin`. No había trabajo ajeno sin integrar.
+- **`README.md`:**
+  - sección **«Revisa Eldoria»** con el orden de lectura y direcciones directas (también en texto sin formato);
+  - sección **«Al terminar cada tarea»** con los 7 pasos del procedimiento, incluida la privacidad.
+- **`ESTADO_PROYECTO.md`:** indica arriba cuál es el último informe.
+
+### 2. Entorno local de IA en el equipo del director: fase A (auditoría, solo lectura)
+
+Resumen técnico seguro (D-029, regla de privacidad): **no se publican datos del equipo más allá de lo técnico necesario.**
+
+**Qué se hizo:** consultar la información del sistema del equipo. **No se instaló, descargó ni modificó nada.**
+
+**Equipo**
+
+| Componente | Dato |
+|---|---|
+| Sistema | Windows 11 Pro, compilación 26200 |
+| Gráfica | AMD Radeon RX 7800 XT (Navi 32, gfx1101), 16 GB de VRAM (especificación de la tarjeta; no confirmada en el Administrador de tareas) |
+| Controlador | Rama Adrenalin 26.x, almacén de controladores 32.0.31041.x |
+| RAM | 32 GB. Con muchas aplicaciones abiertas, el uso rondaba el 79 % |
+| Disco | Espacio suficiente en un SSD NVMe secundario. Se usará una carpeta independiente, fuera del juego y del repositorio |
+
+**Compatibilidad investigada** (fuentes oficiales, noviembre de 2026)
+
+| Herramienta | Situación |
+|---|---|
+| ComfyUI | v0.43.0. Su documentación incluye la RX 7800 XT (`device-gfx1101`) con ROCm en Windows 11. Paquete portátil oficial para AMD. Soporte oficial de AMD en Windows desde enero de 2026 |
+| Matriz oficial de AMD para Windows | ROCm 7.2.1, PyTorch 2.9, Python 3.12. Nombra la RX 7700 (mismo chip gfx1101), **pero no la RX 7800 XT** |
+| Krita AI Diffusion | 1.53.0. Admite AMD con ROCm. Conecta con un ComfyUI propio y necesita 4 nodos adicionales (controlnet_aux, IPAdapter_plus, inpaint-nodes, tooling-nodes). Está hecho para **Krita 5** (recomienda 5.3.2.1), no para Krita 6 |
+
+**Modelos candidatos** (fase C; licencia a revisar de nuevo antes de descargar)
+
+| Modelo | Licencia | Estado |
+|---|---|---|
+| Z-Image Turbo (6B) | Apache 2.0 | Candidato |
+| FLUX.2 klein 4B | Apache 2.0; ~13 GB de VRAM | Candidato |
+| SDXL base 1.0 | Open RAIL++-M | Candidato |
+| FLUX.2 klein 9B, FLUX dev | No comerciales | **Descartados** |
+
+**Riesgos presentados al director**
+
+1. ROCm en Windows es reciente: hay casos de cierres o de lentitud (por ejemplo, con modelos GGUF en la RX 7800 XT).
+2. Puede hacer falta actualizar el controlador. Eso lo haría el director.
+3. Con muchas aplicaciones abiertas queda poca RAM libre.
+4. Krita guarda su configuración y sus plugins en la carpeta de usuario, no en la carpeta del entorno.
+5. **Sin terminal en el equipo:** la instalación se hace manejando la pantalla y el director debe aceptar los avisos de Windows. No se desactiva ninguna medida de seguridad.
+6. Un arte solo con IA tiene problemas de coherencia y de derechos (D-022 y D-030); el retoque del director los reduce.
+
+**Pruebas:** no aplica (fase de auditoría, sin instalación).
+
+**Errores:**
+
+- En la auditoría, el Administrador de tareas no aceptó clics de control remoto, probablemente porque se ejecuta con permisos elevados. Sin efecto en el resultado: los datos se obtuvieron de la información del sistema.
+- El encargo del director llegó cortado en su sección 6 (reglas de seguridad).
+
+**Pendiente del director antes de la fase B**
+
+1. El resto de la sección 6 del encargo.
+2. Elegir ComfyUI portátil para AMD (recomendado: todo en la carpeta del entorno) o ComfyUI Desktop.
+3. Visto bueno a las descargas: ComfyUI portátil AMD, Krita 5.3.x portátil, Krita AI Diffusion 1.53.x y los 4 nodos, todo de fuentes oficiales.
+4. Estar presente para aceptar los avisos de Windows.
+
+---
+
 ## INF-009 · Dirección artística «Hybrid 2D Fantasy»: documentación y pruebas aisladas (sin cambios en el juego)
 
 - **Fecha:** 2026-11-11.

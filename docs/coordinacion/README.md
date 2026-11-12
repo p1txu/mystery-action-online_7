@@ -1,6 +1,25 @@
 # Coordinación de Eldoria: Claude, ChatGPT y el director
 
-Esta carpeta es el punto común de comunicación del proyecto.
+Esta carpeta es el punto común de comunicación del proyecto. **Desde el 2026-11-12, GitHub es el canal compartido** entre Claude y ChatGPT (D-029): el director ya no copia los informes a mano.
+
+## «Revisa Eldoria»: por dónde empezar (para ChatGPT)
+
+Lee, en este orden, los archivos de la rama `coordinacion`:
+
+1. **[ESTADO_PROYECTO.md](ESTADO_PROYECTO.md):** la foto actual. Arriba indica cuál es el último informe.
+2. **[INFORMES_CLAUDE.md](INFORMES_CLAUDE.md):** el informe más reciente es el primero. Cada informe dice qué rama y qué commit revisar.
+3. **[DECISIONES_PROYECTO.md](DECISIONES_PROYECTO.md):** qué está aprobado (sección A), qué está propuesto (B) y qué sin decidir (C).
+4. **[REVISIONES_CHATGPT.md](REVISIONES_CHATGPT.md):** tus revisiones anteriores.
+
+Direcciones directas:
+
+| Para qué | Dirección |
+|---|---|
+| Navegar | https://github.com/p1txu/mystery-action-online_7/tree/coordinacion/docs/coordinacion |
+| Texto sin formato: estado | https://raw.githubusercontent.com/p1txu/mystery-action-online_7/coordinacion/docs/coordinacion/ESTADO_PROYECTO.md |
+| Texto sin formato: informes | https://raw.githubusercontent.com/p1txu/mystery-action-online_7/coordinacion/docs/coordinacion/INFORMES_CLAUDE.md |
+| Texto sin formato: decisiones | https://raw.githubusercontent.com/p1txu/mystery-action-online_7/coordinacion/docs/coordinacion/DECISIONES_PROYECTO.md |
+| Código de una tarea | `https://github.com/p1txu/mystery-action-online_7/tree/<rama>`, con la rama que indique el informe |
 
 - **Dónde vive:** en la rama fija **`coordinacion`**, que solo contiene documentación de coordinación (nunca código).
 - **Fusión con `main`:** solo con autorización expresa del director.
@@ -54,6 +73,26 @@ Cada archivo tiene un solo autor. Así no hay conflictos.
 5. ChatGPT revisa la rama y el informe y entrega su revisión al director, que se la pasa a Claude para transcribirla (`REV-NNN`).
 6. Claude responde a la revisión en INFORMES.
 7. El director decide. La decisión se registra (`D-NNN`) y, solo con su permiso, se fusiona en `main`.
+
+## Al terminar cada tarea (procedimiento de Claude, D-029)
+
+1. **Comprobar Git antes de escribir:** traer `origin`; comprobar que `coordinacion` no tiene cambios ajenos sin integrar y que no se va a sobrescribir nada.
+2. **Actualizar** `ESTADO_PROYECTO.md` (con el número del último informe arriba) y añadir el informe `INF-NNN` en `INFORMES_CLAUDE.md`, con:
+   - resultados reales;
+   - pruebas ejecutadas y su resultado;
+   - errores encontrados;
+   - archivos afectados;
+   - decisiones pendientes.
+3. **Publicar** la rama `coordinacion` en GitHub (commit y push), para que ChatGPT la lea directamente.
+4. **Si hay cambios de código:** van en una rama de tarea separada (`tarea/<nombre>`), y el informe da su nombre y su commit.
+5. **Nunca** modificar `main` ni fusionar ramas sin autorización del director.
+6. **No atribuir aprobaciones:** en `DECISIONES_PROYECTO.md` solo se marca «aprobada» lo que el director ha aprobado expresamente, con su cita. `REVISIONES_CHATGPT.md` solo recibe transcripciones literales.
+7. **Privacidad:** el repositorio es público. No se publican:
+   - contraseñas, tokens ni claves;
+   - datos personales;
+   - rutas privadas sensibles;
+   - información confidencial de los ordenadores (nombres de equipo o de usuario, programas instalados, números de serie, registros completos).
+   - En tareas sobre el equipo del director, solo un **resumen técnico seguro**: versiones, compatibilidad, pruebas, resultados y problemas.
 
 ## Dónde mirar el código
 
